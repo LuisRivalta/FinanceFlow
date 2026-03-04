@@ -36,3 +36,13 @@ desktop.ini
 *.njsproj
 *.sln
 *.sw?
+
+# Projeto antigo (React/Vite)
+react-app/
+
+# Scripts utilitários descartáveis
+check_users.js
+check_users_fetch.js
+convert_fonts.js
+cmdline.txt
+process.json
