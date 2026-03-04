@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Chart, ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler } from 'chart.js'
-import Sidebar from '../components/Sidebar'
-import { useSession } from '../hooks/useSession'
-import { supabase } from '../lib/supabase'
-import { mapFromDB, formatCurrency, getCategoryDetails, CATEGORY_MAP } from '../lib/utils'
+import Sidebar from '../../components/Sidebar'
+import { useSession } from '../../hooks/useSession'
+import { supabase } from '../../lib/supabase'
+import { mapFromDB, formatCurrency, getCategoryDetails, CATEGORY_MAP } from '../../lib/utils'
 
 // Register Chart.js components
 Chart.register(ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler)
@@ -49,6 +50,7 @@ function getCat(id) {
 }
 
 export default function ChartsPage() {
+    const router = useRouter()
     const session = useSession()
     const [allTx, setAllTx] = useState([])
     const [loading, setLoading] = useState(true)
@@ -71,8 +73,13 @@ export default function ChartsPage() {
             if (!error && data) setAllTx(data.map(mapFromDB))
             setLoading(false)
         }
+        if (session === undefined) return
+        if (!session) {
+            router.push('/login')
+            return
+        }
         if (session?.email) load()
-    }, [session])
+    }, [session, router])
 
     const filtered = useMemo(() => {
         if (months === 0) return [...allTx]
@@ -217,6 +224,8 @@ export default function ChartsPage() {
         return entries.map(([id, val]) => ({ cat: getCat(id), val, pct: Math.round((val / max) * 100) }))
     }, [filtered])
 
+    if (session === undefined) return null;
+
     return (
         <div style={{ width: '100%', display: 'flex' }}>
             <div className="bg-grid" />
@@ -260,7 +269,7 @@ export default function ChartsPage() {
                                     { label: '📈 Investimentos', val: totalInvest, count: kpiInvest.length, color: '#8b5cf6' },
                                     { label: '🏦 Saldo Líquido', val: netBalance, sub: netBalance >= 0 ? '✅ Positivo' : '⚠️ Negativo', color: netBalance >= 0 ? '#10b981' : '#ef4444' }
                                 ].map((k, i) => (
-                                    <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <div key={i} className="card glass-panel" style={{ padding: 20, gap: 6 }}>
                                         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 700 }}>{k.label}</div>
                                         <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{fmt(k.val)}</div>
                                         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{k.sub || `${k.count} transação(ões)`}</div>
@@ -333,7 +342,7 @@ export default function ChartsPage() {
 
 function ChartCard({ title, subtitle, children, full }) {
     return (
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 20, padding: 24, gridColumn: full ? '1/-1' : 'auto' }}>
+        <div className="card glass-panel" style={{ gridColumn: full ? '1/-1' : 'auto' }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>{title}</h3>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', margin: '0 0 20px' }}>{subtitle}</p>
             {children}

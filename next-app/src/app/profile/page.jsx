@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import Sidebar from '../components/Sidebar'
-import { useSession, saveSession } from '../hooks/useSession'
-import { supabase } from '../lib/supabase'
+import Sidebar from '../../components/Sidebar'
+import { useSession, saveSession } from '../../hooks/useSession'
+import { supabase } from '../../lib/supabase'
 
 export default function ProfilePage() {
     const session = useSession()
-    const navigate = useRouter()
+    const router = useRouter()
 
     const [displayName, setDisplayName] = useState('')
     const [editMode, setEditMode] = useState(false)
@@ -21,14 +21,20 @@ export default function ProfilePage() {
     const fileInputRef = useRef(null)
 
     useEffect(() => {
-        const prefs = JSON.parse(localStorage.getItem('finance_settings') || '{}')
+        if (session === undefined) return
+        if (!session) {
+            router.push('/login')
+            return
+        }
+
+        const prefs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('finance_settings') || '{}') : {}
         const name = prefs.name || session?.name || 'Usuário'
         setDisplayName(name)
         setInitials(name.substring(0, 2).toUpperCase())
 
-        const savedPhoto = localStorage.getItem('finance_avatar')
+        const savedPhoto = typeof window !== 'undefined' ? localStorage.getItem('finance_avatar') : null
         if (savedPhoto) setAvatarSrc(savedPhoto)
-    }, [session])
+    }, [session, router])
 
     function handleAvatarClick() {
         fileInputRef.current?.click()
@@ -81,11 +87,13 @@ export default function ProfilePage() {
 
     function handleLogout() {
         sessionStorage.removeItem('finance_auth_session')
-        navigate('/login')
+        router.push('/login')
     }
 
     const isAdmin = session?.role === 'admin'
     const roleBadge = isAdmin ? '👑 Administrador ✦' : 'Nível Premium ✶'
+
+    if (session === undefined) return null;
 
     return (
         <div style={{ width: '100%', display: 'flex' }}>
@@ -99,7 +107,7 @@ export default function ProfilePage() {
                             <h2 className="page-title">Meu Perfil</h2>
                             <p className="page-subtitle">Gerencie suas credenciais e configurações de conta.</p>
                         </div>
-                        <button className="btn-primary" onClick={() => navigate('/')} style={{ textDecoration: 'none' }}>
+                        <button className="btn-primary" onClick={() => router.push('/')} style={{ textDecoration: 'none' }}>
                             ← Voltar ao App
                         </button>
                     </header>
@@ -112,7 +120,7 @@ export default function ProfilePage() {
                             {/* Avatar */}
                             <div
                                 onClick={handleAvatarClick}
-                                style={{ width: 120, height: 120, borderRadius: '50%', background: avatarSrc ? 'none' : 'linear-gradient(135deg, var(--accent-primary), #ec4899)', color: 'white', fontSize: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, margin: '0 auto 24px', boxShadow: '0 10px 25px var(--accent-glow)', position: 'relative', overflow: 'hidden', cursor: 'pointer', backgroundImage: avatarSrc ? `url('${avatarSrc}')` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' }}
+                                style={{ width: 120, height: 120, borderRadius: '50%', backgroundImage: avatarSrc ? `url('${avatarSrc}')` : 'linear-gradient(135deg, var(--accent-primary), #ec4899)', color: 'white', fontSize: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, margin: '0 auto 24px', boxShadow: '0 10px 25px var(--accent-glow)', position: 'relative', overflow: 'hidden', cursor: 'pointer', backgroundSize: 'cover', backgroundPosition: 'center' }}
                             >
                                 {!avatarSrc && initials}
                                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s', fontSize: 22, gap: 4 }}
@@ -182,7 +190,7 @@ export default function ProfilePage() {
                                     <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: 15, marginTop: 8 }}>
                                         Gerencie usuários, atribua cargos e controle acessos da plataforma.
                                     </p>
-                                    <button className="btn-primary" onClick={() => navigate('/admin')}>
+                                    <button className="btn-primary" onClick={() => router.push('/admin')}>
                                         <span>🛡️</span> Acessar Painel Admin
                                     </button>
                                 </div>

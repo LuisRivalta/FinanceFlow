@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { Chart, ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler } from 'chart.js'
 import Sidebar from '../components/Sidebar'
 import TxCard from '../components/TxCard'
 import TransactionModal from '../components/TransactionModal'
@@ -8,7 +10,35 @@ import { useSession } from '../hooks/useSession'
 import { useTransactions } from '../hooks/useTransactions'
 import { formatCurrency, calcBalance, calcIncome, calcExpense, calcInvestment, getCategoryDetails } from '../lib/utils'
 
+Chart.register(ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler)
+
+Chart.defaults.color = 'rgba(255,255,255,0.55)'
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)'
+Chart.defaults.font.family = "'Outfit', sans-serif"
+Chart.defaults.font.size = 12
+
+const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+const TOOLTIP_OPTS = {
+    backgroundColor: 'rgba(17,24,39,0.95)',
+    padding: 12,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1
+}
+
+function useChart(canvasRef, config, deps) {
+    const chartRef = useRef(null)
+    useEffect(() => {
+        if (!canvasRef.current) return
+        if (chartRef.current) chartRef.current.destroy()
+        if (config) {
+            chartRef.current = new Chart(canvasRef.current, config)
+        }
+        return () => { if (chartRef.current) chartRef.current.destroy() }
+    }, deps) // eslint-disable-line
+}
+
 export default function DashboardPage() {
+    const router = useRouter()
     const session = useSession()
     const { transactions, loading, load, create, update, remove } = useTransactions(session?.email)
 
@@ -21,20 +51,27 @@ export default function DashboardPage() {
     const [allFilter, setAllFilter] = useState('all')
 
     // Greeting
-    const greeting = useMemo(() => {
+    const [greeting, setGreeting] = useState('Olá 👋')
+
+    useEffect(() => {
         const hour = new Date().getHours()
-        const prefs = JSON.parse(localStorage.getItem('finance_settings') || '{}')
+        const prefs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('finance_settings') || '{}') : {}
         const name = prefs.name || session?.name || 'Usuário'
         const firstName = name.split(' ')[0]
         let word = 'Bom dia,'
         if (hour >= 12 && hour < 18) word = 'Boa tarde,'
         else if (hour >= 18) word = 'Boa noite,'
-        return `${word} ${firstName} 👋`
+        setGreeting(`${word} ${firstName} 👋`)
     }, [session])
 
     useEffect(() => {
+        if (session === undefined) return
+        if (!session) {
+            router.push('/login')
+            return
+        }
         load()
-    }, [load])
+    }, [session, load, router])
 
     // Summaries
     const income = useMemo(() => calcIncome(transactions), [transactions])
@@ -82,6 +119,145 @@ export default function DashboardPage() {
         setModalOpen(true)
     }
 
+    // Chart refs
+    const incRef = useRef(null)
+    const expRef = useRef(null)
+    const invRef = useRef(null)
+    const balRef = useRef(null)
+    const pieRef = useRef(null)
+
+    // Data generation
+    const monthsData = useMemo(() => {
+        if (!transactions) return { inc: { data: [] }, exp: { data: [] }, inv: { data: [] }, bal: { data: [] } }
+
+        const bucketsInc = {}, bucketsExp = {}, bucketsInv = {}, bucketsBal = {}
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date()
+            d.setMonth(d.getMonth() - i)
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+            bucketsInc[key] = 0; bucketsExp[key] = 0; bucketsInv[key] = 0; bucketsBal[key] = 0
+        }
+
+        const sorted = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date))
+
+        for (const k of Object.keys(bucketsInc)) {
+            const [y, m] = k.split('-')
+            const nextMonth = new Date(+y, +m, 1)
+
+            sorted.forEach(t => {
+                const d = new Date(t.date + 'T00:00:00')
+                if (d.getFullYear() === +y && d.getMonth() + 1 === +m) {
+                    if (t.type === 'income') bucketsInc[k] += t.amount
+                    else if (t.type === 'expense') bucketsExp[k] += t.amount
+                    else if (t.type === 'investment') bucketsInv[k] += t.amount
+                }
+
+                if (d < nextMonth) {
+                    if (t.type === 'income') bucketsBal[k] = (bucketsBal[k] || 0) + t.amount
+                    else if (t.type === 'expense') bucketsBal[k] = (bucketsBal[k] || 0) - t.amount
+                    else if (t.type === 'investment') bucketsBal[k] = (bucketsBal[k] || 0) - t.amount
+                }
+            })
+        }
+
+        const buildMetric = (buckets) => {
+            const data = Object.values(buckets)
+            const maxVal = Math.max(...data, 0)
+            let bestMonth = "-"
+            if (maxVal > 0 || data.length > 0) {
+                for (const [k, v] of Object.entries(buckets)) {
+                    if (v === maxVal && maxVal > 0) {
+                        const [y, m] = k.split('-')
+                        bestMonth = new Date(+y, +m - 1).toLocaleDateString('pt-BR', { month: 'short' })
+                        break
+                    }
+                }
+            }
+            return {
+                labels: Object.keys(buckets).map(k => {
+                    const [y, m] = k.split('-')
+                    return new Date(+y, +m - 1).toLocaleDateString('pt-BR', { month: 'short' })
+                }),
+                data,
+                bestMonth,
+                bestVal: maxVal
+            }
+        }
+
+        return {
+            inc: buildMetric(bucketsInc),
+            exp: buildMetric(bucketsExp),
+            inv: buildMetric(bucketsInv),
+            bal: buildMetric(bucketsBal)
+        }
+    }, [transactions])
+
+    const sparkOpts = useMemo(() => ({
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { ...TOOLTIP_OPTS, callbacks: { label: ctx => ' ' + fmt(ctx.raw) } } },
+        scales: { x: { display: true, grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 } } }, y: { display: false } },
+        interaction: { mode: 'index', intersect: false }
+    }), [])
+
+    const incConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.inc.labels, datasets: [{ data: monthsData.inc.data, borderColor: '#10b981', backgroundColor: '#10b98122', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
+    const expConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.exp.labels, datasets: [{ data: monthsData.exp.data, borderColor: '#ef4444', backgroundColor: '#ef444422', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
+    const invConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.inv.labels, datasets: [{ data: monthsData.inv.data, borderColor: '#8b5cf6', backgroundColor: '#8b5cf622', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
+    const balConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.bal.labels, datasets: [{ data: monthsData.bal.data, borderColor: '#3b82f6', backgroundColor: '#3b82f622', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
+
+    useChart(incRef, incConfig, [incConfig])
+    useChart(expRef, expConfig, [expConfig])
+    useChart(invRef, invConfig, [invConfig])
+    useChart(balRef, balConfig, [balConfig])
+
+    const pieConfig = useMemo(() => {
+        const inc = calcIncome(transactions)
+        const exp = calcExpense(transactions)
+        const inv = calcInvestment(transactions)
+
+        let data = [inc, exp, inv]
+        if (inc === 0 && exp === 0 && inv === 0) {
+            data = [1, 1, 1] // placeholder
+        }
+
+        return {
+            type: 'bar',
+            data: { labels: ['Receitas', 'Despesas', 'Investimentos'], datasets: [{ data, backgroundColor: ['#10b981', '#ef4444', '#8b5cf6'], borderRadius: 8, barThickness: 28 }] },
+            plugins: [{
+                id: 'valueLabelsPlugin',
+                afterDatasetsDraw(chart) {
+                    const { ctx, data } = chart;
+                    ctx.save();
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+
+                    chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
+                        const rawValue = data.datasets[0].data[index];
+                        // exclude placeholder
+                        if (rawValue > 0 && !(inc === 0 && exp === 0 && inv === 0)) {
+                            ctx.fillText(fmt(rawValue), datapoint.x + 8, datapoint.y);
+                        }
+                    });
+                    ctx.restore();
+                }
+            }],
+            options: {
+                indexAxis: 'y',
+                layout: { padding: { right: 85 } },
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { ...TOOLTIP_OPTS, callbacks: { label: ctx => { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? Math.round((ctx.raw / total) * 100) : 0; return inc === 0 && exp === 0 && inv === 0 ? ' Sem dados' : ` ${fmt(ctx.raw)} (${pct}%)` } } } },
+                scales: {
+                    x: { display: false, min: 0 },
+                    y: { border: { display: false }, grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.6)', font: { size: 12, weight: '600' } } }
+                }
+            }
+        }
+    }, [transactions])
+    useChart(pieRef, pieConfig, [pieConfig])
+
+    if (session === undefined) return null;
+
     return (
         <div style={{ width: '100%', display: 'flex' }}>
             <div className="bg-grid" />
@@ -89,54 +265,104 @@ export default function DashboardPage() {
                 <Sidebar />
 
                 <main className="main-content">
-                    {/* Header */}
-                    <header className="top-header fade-up">
-                        <div>
-                            <h2 className="page-title">{greeting}</h2>
-                            <p className="page-subtitle">Acompanhe suas finanças em tempo real com controle total.</p>
-                        </div>
-                        <button id="add-transaction-btn" className="btn-primary" onClick={openNew}>
-                            <span className="icon">✨</span> Nova Transação
-                        </button>
-                    </header>
-
-                    {/* Summary Cards */}
-                    <section className="summary-cards fade-up delay-1">
-                        <div className="card glass-panel balance-card">
-                            <div className="card-header">
-                                <h3>Saldo Disponível</h3>
-                                <span className="icon">💰</span>
+                    <div style={{ minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {/* Header */}
+                        <header className="top-header fade-up">
+                            <div>
+                                <h2 className="page-title">{greeting}</h2>
+                                <p className="page-subtitle">Acompanhe suas finanças em tempo real com controle total.</p>
                             </div>
-                            <h2 className={`amount ${balanceClass}`}>{formatCurrency(balance)}</h2>
-                        </div>
+                            <button id="add-transaction-btn" className="btn-primary" onClick={openNew}>
+                                <span className="icon">✨</span> Nova Transação
+                            </button>
+                        </header>
 
-                        <div className="card glass-panel income-card">
-                            <div className="card-header">
-                                <h3>Receita</h3>
-                                <span className="icon">⬆️</span>
+                        {/* Top Stats Row */}
+                        <section className="fade-up delay-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, flexShrink: 0 }}>
+                            <div className="card glass-panel" style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 248, border: '1px solid rgba(16,185,129,0.3)', background: 'linear-gradient(180deg, rgba(16,185,129,0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Receitas Totais</div>
+                                        <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981', margin: '2px 0 6px' }}>{formatCurrency(income)}</div>
+                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', display: 'flex', flexDirection: 'column' }}>
+                                            <span>Melhor mês: {monthsData.inc.bestMonth}</span>
+                                            <span style={{ color: '#10b981', fontWeight: 600 }}>{formatCurrency(monthsData.inc.bestVal)}</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ fontSize: 24, opacity: 0.9 }}>⬆️</div>
+                                </div>
+                                <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}>
+                                    <canvas ref={incRef} />
+                                </div>
                             </div>
-                            <h2 className="amount positive">{formatCurrency(income)}</h2>
-                        </div>
 
-                        <div className="card glass-panel expense-card">
-                            <div className="card-header">
-                                <h3>Despesas Gerais</h3>
-                                <span className="icon">⬇️</span>
+                            <div className="card glass-panel" style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 248, border: '1px solid rgba(239,68,68,0.3)', background: 'linear-gradient(180deg, rgba(239,68,68,0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Despesas Gerais</div>
+                                        <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', margin: '2px 0 6px' }}>{formatCurrency(expense)}</div>
+                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', display: 'flex', flexDirection: 'column' }}>
+                                            <span>Pior mês: {monthsData.exp.bestMonth}</span>
+                                            <span style={{ color: '#ef4444', fontWeight: 600 }}>{formatCurrency(monthsData.exp.bestVal)}</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ fontSize: 24, opacity: 0.9 }}>⬇️</div>
+                                </div>
+                                <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}>
+                                    <canvas ref={expRef} />
+                                </div>
                             </div>
-                            <h2 className="amount negative">{formatCurrency(expense)}</h2>
-                        </div>
 
-                        <div className="card glass-panel investment-card">
-                            <div className="card-header">
-                                <h3>Investimentos</h3>
-                                <span className="icon">🚀</span>
+                            <div className="card glass-panel" style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 248, border: '1px solid rgba(139,92,246,0.3)', background: 'linear-gradient(180deg, rgba(139,92,246,0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Investimentos</div>
+                                        <div style={{ fontSize: 24, fontWeight: 800, color: '#8b5cf6', margin: '2px 0 6px' }}>{formatCurrency(investment)}</div>
+                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', display: 'flex', flexDirection: 'column' }}>
+                                            <span>Melhor mês: {monthsData.inv.bestMonth}</span>
+                                            <span style={{ color: '#8b5cf6', fontWeight: 600 }}>{formatCurrency(monthsData.inv.bestVal)}</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ fontSize: 24, opacity: 0.9 }}>🚀</div>
+                                </div>
+                                <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}>
+                                    <canvas ref={invRef} />
+                                </div>
                             </div>
-                            <h2 className="amount neutral">{formatCurrency(investment)}</h2>
-                        </div>
-                    </section>
+                        </section>
+
+                        {/* Bottom Stats Row */}
+                        <section className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8, alignItems: 'stretch' }}>
+                            {/* Balance */}
+                            <div className="card glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 248, border: '1px solid rgba(59,130,246,0.3)', background: 'linear-gradient(180deg, rgba(59,130,246,0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Saldo Disponível</div>
+                                        <div style={{ fontSize: 28, fontWeight: 800, color: balanceClass === 'negative' ? '#ef4444' : '#3b82f6', margin: '2px 0 4px' }}>{formatCurrency(balance)}</div>
+                                    </div>
+                                    <div style={{ fontSize: 28, opacity: 0.9 }}>💰</div>
+                                </div>
+                                <div style={{ flex: 1, minHeight: 120, width: '100%', marginTop: 12, position: 'relative' }}>
+                                    <canvas ref={balRef} />
+                                </div>
+                            </div>
+
+                            {/* Pie Chart */}
+                            <div className="card glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 248 }}>
+                                <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'linear-gradient(135deg, #f59e0b, #ed8936)', flexShrink: 0 }} />
+                                    Distribuição por Tipo
+                                </div>
+                                <div style={{ flex: 1, minHeight: 120, width: '100%', marginTop: 12, position: 'relative' }}>
+                                    <canvas ref={pieRef} />
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
 
                     {/* Dashboard Content */}
-                    <section className="dashboard-content fade-up delay-2">
+                    <section className="dashboard-content fade-up delay-2" style={{ marginTop: 40 }}>
                         {/* Split Lists */}
                         <div className="recent-transactions glass-panel">
                             <div className="section-header" style={{ marginBottom: 16 }}>

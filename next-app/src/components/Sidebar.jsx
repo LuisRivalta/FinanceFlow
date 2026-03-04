@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSession, clearSession } from '../hooks/useSession'
 import { useEffect, useState } from 'react'
 
@@ -18,7 +18,7 @@ function LogoIcon() {
 export default function Sidebar() {
     const pathName = usePathname();
     const session = useSession()
-    const navigate = useRouter()
+    const router = useRouter()
     const [userName, setUserName] = useState('Usuário')
     const [avatarSrc, setAvatarSrc] = useState(null)
     const [initials, setInitials] = useState('--')
@@ -35,7 +35,7 @@ export default function Sidebar() {
 
     function handleLogout() {
         clearSession()
-        navigate('/login')
+        router.push('/login')
     }
 
     const roleLabel = session?.role === 'admin'
@@ -50,17 +50,17 @@ export default function Sidebar() {
             </div>
 
             <nav className="nav-menu">
-                <Link href="/" end className={`nav-item ${pathName === '$1' ? 'active' : ''}`}>
+                <Link href="/" className={`nav-item ${pathName === '/' ? 'active' : ''}`}>
                     <span className="icon">📊</span> Dashboard
                 </Link>
-                <Link href="/charts" className={`nav-item ${pathName === '$1' ? 'active' : ''}`}>
+                <Link href="/charts" className={`nav-item ${pathName === '/charts' ? 'active' : ''}`}>
                     <span className="icon">📈</span> Gráficos
                 </Link>
-                <Link href="/profile" className={`nav-item ${pathName === '$1' ? 'active' : ''}`}>
+                <Link href="/profile" className={`nav-item ${pathName === '/profile' ? 'active' : ''}`}>
                     <span className="icon">👤</span> Perfil
                 </Link>
                 {session?.role === 'admin' && (
-                    <Link href="/admin" className={`nav-item ${pathName === '$1' ? 'active' : ''}`}>
+                    <Link href="/admin" className={`nav-item ${pathName === '/admin' ? 'active' : ''}`}>
                         <span className="icon">🛡️</span> Admin
                     </Link>
                 )}
@@ -82,13 +82,6 @@ export default function Sidebar() {
                         <span className="user-name">{userName}</span>
                         <span className="user-role">{roleLabel}</span>
                     </div>
-                    <button
-                        onClick={handleLogout}
-                        title="Sair / Logout"
-                        style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', position: 'absolute', right: 0, fontSize: 20, transition: 'color 0.3s ease' }}
-                    >
-                        🚪
-                    </button>
                 </div>
 
                 <Link

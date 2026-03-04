@@ -2,26 +2,26 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Sidebar from '../components/Sidebar'
-import { useSession } from '../hooks/useSession'
-import { supabase } from '../lib/supabase'
+import Sidebar from '../../components/Sidebar'
+import { useSession } from '../../hooks/useSession'
+import { supabase } from '../../lib/supabase'
 
 export default function AdminPage() {
     const session = useSession()
-    const navigate = useRouter()
+    const router = useRouter()
     const [users, setUsers] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
 
     useEffect(() => {
-        if (!session) return
-        if (session.role !== 'admin') {
+        if (session === undefined) return
+        if (!session || session.role !== 'admin') {
             alert('⛔ Acesso Restrito. Você não possui privilégios de Administrador.')
-            navigate('/')
+            router.push('/')
             return
         }
         loadUsers()
-    }, [session])
+    }, [session, router])
 
     async function loadUsers() {
         setLoading(true)
@@ -54,6 +54,8 @@ export default function AdminPage() {
         loadUsers()
     }
 
+    if (session === undefined) return null;
+
     return (
         <div style={{ width: '100%', display: 'flex' }}>
             <div className="bg-grid" />
@@ -66,7 +68,7 @@ export default function AdminPage() {
                             <h2 className="page-title">🛡️ Painel Admin</h2>
                             <p className="page-subtitle">Gerencie usuários, cargos e acessos da plataforma.</p>
                         </div>
-                        <button className="btn-primary" onClick={() => navigate('/profile')}>
+                        <button className="btn-primary" onClick={() => router.push('/profile')}>
                             ← Voltar ao Perfil
                         </button>
                     </header>

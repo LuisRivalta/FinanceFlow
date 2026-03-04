@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../lib/supabase'
-import { saveSession } from '../hooks/useSession'
-import { useSession } from '../hooks/useSession'
+import { supabase } from '../../lib/supabase'
+import { saveSession } from '../../hooks/useSession'
+import { useSession } from '../../hooks/useSession'
 import { useEffect } from 'react'
 
 function LogoIcon({ size = 24 }) {
@@ -18,12 +18,13 @@ function LogoIcon({ size = 24 }) {
 }
 
 export default function LoginPage() {
-    const navigate = useRouter()
+    const router = useRouter()
     const session = useSession()
 
     useEffect(() => {
-        if (session) navigate('/')
-    }, [session, navigate])
+        if (session === undefined) return
+        if (session) router.push('/')
+    }, [session, router])
 
     const [activeTab, setActiveTab] = useState('login')
     const [loading, setLoading] = useState(false)
@@ -70,7 +71,7 @@ export default function LoginPage() {
                 prefs.name = name
                 localStorage.setItem('finance_settings', JSON.stringify(prefs))
                 saveSession({ email, name, role })
-                navigate('/')
+                router.push('/')
                 return
             }
 
@@ -91,7 +92,7 @@ export default function LoginPage() {
             prefs.name = name
             localStorage.setItem('finance_settings', JSON.stringify(prefs))
             saveSession({ email: user.email, name, role })
-            navigate('/')
+            router.push('/')
         } catch (err) {
             setLoginError('Falha crítica: ' + String(err))
         }
@@ -131,7 +132,7 @@ export default function LoginPage() {
                 prefs.name = name
                 localStorage.setItem('finance_settings', JSON.stringify(prefs))
                 saveSession({ email: user.email, name, role: 'user' })
-                navigate('/')
+                router.push('/')
             } else {
                 setOtpEmail(email)
                 setOtpName(name)
@@ -166,7 +167,7 @@ export default function LoginPage() {
             prefs.name = otpName
             localStorage.setItem('finance_settings', JSON.stringify(prefs))
             saveSession({ email: otpEmail, name: otpName, role })
-            navigate('/')
+            router.push('/')
         } catch (err) {
             setOtpError('Erro: ' + String(err))
         }
@@ -216,6 +217,8 @@ export default function LoginPage() {
             </div>
         )
     }
+
+    if (session === undefined) return null;
 
     return (
         <div className="auth-container">
