@@ -63,17 +63,7 @@ body::after {
 }
 
 .bg-grid {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-size: 50px 50px;
-    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-    z-index: -2;
-    mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
+    display: none;
 }
 
 /* Animations */
@@ -123,8 +113,8 @@ body::after {
     width: 100%;
     max-width: 100%;
     margin: 0 auto;
-    padding: 0 32px 0 0;
-    gap: 32px;
+    padding: 0 32px 0 252px;
+    min-height: 100vh;
 }
 
 /* Sidebar */
@@ -134,12 +124,15 @@ body::after {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    z-index: 100;
     border-radius: 0;
     border-left: none;
     border-top: none;
     border-bottom: none;
+    overflow-y: auto;
 }
 
 .logo {
@@ -254,7 +247,6 @@ body::after {
     gap: 20px;
     min-width: 0;
     padding: 24px 0;
-    height: 100vh;
 }
 
 .top-header {
@@ -1064,6 +1056,8 @@ body::after {
         align-items: center;
         position: relative;
         top: 0;
+        left: auto;
+        z-index: auto;
         padding: 20px;
     }
 

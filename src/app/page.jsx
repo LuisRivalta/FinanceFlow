@@ -49,6 +49,18 @@ export default function DashboardPage() {
     const [showAllModal, setShowAllModal] = useState(false)
     const [allSearch, setAllSearch] = useState('')
     const [allFilter, setAllFilter] = useState('all')
+    const [period, setPeriod] = useState('all')
+    const [periodOpen, setPeriodOpen] = useState(false)
+    const periodRef = useRef(null)
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (periodRef.current && !periodRef.current.contains(e.target)) setPeriodOpen(false)
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
 
     // Greeting
     const [greeting, setGreeting] = useState('Olá 👋')
@@ -73,31 +85,41 @@ export default function DashboardPage() {
         load()
     }, [session, load, router])
 
+    // Filter transactions by selected period
+    const filteredTransactions = useMemo(() => {
+        if (period === 'all') return transactions
+        const now = new Date()
+        const monthsMap = { '1m': 1, '3m': 3, '6m': 6, '1y': 12 }
+        const months = monthsMap[period] || 0
+        const cutoff = new Date(now.getFullYear(), now.getMonth() - months, now.getDate())
+        return transactions.filter(t => new Date(t.date + 'T00:00:00') >= cutoff)
+    }, [transactions, period])
+
     // Summaries
-    const income = useMemo(() => calcIncome(transactions), [transactions])
-    const expense = useMemo(() => calcExpense(transactions), [transactions])
-    const investment = useMemo(() => calcInvestment(transactions), [transactions])
+    const income = useMemo(() => calcIncome(filteredTransactions), [filteredTransactions])
+    const expense = useMemo(() => calcExpense(filteredTransactions), [filteredTransactions])
+    const investment = useMemo(() => calcInvestment(filteredTransactions), [filteredTransactions])
     const balance = income - expense - investment
 
     // Recent (last 5)
     const recentTxs = useMemo(() => {
-        let list = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date))
+        let list = [...filteredTransactions].sort((a, b) => new Date(b.date) - new Date(a.date))
         if (filterType !== 'all') list = list.filter(t => t.type === filterType)
         if (searchQuery) list = list.filter(t => t.desc.toLowerCase().includes(searchQuery.toLowerCase()) || (t.note || '').toLowerCase().includes(searchQuery.toLowerCase()))
         return list.slice(0, 5)
-    }, [transactions, filterType, searchQuery])
+    }, [filteredTransactions, filterType, searchQuery])
 
     // All modal filtered
     const allTxs = useMemo(() => {
-        let list = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date))
+        let list = [...filteredTransactions].sort((a, b) => new Date(b.date) - new Date(a.date))
         if (allFilter !== 'all') list = list.filter(t => t.type === allFilter)
         if (allSearch) list = list.filter(t => t.desc.toLowerCase().includes(allSearch.toLowerCase()) || (t.note || '').toLowerCase().includes(allSearch.toLowerCase()))
         return list
-    }, [transactions, allFilter, allSearch])
+    }, [filteredTransactions, allFilter, allSearch])
 
     // Split lists
-    const incomeList = useMemo(() => [...transactions].filter(t => t.type === 'income').sort((a, b) => new Date(b.date) - new Date(a.date)), [transactions])
-    const expenseList = useMemo(() => [...transactions].filter(t => t.type === 'expense' || t.type === 'investment').sort((a, b) => new Date(b.date) - new Date(a.date)), [transactions])
+    const incomeList = useMemo(() => [...filteredTransactions].filter(t => t.type === 'income').sort((a, b) => new Date(b.date) - new Date(a.date)), [filteredTransactions])
+    const expenseList = useMemo(() => [...filteredTransactions].filter(t => t.type === 'expense' || t.type === 'investment').sort((a, b) => new Date(b.date) - new Date(a.date)), [filteredTransactions])
 
     const balanceClass = balance > 0 ? 'positive' : balance < 0 ? 'negative' : ''
 
@@ -128,17 +150,78 @@ export default function DashboardPage() {
 
     // Data generation
     const monthsData = useMemo(() => {
-        if (!transactions) return { inc: { data: [] }, exp: { data: [] }, inv: { data: [] }, bal: { data: [] } }
+        if (!filteredTransactions) return { inc: { data: [] }, exp: { data: [] }, inv: { data: [] }, bal: { data: [] } }
 
+        // For 1-month view, use weekly buckets within the current month
+        if (period === '1m') {
+            const now = new Date()
+            const year = now.getFullYear()
+            const month = now.getMonth()
+            // Create 4 weekly buckets
+            const weekLabels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4']
+            const weekRanges = [
+                { start: 1, end: 7 },
+                { start: 8, end: 14 },
+                { start: 15, end: 21 },
+                { start: 22, end: 31 }
+            ]
+            const wInc = [0, 0, 0, 0], wExp = [0, 0, 0, 0], wInv = [0, 0, 0, 0], wBal = [0, 0, 0, 0]
+
+            filteredTransactions.forEach(t => {
+                const d = new Date(t.date + 'T00:00:00')
+                if (d.getFullYear() === year && d.getMonth() === month) {
+                    const day = d.getDate()
+                    const wi = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3
+                    if (t.type === 'income') wInc[wi] += t.amount
+                    else if (t.type === 'expense') wExp[wi] += t.amount
+                    else if (t.type === 'investment') wInv[wi] += t.amount
+                }
+            })
+
+            // Cumulative balance per week
+            let runBal = 0
+            filteredTransactions
+                .filter(t => { const d = new Date(t.date + 'T00:00:00'); return d.getFullYear() === year && d.getMonth() === month })
+                .sort((a, b) => new Date(a.date) - new Date(b.date))
+                .forEach(t => {
+                    const d = new Date(t.date + 'T00:00:00')
+                    const day = d.getDate()
+                    const wi = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3
+                    if (t.type === 'income') runBal += t.amount
+                    else if (t.type === 'expense') runBal -= t.amount
+                    else if (t.type === 'investment') runBal -= t.amount
+                    wBal[wi] = runBal
+                })
+
+            const buildWeekMetric = (data) => {
+                const maxVal = Math.max(...data, 0)
+                let bestMonth = '-'
+                if (maxVal > 0) {
+                    const idx = data.indexOf(maxVal)
+                    bestMonth = weekLabels[idx]
+                }
+                return { labels: weekLabels, data, bestMonth, bestVal: maxVal }
+            }
+
+            return {
+                inc: buildWeekMetric(wInc),
+                exp: buildWeekMetric(wExp),
+                inv: buildWeekMetric(wInv),
+                bal: buildWeekMetric(wBal)
+            }
+        }
+
+        // For other periods, use monthly buckets
+        const bucketCount = period === '3m' ? 3 : period === '6m' ? 6 : period === '1y' ? 12 : 6
         const bucketsInc = {}, bucketsExp = {}, bucketsInv = {}, bucketsBal = {}
-        for (let i = 5; i >= 0; i--) {
+        for (let i = bucketCount - 1; i >= 0; i--) {
             const d = new Date()
             d.setMonth(d.getMonth() - i)
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
             bucketsInc[key] = 0; bucketsExp[key] = 0; bucketsInv[key] = 0; bucketsBal[key] = 0
         }
 
-        const sorted = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date))
+        const sorted = [...filteredTransactions].sort((a, b) => new Date(a.date) - new Date(b.date))
 
         for (const k of Object.keys(bucketsInc)) {
             const [y, m] = k.split('-')
@@ -190,7 +273,7 @@ export default function DashboardPage() {
             inv: buildMetric(bucketsInv),
             bal: buildMetric(bucketsBal)
         }
-    }, [transactions])
+    }, [filteredTransactions, period])
 
     const sparkOpts = useMemo(() => ({
         responsive: true, maintainAspectRatio: false,
@@ -210,9 +293,9 @@ export default function DashboardPage() {
     useChart(balRef, balConfig, [balConfig])
 
     const pieConfig = useMemo(() => {
-        const inc = calcIncome(transactions)
-        const exp = calcExpense(transactions)
-        const inv = calcInvestment(transactions)
+        const inc = calcIncome(filteredTransactions)
+        const exp = calcExpense(filteredTransactions)
+        const inv = calcInvestment(filteredTransactions)
 
         let data = [inc, exp, inv]
         if (inc === 0 && exp === 0 && inv === 0) {
@@ -267,10 +350,69 @@ export default function DashboardPage() {
                 <main className="main-content">
                     <div style={{ minHeight: 'calc(100vh - 48px)', display: 'flex', flexDirection: 'column', gap: 24 }}>
                         {/* Header */}
-                        <header className="top-header fade-up">
+                        <header className="top-header fade-up" style={{ position: 'relative', zIndex: 50 }}>
                             <div>
                                 <h2 className="page-title">{greeting}</h2>
-                                <p className="page-subtitle">Acompanhe suas finanças em tempo real com controle total.</p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                                    <p className="page-subtitle" style={{ margin: 0 }}>Acompanhe suas finanças em tempo real com controle total.</p>
+                                    {(() => {
+                                        const currentMonth = new Date().toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+                                        const periodOptions = [
+                                            { key: '1m', label: `Este mês (${currentMonth})` },
+                                            { key: '3m', label: 'Últimos 3 meses' },
+                                            { key: '6m', label: 'Últimos 6 meses' },
+                                            { key: '1y', label: 'Último ano' },
+                                            { key: 'all', label: 'Todo o período' }
+                                        ]
+                                        const selectedLabel = periodOptions.find(p => p.key === period)?.label || 'Todo o período'
+                                        return (
+                                            <div ref={periodRef} style={{ position: 'relative', userSelect: 'none' }}>
+                                                <button
+                                                    onClick={() => setPeriodOpen(!periodOpen)}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', gap: 6,
+                                                        padding: '5px 12px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                                                        border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8,
+                                                        cursor: 'pointer', transition: 'all 0.2s',
+                                                        background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)',
+                                                        whiteSpace: 'nowrap'
+                                                    }}
+                                                >
+                                                    📅 {selectedLabel}
+                                                    <span style={{ fontSize: 9, opacity: 0.5, transition: 'transform 0.2s', transform: periodOpen ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>
+                                                </button>
+                                                {periodOpen && (
+                                                    <div style={{
+                                                        position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 200,
+                                                        background: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)',
+                                                        borderRadius: 10, padding: 4, minWidth: 180,
+                                                        boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+                                                        animation: 'fadeUpAnim 0.15s ease forwards'
+                                                    }}>
+                                                        {periodOptions.map(p => (
+                                                            <button
+                                                                key={p.key}
+                                                                onClick={() => { setPeriod(p.key); setPeriodOpen(false) }}
+                                                                style={{
+                                                                    display: 'block', width: '100%', textAlign: 'left',
+                                                                    padding: '8px 12px', fontSize: 12, fontWeight: 500,
+                                                                    fontFamily: 'inherit', border: 'none', borderRadius: 7,
+                                                                    cursor: 'pointer', transition: 'all 0.15s',
+                                                                    background: period === p.key ? 'rgba(99,102,241,0.15)' : 'transparent',
+                                                                    color: period === p.key ? 'white' : 'rgba(255,255,255,0.55)'
+                                                                }}
+                                                                onMouseOver={e => { if (period !== p.key) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                                                                onMouseOut={e => { if (period !== p.key) e.currentTarget.style.background = 'transparent' }}
+                                                            >
+                                                                {period === p.key && '• '}{p.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+                                    })()}
+                                </div>
                             </div>
                             <button id="add-transaction-btn" className="btn-primary" onClick={openNew}>
                                 <span className="icon">✨</span> Nova Transação
@@ -279,8 +421,15 @@ export default function DashboardPage() {
 
                         {/* Top Stats Row */}
                         <section className="fade-up delay-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, flexShrink: 0 }}>
-                            <div className="card glass-panel" style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 248, border: '1px solid rgba(16,185,129,0.3)', background: 'linear-gradient(180deg, rgba(16,185,129,0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div className="card glass-panel" style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 248, border: '1px solid rgba(16,185,129,0.3)', background: 'linear-gradient(180deg, rgba(16,185,129,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
+                                {/* Big faint background icon */}
+                                <svg style={{ position: 'absolute', top: -10, right: 85, width: 140, height: 140, opacity: 0.05, transform: 'rotate(-5deg)', color: '#10b981', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="7" r="5" />
+                                    <text x="12" y="9.5" fontSize="7" fontWeight="bold" fontFamily="sans-serif" textAnchor="middle" stroke="none" fill="currentColor">$</text>
+                                    <path d="M2 14h3v6H2z" />
+                                    <path d="M5 18h3.5l3.5 1.5H18a2.5 2.5 0 0 0 0 -5H12l-2-2H5" />
+                                </svg>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                                     <div>
                                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Receitas Totais</div>
                                         <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981', margin: '2px 0 6px' }}>{formatCurrency(income)}</div>
@@ -289,15 +438,26 @@ export default function DashboardPage() {
                                             <span style={{ color: '#10b981', fontWeight: 600 }}>{formatCurrency(monthsData.inc.bestVal)}</span>
                                         </div>
                                     </div>
-                                    <div style={{ fontSize: 24, opacity: 0.9 }}>⬆️</div>
+                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="12" cy="7" r="5" />
+                                            <text x="12" y="9.5" fontSize="7" fontWeight="bold" fontFamily="sans-serif" textAnchor="middle" stroke="none" fill="currentColor">$</text>
+                                            <path d="M2 14h3v6H2z" />
+                                            <path d="M5 18h3.5l3.5 1.5H18a2.5 2.5 0 0 0 0 -5H12l-2-2H5" />
+                                        </svg>
+                                    </div>
                                 </div>
-                                <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}>
+                                <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative', zIndex: 1 }}>
                                     <canvas ref={incRef} />
                                 </div>
                             </div>
 
-                            <div className="card glass-panel" style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 248, border: '1px solid rgba(239,68,68,0.3)', background: 'linear-gradient(180deg, rgba(239,68,68,0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div className="card glass-panel" style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 248, border: '1px solid rgba(239,68,68,0.3)', background: 'linear-gradient(180deg, rgba(239,68,68,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
+                                {/* Big faint background icon */}
+                                <svg style={{ position: 'absolute', top: -10, right: 85, width: 150, height: 150, opacity: 0.03, color: '#ef4444', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z" />
+                                </svg>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                                     <div>
                                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Despesas Gerais</div>
                                         <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', margin: '2px 0 6px' }}>{formatCurrency(expense)}</div>
@@ -306,15 +466,29 @@ export default function DashboardPage() {
                                             <span style={{ color: '#ef4444', fontWeight: 600 }}>{formatCurrency(monthsData.exp.bestVal)}</span>
                                         </div>
                                     </div>
-                                    <div style={{ fontSize: 24, opacity: 0.9 }}>⬇️</div>
+                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z" />
+                                        </svg>
+                                    </div>
                                 </div>
-                                <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}>
+                                <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative', zIndex: 1 }}>
                                     <canvas ref={expRef} />
                                 </div>
                             </div>
 
-                            <div className="card glass-panel" style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 248, border: '1px solid rgba(139,92,246,0.3)', background: 'linear-gradient(180deg, rgba(139,92,246,0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div className="card glass-panel" style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 248, border: '1px solid rgba(139,92,246,0.3)', background: 'linear-gradient(180deg, rgba(139,92,246,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
+                                {/* Big faint background icon */}
+                                <svg style={{ position: 'absolute', top: 5, right: 85, width: 140, height: 140, opacity: 0.05, color: '#8b5cf6', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="1" y="17" width="3" height="5" />
+                                    <rect x="6" y="13" width="3" height="9" />
+                                    <rect x="11" y="9" width="3" height="13" />
+                                    <rect x="16" y="11" width="4" height="11" />
+                                    <text x="18" y="8" fontSize="9" fontFamily="sans-serif" fontWeight="900" textAnchor="middle" fill="currentColor" stroke="none">$</text>
+                                    <path d="M 1 14 Q 8 10 13 4" />
+                                    <polygon points="14,3 10,5 14,8" fill="currentColor" stroke="none" />
+                                </svg>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                                     <div>
                                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Investimentos</div>
                                         <div style={{ fontSize: 24, fontWeight: 800, color: '#8b5cf6', margin: '2px 0 6px' }}>{formatCurrency(investment)}</div>
@@ -323,9 +497,19 @@ export default function DashboardPage() {
                                             <span style={{ color: '#8b5cf6', fontWeight: 600 }}>{formatCurrency(monthsData.inv.bestVal)}</span>
                                         </div>
                                     </div>
-                                    <div style={{ fontSize: 24, opacity: 0.9 }}>🚀</div>
+                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <rect x="1" y="17" width="3" height="5" />
+                                            <rect x="6" y="13" width="3" height="9" />
+                                            <rect x="11" y="9" width="3" height="13" />
+                                            <rect x="16" y="11" width="4" height="11" />
+                                            <text x="18" y="8" fontSize="9" fontFamily="sans-serif" fontWeight="900" textAnchor="middle" fill="currentColor" stroke="none">$</text>
+                                            <path d="M 1 14 Q 8 10 13 4" />
+                                            <polygon points="14,3 10,5 14,8" fill="currentColor" stroke="none" />
+                                        </svg>
+                                    </div>
                                 </div>
-                                <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}>
+                                <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative', zIndex: 1 }}>
                                     <canvas ref={invRef} />
                                 </div>
                             </div>
@@ -334,13 +518,25 @@ export default function DashboardPage() {
                         {/* Bottom Stats Row */}
                         <section className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8, alignItems: 'stretch' }}>
                             {/* Balance */}
-                            <div className="card glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 248, border: '1px solid rgba(59,130,246,0.3)', background: 'linear-gradient(180deg, rgba(59,130,246,0.08) 0%, rgba(255,255,255,0.02) 100%)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div className="card glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 248, border: '1px solid rgba(59,130,246,0.3)', background: 'linear-gradient(180deg, rgba(59,130,246,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
+                                {/* Big faint background icon */}
+                                <svg style={{ position: 'absolute', top: -10, right: 85, width: 140, height: 140, opacity: 0.04, transform: 'rotate(-5deg)', color: '#3b82f6', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M2 6v12h20V6H2zm18 10H4V8h16v8zm-9-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+                                    <circle cx="5.5" cy="12" r="1.5" />
+                                    <circle cx="18.5" cy="12" r="1.5" />
+                                </svg>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                                     <div>
                                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Saldo Disponível</div>
                                         <div style={{ fontSize: 28, fontWeight: 800, color: balanceClass === 'negative' ? '#ef4444' : '#3b82f6', margin: '2px 0 4px' }}>{formatCurrency(balance)}</div>
                                     </div>
-                                    <div style={{ fontSize: 28, opacity: 0.9 }}>💰</div>
+                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M2 6v12h20V6H2zm18 10H4V8h16v8zm-9-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+                                            <circle cx="5.5" cy="12" r="1.5" />
+                                            <circle cx="18.5" cy="12" r="1.5" />
+                                        </svg>
+                                    </div>
                                 </div>
                                 <div style={{ flex: 1, minHeight: 120, width: '100%', marginTop: 12, position: 'relative' }}>
                                     <canvas ref={balRef} />

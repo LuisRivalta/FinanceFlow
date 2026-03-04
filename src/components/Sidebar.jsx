@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession, clearSession } from '../hooks/useSession'
 import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
 
 function LogoIcon() {
     return (
@@ -29,8 +30,22 @@ export default function Sidebar() {
         setUserName(name)
         setInitials(name.substring(0, 2).toUpperCase())
 
-        const savedPhoto = localStorage.getItem('finance_avatar')
-        if (savedPhoto) setAvatarSrc(savedPhoto)
+        // Load avatar per-user: local cache first, then sync from Supabase
+        const userEmail = session?.email
+        const cacheKey = userEmail ? `finance_avatar_${userEmail}` : null
+        const cachedPhoto = cacheKey ? localStorage.getItem(cacheKey) : null
+        if (cachedPhoto) setAvatarSrc(cachedPhoto)
+
+        if (userEmail) {
+            supabase.from('users').select('avatar_url').eq('email', userEmail).maybeSingle()
+                .then(({ data }) => {
+                    if (data?.avatar_url) {
+                        setAvatarSrc(data.avatar_url)
+                        if (cacheKey) localStorage.setItem(cacheKey, data.avatar_url)
+                    }
+                })
+                .catch(() => { /* use cached */ })
+        }
     }, [session])
 
     function handleLogout() {

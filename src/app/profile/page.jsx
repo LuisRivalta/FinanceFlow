@@ -32,23 +32,52 @@ export default function ProfilePage() {
         setDisplayName(name)
         setInitials(name.substring(0, 2).toUpperCase())
 
-        const savedPhoto = typeof window !== 'undefined' ? localStorage.getItem('finance_avatar') : null
-        if (savedPhoto) setAvatarSrc(savedPhoto)
+        // Load avatar: first check local cache (per-user), then fetch from DB
+        const userEmail = session?.email
+        const cacheKey = userEmail ? `finance_avatar_${userEmail}` : null
+        const cachedPhoto = cacheKey ? localStorage.getItem(cacheKey) : null
+        if (cachedPhoto) {
+            setAvatarSrc(cachedPhoto)
+        }
+
+        // Always try to sync from Supabase
+        if (userEmail) {
+            supabase.from('users').select('avatar_url').eq('email', userEmail).maybeSingle()
+                .then(({ data }) => {
+                    if (data?.avatar_url) {
+                        setAvatarSrc(data.avatar_url)
+                        if (cacheKey) localStorage.setItem(cacheKey, data.avatar_url)
+                    }
+                })
+                .catch(() => { /* use cached version */ })
+        }
     }, [session, router])
 
     function handleAvatarClick() {
         fileInputRef.current?.click()
     }
 
-    function handleFileChange(e) {
+    async function handleFileChange(e) {
         const file = e.target.files[0]
         if (!file) return
         if (file.size > 2 * 1024 * 1024) { alert('⚠️ Imagem muito grande! Max 2MB.'); return }
         const reader = new FileReader()
-        reader.onload = ev => {
+        reader.onload = async (ev) => {
             const base64 = ev.target.result
-            localStorage.setItem('finance_avatar', base64)
             setAvatarSrc(base64)
+
+            const userEmail = session?.email
+            if (userEmail) {
+                // Save per-user in localStorage cache
+                localStorage.setItem(`finance_avatar_${userEmail}`, base64)
+
+                // Save in Supabase database
+                try {
+                    await supabase.from('users').update({ avatar_url: base64 }).eq('email', userEmail)
+                } catch (err) {
+                    console.warn('Avatar save error:', err)
+                }
+            }
         }
         reader.readAsDataURL(file)
     }
