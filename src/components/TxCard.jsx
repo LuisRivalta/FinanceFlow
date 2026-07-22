@@ -1,6 +1,6 @@
 "use client";
 
-import { getCategoryDetails, getAccountLabel, formatCurrency, formatDate } from '../lib/utils'
+import { getCategoryDetails, getAccountLabel, formatCurrency, formatDate } from '../helpers'
 
 export default function TxCard({ tx, onEdit, onDelete }) {
     const isIncome = tx.type === 'income'

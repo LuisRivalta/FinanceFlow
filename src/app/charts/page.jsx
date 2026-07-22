@@ -6,7 +6,7 @@ import { Chart, ArcElement, DoughnutController, LineElement, LineController, Bar
 import Sidebar from '../../components/Sidebar'
 import { useSession } from '../../hooks/useSession'
 import { supabase } from '../../lib/supabase'
-import { mapFromDB, formatCurrency, getCategoryDetails, CATEGORY_MAP } from '../../lib/utils'
+import { mapFromDB, formatCurrency, getCategoryDetails, CATEGORY_MAP } from '../../helpers'
 
 // Register Chart.js components
 Chart.register(ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler)

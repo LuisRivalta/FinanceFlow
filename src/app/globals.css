@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
+.clickable-card { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+.clickable-card:hover { transform: scale(1.02); box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
+
 :root {
     --bg-color: #0d0f14;
     --panel-bg: rgba(255, 255, 255, 0.03);
@@ -1070,6 +1075,13 @@ body::after {
         margin-left: auto;
         margin-right: 24px;
         flex: 0;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    
+    .nav-item {
+        padding: 8px 12px;
+        font-size: 14px;
     }
 
     .top-header {

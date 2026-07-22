@@ -1,0 +1,301 @@
+"use client";
+
+import { useEffect, useState, useMemo, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import Sidebar from '../../components/Sidebar'
+import { useSession } from '../../hooks/useSession'
+import { useTransactions } from '../../hooks/useTransactions'
+import { formatCurrency, calcInvestment, CATEGORY_MAP } from '../../helpers'
+import { Chart, ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler } from 'chart.js'
+
+Chart.register(ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler)
+
+export default function InvestmentsPage() {
+    const session = useSession()
+    const router = useRouter()
+    const { transactions, loading: txLoading } = useTransactions()
+
+    // Simulator State
+    const [simInitial, setSimInitial] = useState(1000)
+    const [simMonthly, setSimMonthly] = useState(200)
+    const [simYears, setSimYears] = useState(5)
+    const [simRate, setSimRate] = useState(10.4) // Annual rate %
+    
+    const chartRef = useRef(null)
+    const chartInstance = useRef(null)
+
+    useEffect(() => {
+        if (session === undefined) return
+        if (!session) {
+            router.push('/login')
+        }
+    }, [session, router])
+
+    const invTransactions = useMemo(() => transactions.filter(t => t.type === 'investment'), [transactions])
+    
+    // Stats
+    const totalInvested = useMemo(() => calcInvestment(invTransactions), [invTransactions])
+    
+    const catTotals = useMemo(() => {
+        const totals = { stocks: 0, crypto: 0, fixed: 0, other_inv: 0 }
+        invTransactions.forEach(t => {
+            if (totals[t.category] !== undefined) totals[t.category] += t.amount
+            else totals.other_inv += t.amount
+        })
+        return totals
+    }, [invTransactions])
+
+    // Simulator Calculation
+    const simData = useMemo(() => {
+        const months = simYears * 12
+        const monthlyRate = Math.pow(1 + (simRate / 100), 1/12) - 1
+        
+        let currentGross = simInitial
+        let currentInvested = simInitial
+        
+        const labels = []
+        const dataGross = []
+        const dataInvested = []
+
+        labels.push('Hoje')
+        dataGross.push(currentGross)
+        dataInvested.push(currentInvested)
+
+        for (let m = 1; m <= months; m++) {
+            currentGross = currentGross * (1 + monthlyRate) + simMonthly
+            currentInvested += simMonthly
+            
+            // Gravar por ano ou a cada 6 meses se for muito longo
+            if (m % 12 === 0 || m === months) {
+                labels.push(`${m/12} ${m === 12 ? 'Ano' : 'Anos'}`)
+                dataGross.push(currentGross)
+                dataInvested.push(currentInvested)
+            }
+        }
+
+        return { labels, dataGross, dataInvested, finalGross: currentGross, finalInvested: currentInvested }
+    }, [simInitial, simMonthly, simYears, simRate])
+
+    useEffect(() => {
+        if (!chartRef.current) return
+        if (chartInstance.current) {
+            chartInstance.current.destroy()
+        }
+
+        const ctx = chartRef.current.getContext('2d')
+        
+        const gradGross = ctx.createLinearGradient(0, 0, 0, 400)
+        gradGross.addColorStop(0, 'rgba(234, 179, 8, 0.4)')
+        gradGross.addColorStop(1, 'rgba(234, 179, 8, 0.0)')
+
+        const gradInvested = ctx.createLinearGradient(0, 0, 0, 400)
+        gradInvested.addColorStop(0, 'rgba(255, 255, 255, 0.15)')
+        gradInvested.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
+
+        chartInstance.current = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: simData.labels,
+                datasets: [
+                    {
+                        label: 'Valor Total Bruto',
+                        data: simData.dataGross,
+                        borderColor: '#eab308',
+                        backgroundColor: gradGross,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#eab308',
+                        pointBorderColor: '#fff',
+                        pointRadius: 4,
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Total Investido',
+                        data: simData.dataInvested,
+                        borderColor: 'rgba(255,255,255,0.4)',
+                        backgroundColor: gradInvested,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        borderDash: [5, 5],
+                        fill: true,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.7)', usePointStyle: true, padding: 20 }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                        titleColor: 'rgba(255,255,255,0.9)',
+                        bodyColor: '#eab308',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        padding: 12,
+                        callbacks: {
+                            label: (ctx) => {
+                                return ctx.dataset.label + ': ' + formatCurrency(ctx.raw)
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+                        ticks: { color: 'rgba(255,255,255,0.4)' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.4)',
+                            callback: (val) => new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(val)
+                        }
+                    }
+                }
+            }
+        })
+    }, [simData])
+
+    if (!session) return null
+
+    return (
+        <div style={{ width: '100%', display: 'flex' }}>
+            <div className="bg-grid" />
+            <div className="app-container">
+                <Sidebar />
+                <main className="main-content">
+                <header className="fade-up" style={{ marginBottom: 40 }}>
+                    <h2 style={{ fontSize: 32, fontWeight: 700, margin: 0 }}>🏦 Meus Investimentos</h2>
+                    <p style={{ color: 'var(--text-secondary)', marginTop: 8 }}>Gerencie seu patrimônio e simule seus rendimentos.</p>
+                </header>
+
+                <div className="fade-up delay-1" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24, marginBottom: 40 }}>
+                    <div className="card glass-panel" style={{ padding: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, rgba(234,179,8,0.1) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(234,179,8,0.3)', position: 'relative', overflow: 'hidden' }}>
+                        <svg style={{ position: 'absolute', right: -20, top: -20, width: 250, height: 250, opacity: 0.05, color: '#eab308' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                        <div style={{ position: 'relative', zIndex: 1 }}>
+                            <div style={{ fontSize: 14, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>Total Investido</div>
+                            <div style={{ fontSize: 48, fontWeight: 800, color: '#eab308' }}>
+                                {txLoading ? '...' : formatCurrency(totalInvested)}
+                            </div>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: 24, position: 'relative', zIndex: 1 }}>
+                            {CATEGORY_MAP.investment.map(cat => (
+                                <div key={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: 14 }}>
+                                        <span style={{ color: cat.color }}>{cat.icon}</span> {cat.label}
+                                    </div>
+                                    <div style={{ fontSize: 18, fontWeight: 600, color: 'white' }}>
+                                        {formatCurrency(catTotals[cat.id] || 0)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Simulador Section */}
+                <h3 className="fade-up delay-2" style={{ fontSize: 24, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span>🧮</span> Simulador de Juros Compostos
+                </h3>
+                <div className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: 24, alignItems: 'stretch' }}>
+                    
+                    {/* Controles do Simulador */}
+                    <div className="card glass-panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                        <div>
+                            <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Valor Inicial</label>
+                            <div className="input-group" style={{ margin: 0 }}>
+                                <span className="icon">💰</span>
+                                <input 
+                                    type="number" 
+                                    value={simInitial} 
+                                    onChange={e => setSimInitial(Number(e.target.value))}
+                                    min="0"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Aporte Mensal</label>
+                            <div className="input-group" style={{ margin: 0 }}>
+                                <span className="icon">📅</span>
+                                <input 
+                                    type="number" 
+                                    value={simMonthly} 
+                                    onChange={e => setSimMonthly(Number(e.target.value))}
+                                    min="0"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Taxa de Rendimento Anual (%)</label>
+                            <div className="input-group" style={{ margin: 0 }}>
+                                <span className="icon">📈</span>
+                                <input 
+                                    type="number" 
+                                    value={simRate} 
+                                    onChange={e => setSimRate(Number(e.target.value))}
+                                    step="0.1"
+                                />
+                            </div>
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 8 }}>Ex: 10.4 para CDI/Selic atual</div>
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Período (Anos)</label>
+                            <div className="input-group" style={{ margin: 0 }}>
+                                <span className="icon">⏳</span>
+                                <input 
+                                    type="number" 
+                                    value={simYears} 
+                                    onChange={e => setSimYears(Number(e.target.value))}
+                                    min="1"
+                                    max="50"
+                                />
+                            </div>
+                        </div>
+                        
+                        <div style={{ marginTop: 'auto', paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Total Investido:</span>
+                                <span>{formatCurrency(simData.finalInvested)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Juros Ganhos:</span>
+                                <span style={{ color: '#10b981' }}>+ {formatCurrency(simData.finalGross - simData.finalInvested)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, marginTop: 12, color: '#eab308' }}>
+                                <span>Valor Final Bruto:</span>
+                                <span>{formatCurrency(simData.finalGross)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Gráfico do Simulador */}
+                    <div className="card glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 20, color: 'white' }}>
+                            Projeção de Crescimento do Patrimônio
+                        </div>
+                        <div style={{ flex: 1, minHeight: 400, position: 'relative' }}>
+                            <canvas ref={chartRef} />
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+            </div>
+        </div>
+    )
+}

@@ -6,9 +6,10 @@ import { Chart, ArcElement, DoughnutController, LineElement, LineController, Bar
 import Sidebar from '../components/Sidebar'
 import TxCard from '../components/TxCard'
 import TransactionModal from '../components/TransactionModal'
+import DetailsModal from '../components/DetailsModal'
 import { useSession } from '../hooks/useSession'
 import { useTransactions } from '../hooks/useTransactions'
-import { formatCurrency, calcBalance, calcIncome, calcExpense, calcInvestment, getCategoryDetails } from '../lib/utils'
+import { formatCurrency, calcBalance, calcIncome, calcExpense, calcInvestment, getCategoryDetails } from '../helpers'
 
 Chart.register(ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler)
 
@@ -52,6 +53,9 @@ export default function DashboardPage() {
     const [period, setPeriod] = useState('all')
     const [periodOpen, setPeriodOpen] = useState(false)
     const periodRef = useRef(null)
+    const [detailView, setDetailView] = useState(null)
+
+
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -95,11 +99,76 @@ export default function DashboardPage() {
         return transactions.filter(t => new Date(t.date + 'T00:00:00') >= cutoff)
     }, [transactions, period])
 
+    const detailInfo = useMemo(() => {
+        if (!detailView) return { transactions: [], title: '', color: '' }
+        let list = []
+        let title = ''
+        let color = ''
+
+        if (detailView === 'income') {
+            list = filteredTransactions.filter(t => t.type === 'income')
+            title = 'Detalhes de Receitas'
+            color = '#10b981'
+        } else if (detailView === 'expense') {
+            list = filteredTransactions.filter(t => t.type === 'expense' && t.category !== 'invoice_payment')
+            title = 'Detalhes de Despesas'
+            color = '#ef4444'
+        } else if (detailView === 'investment') {
+            list = filteredTransactions.filter(t => t.type === 'investment')
+            title = 'Detalhes de Investimentos'
+            color = '#eab308'
+        } else if (detailView === 'balance') {
+            list = filteredTransactions
+            title = 'Movimentações do Período'
+            color = '#3b82f6'
+        } else if (detailView === 'invoices') {
+            const now = new Date()
+            const y = now.getFullYear()
+            const m = now.getMonth()
+            list = transactions.filter(t => {
+                const d = new Date(t.date + 'T00:00:00')
+                return t.account === 'credit' && t.type === 'expense' && d.getFullYear() === y && d.getMonth() === m
+            })
+            title = 'Faturas Deste Mês'
+            color = '#8b5cf6'
+        }
+
+        return {
+            transactions: list.slice().sort((a, b) => new Date(b.date) - new Date(a.date)),
+            title,
+            color
+        }
+    }, [detailView, filteredTransactions, transactions])
+
     // Summaries
     const income = useMemo(() => calcIncome(filteredTransactions), [filteredTransactions])
     const expense = useMemo(() => calcExpense(filteredTransactions), [filteredTransactions])
     const investment = useMemo(() => calcInvestment(filteredTransactions), [filteredTransactions])
-    const balance = income - expense - investment
+    const balance = useMemo(() => calcBalance(filteredTransactions), [filteredTransactions])
+    
+    const globalBalance = useMemo(() => {
+        return transactions.reduce((acc, t) => {
+            if (t.type === 'income') return acc + t.amount
+            if (t.type === 'expense') return acc - t.amount
+            if (t.type === 'investment') return acc - t.amount
+            return acc
+        }, 0)
+    }, [transactions])
+    
+    const totalInvoices = useMemo(() => {
+        const now = new Date()
+        const y = now.getFullYear()
+        const m = now.getMonth()
+        return transactions.reduce((acc, t) => {
+            const d = new Date(t.date + 'T00:00:00')
+            if (t.account === 'credit' && t.type === 'expense' && d.getFullYear() === y && d.getMonth() === m) {
+                return acc + t.amount
+            }
+            return acc
+        }, 0)
+    }, [transactions])
+
+    const freeBalance = globalBalance - Math.max(0, totalInvoices)
 
     // Recent (last 5)
     const recentTxs = useMemo(() => {
@@ -284,7 +353,7 @@ export default function DashboardPage() {
 
     const incConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.inc.labels, datasets: [{ data: monthsData.inc.data, borderColor: '#10b981', backgroundColor: '#10b98122', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
     const expConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.exp.labels, datasets: [{ data: monthsData.exp.data, borderColor: '#ef4444', backgroundColor: '#ef444422', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
-    const invConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.inv.labels, datasets: [{ data: monthsData.inv.data, borderColor: '#8b5cf6', backgroundColor: '#8b5cf622', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
+    const invConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.inv.labels, datasets: [{ data: monthsData.inv.data, borderColor: '#eab308', backgroundColor: '#eab30822', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
     const balConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.bal.labels, datasets: [{ data: monthsData.bal.data, borderColor: '#3b82f6', backgroundColor: '#3b82f622', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
 
     useChart(incRef, incConfig, [incConfig])
@@ -304,7 +373,7 @@ export default function DashboardPage() {
 
         return {
             type: 'bar',
-            data: { labels: ['Receitas', 'Despesas', 'Investimentos'], datasets: [{ data, backgroundColor: ['#10b981', '#ef4444', '#8b5cf6'], borderRadius: 8, barThickness: 28 }] },
+            data: { labels: ['Receitas', 'Despesas', 'Investimentos'], datasets: [{ data, backgroundColor: ['#10b981', '#ef4444', '#eab308'], borderRadius: 8, barThickness: 28 }] },
             plugins: [{
                 id: 'valueLabelsPlugin',
                 afterDatasetsDraw(chart) {
@@ -421,13 +490,11 @@ export default function DashboardPage() {
 
                         {/* Top Stats Row */}
                         <section className="fade-up delay-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, flexShrink: 0 }}>
-                            <div className="card glass-panel" style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 248, border: '1px solid rgba(16,185,129,0.3)', background: 'linear-gradient(180deg, rgba(16,185,129,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
+                            <div className="card glass-panel clickable-card" onClick={() => setDetailView('income')} style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 240, border: '1px solid rgba(16,185,129,0.3)', background: 'linear-gradient(180deg, rgba(16,185,129,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
                                 {/* Big faint background icon */}
                                 <svg style={{ position: 'absolute', top: -10, right: 85, width: 140, height: 140, opacity: 0.05, transform: 'rotate(-5deg)', color: '#10b981', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="7" r="5" />
-                                    <text x="12" y="9.5" fontSize="7" fontWeight="bold" fontFamily="sans-serif" textAnchor="middle" stroke="none" fill="currentColor">$</text>
-                                    <path d="M2 14h3v6H2z" />
-                                    <path d="M5 18h3.5l3.5 1.5H18a2.5 2.5 0 0 0 0 -5H12l-2-2H5" />
+                                    <line x1="12" y1="1" x2="12" y2="23" />
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                                 </svg>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                                     <div>
@@ -439,11 +506,9 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
                                     <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <circle cx="12" cy="7" r="5" />
-                                            <text x="12" y="9.5" fontSize="7" fontWeight="bold" fontFamily="sans-serif" textAnchor="middle" stroke="none" fill="currentColor">$</text>
-                                            <path d="M2 14h3v6H2z" />
-                                            <path d="M5 18h3.5l3.5 1.5H18a2.5 2.5 0 0 0 0 -5H12l-2-2H5" />
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <line x1="12" y1="1" x2="12" y2="23" />
+                                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                                         </svg>
                                     </div>
                                 </div>
@@ -452,7 +517,7 @@ export default function DashboardPage() {
                                 </div>
                             </div>
 
-                            <div className="card glass-panel" style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 248, border: '1px solid rgba(239,68,68,0.3)', background: 'linear-gradient(180deg, rgba(239,68,68,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
+                            <div className="card glass-panel clickable-card" onClick={() => setDetailView('expense')} style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 240, border: '1px solid rgba(239,68,68,0.3)', background: 'linear-gradient(180deg, rgba(239,68,68,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
                                 {/* Big faint background icon */}
                                 <svg style={{ position: 'absolute', top: -10, right: 85, width: 150, height: 150, opacity: 0.03, color: '#ef4444', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M20 12l-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z" />
@@ -477,9 +542,9 @@ export default function DashboardPage() {
                                 </div>
                             </div>
 
-                            <div className="card glass-panel" style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 248, border: '1px solid rgba(139,92,246,0.3)', background: 'linear-gradient(180deg, rgba(139,92,246,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
+                            <div className="card glass-panel clickable-card" onClick={() => setDetailView('investment')} style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 240, border: '1px solid rgba(234,179,8,0.3)', background: 'linear-gradient(180deg, rgba(234,179,8,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
                                 {/* Big faint background icon */}
-                                <svg style={{ position: 'absolute', top: 5, right: 85, width: 140, height: 140, opacity: 0.05, color: '#8b5cf6', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <svg style={{ position: 'absolute', top: 5, right: 85, width: 140, height: 140, opacity: 0.05, color: '#eab308', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                     <rect x="1" y="17" width="3" height="5" />
                                     <rect x="6" y="13" width="3" height="9" />
                                     <rect x="11" y="9" width="3" height="13" />
@@ -491,13 +556,13 @@ export default function DashboardPage() {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                                     <div>
                                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Investimentos</div>
-                                        <div style={{ fontSize: 24, fontWeight: 800, color: '#8b5cf6', margin: '2px 0 6px' }}>{formatCurrency(investment)}</div>
+                                        <div style={{ fontSize: 24, fontWeight: 800, color: '#eab308', margin: '2px 0 6px' }}>{formatCurrency(investment)}</div>
                                         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', display: 'flex', flexDirection: 'column' }}>
                                             <span>Melhor mês: {monthsData.inv.bestMonth}</span>
-                                            <span style={{ color: '#8b5cf6', fontWeight: 600 }}>{formatCurrency(monthsData.inv.bestVal)}</span>
+                                            <span style={{ color: '#eab308', fontWeight: 600 }}>{formatCurrency(monthsData.inv.bestVal)}</span>
                                         </div>
                                     </div>
-                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
+                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(234,179,8,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#eab308' }}>
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                             <rect x="1" y="17" width="3" height="5" />
                                             <rect x="6" y="13" width="3" height="9" />
@@ -515,10 +580,10 @@ export default function DashboardPage() {
                             </div>
                         </section>
 
-                        {/* Bottom Stats Row */}
-                        <section className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8, alignItems: 'stretch' }}>
+                        {/* Bottom Stats Row (Row 2) */}
+                        <section className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24, alignItems: 'stretch' }}>
                             {/* Balance */}
-                            <div className="card glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 248, border: '1px solid rgba(59,130,246,0.3)', background: 'linear-gradient(180deg, rgba(59,130,246,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
+                            <div className="card glass-panel clickable-card" onClick={() => setDetailView('balance')} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 240, border: '1px solid rgba(59,130,246,0.3)', background: 'linear-gradient(180deg, rgba(59,130,246,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
                                 {/* Big faint background icon */}
                                 <svg style={{ position: 'absolute', top: -10, right: 85, width: 140, height: 140, opacity: 0.04, transform: 'rotate(-5deg)', color: '#3b82f6', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M2 6v12h20V6H2zm18 10H4V8h16v8zm-9-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
@@ -527,8 +592,11 @@ export default function DashboardPage() {
                                 </svg>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                                     <div>
-                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Saldo Disponível</div>
-                                        <div style={{ fontSize: 28, fontWeight: 800, color: balanceClass === 'negative' ? '#ef4444' : '#3b82f6', margin: '2px 0 4px' }}>{formatCurrency(balance)}</div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Saldo Livre</div>
+                                        <div style={{ fontSize: 28, fontWeight: 800, color: freeBalance < 0 ? '#ef4444' : '#3b82f6', margin: '2px 0 6px' }}>{formatCurrency(freeBalance)}</div>
+                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                            <span>Na Conta: <strong style={{ color: 'white' }}>{formatCurrency(globalBalance)}</strong></span>
+                                        </div>
                                     </div>
                                     <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -538,18 +606,45 @@ export default function DashboardPage() {
                                         </svg>
                                     </div>
                                 </div>
-                                <div style={{ flex: 1, minHeight: 120, width: '100%', marginTop: 12, position: 'relative' }}>
+                                <div style={{ flex: 1, minHeight: 0, width: '100%', marginTop: 6, position: 'relative' }}>
                                     <canvas ref={balRef} />
                                 </div>
                             </div>
 
+                            {/* Invoices Card */}
+                            <div className="card glass-panel clickable-card" onClick={() => setDetailView('invoices')} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 240, border: '1px solid rgba(139,92,246,0.3)', background: 'linear-gradient(180deg, rgba(139,92,246,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
+                                {/* Big faint background icon */}
+                                <svg style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 220, height: 220, opacity: 0.03, color: '#8b5cf6', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                                    <line x1="1" y1="10" x2="23" y2="10" />
+                                </svg>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
+                                    <div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Faturas em Aberto</div>
+                                        <div style={{ fontSize: 28, fontWeight: 800, color: '#8b5cf6', margin: '2px 0 6px' }}>{formatCurrency(Math.max(0, totalInvoices))}</div>
+                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 8 }}>
+                                            Este mês
+                                        </div>
+                                    </div>
+                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                                            <line x1="1" y1="10" x2="23" y2="10" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Pie Chart Row (Row 3) */}
+                        <section className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24, marginBottom: 8 }}>
                             {/* Pie Chart */}
-                            <div className="card glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 248 }}>
+                            <div className="card glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 240 }}>
                                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'linear-gradient(135deg, #f59e0b, #ed8936)', flexShrink: 0 }} />
                                     Distribuição por Tipo
                                 </div>
-                                <div style={{ flex: 1, minHeight: 120, width: '100%', marginTop: 12, position: 'relative' }}>
+                                <div style={{ flex: 1, minHeight: 0, width: '100%', marginTop: 12, position: 'relative' }}>
                                     <canvas ref={pieRef} />
                                 </div>
                             </div>
@@ -718,6 +813,14 @@ export default function DashboardPage() {
                     </div>
                 </div>
             )}
+            <DetailsModal
+                isOpen={!!detailView}
+                onClose={() => setDetailView(null)}
+                type={detailView}
+                transactions={detailInfo.transactions}
+                title={detailInfo.title}
+                color={detailInfo.color}
+            />
         </div>
     )
 }

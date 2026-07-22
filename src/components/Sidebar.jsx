@@ -71,6 +71,12 @@ export default function Sidebar() {
                 <Link href="/charts" className={`nav-item ${pathName === '/charts' ? 'active' : ''}`}>
                     <span className="icon">📈</span> Gráficos
                 </Link>
+                <Link href="/investments" className={`nav-item ${pathName === '/investments' ? 'active' : ''}`}>
+                    <span className="icon">🏦</span> Investimentos
+                </Link>
+                <Link href="/cards" className={`nav-item ${pathName === '/cards' ? 'active' : ''}`}>
+                    <span className="icon">💳</span> Cartões
+                </Link>
                 <Link href="/profile" className={`nav-item ${pathName === '/profile' ? 'active' : ''}`}>
                     <span className="icon">👤</span> Perfil
                 </Link>
