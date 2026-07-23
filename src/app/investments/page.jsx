@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '../../components/Sidebar'
+import Wallet from '../../components/Wallet'
 import { useSession } from '../../hooks/useSession'
 import { useTransactions } from '../../hooks/useTransactions'
 import { formatCurrency, calcInvestment, CATEGORY_MAP } from '../../helpers'
@@ -13,7 +14,7 @@ Chart.register(ArcElement, DoughnutController, LineElement, LineController, BarE
 export default function InvestmentsPage() {
     const session = useSession()
     const router = useRouter()
-    const { transactions, loading: txLoading } = useTransactions()
+    const { transactions, loading: txLoading } = useTransactions(session?.email)
 
     // Simulator State
     const [simInitial, setSimInitial] = useState(1000)
@@ -205,6 +206,9 @@ export default function InvestmentsPage() {
                     </div>
                 </div>
 
+                {/* Wallet Section */}
+                <Wallet userEmail={session?.email} />
+
                 {/* Simulador Section */}
                 <h3 className="fade-up delay-2" style={{ fontSize: 24, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span>🧮</span> Simulador de Juros Compostos
@@ -215,10 +219,11 @@ export default function InvestmentsPage() {
                     <div className="card glass-panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
                         <div>
                             <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Valor Inicial</label>
-                            <div className="input-group" style={{ margin: 0 }}>
-                                <span className="icon">💰</span>
+                            <div className="tx-field" style={{ position: 'relative', margin: 0 }}>
+                                <span className="icon" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>💰</span>
                                 <input 
-                                    type="number" 
+                                    type="number"
+                                    style={{ paddingLeft: 40 }}
                                     value={simInitial} 
                                     onChange={e => setSimInitial(Number(e.target.value))}
                                     min="0"
@@ -228,10 +233,11 @@ export default function InvestmentsPage() {
 
                         <div>
                             <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Aporte Mensal</label>
-                            <div className="input-group" style={{ margin: 0 }}>
-                                <span className="icon">📅</span>
+                            <div className="tx-field" style={{ position: 'relative', margin: 0 }}>
+                                <span className="icon" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>📅</span>
                                 <input 
                                     type="number" 
+                                    style={{ paddingLeft: 40 }}
                                     value={simMonthly} 
                                     onChange={e => setSimMonthly(Number(e.target.value))}
                                     min="0"
@@ -241,10 +247,11 @@ export default function InvestmentsPage() {
 
                         <div>
                             <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Taxa de Rendimento Anual (%)</label>
-                            <div className="input-group" style={{ margin: 0 }}>
-                                <span className="icon">📈</span>
+                            <div className="tx-field" style={{ position: 'relative', margin: 0 }}>
+                                <span className="icon" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>📈</span>
                                 <input 
                                     type="number" 
+                                    style={{ paddingLeft: 40 }}
                                     value={simRate} 
                                     onChange={e => setSimRate(Number(e.target.value))}
                                     step="0.1"
@@ -255,10 +262,11 @@ export default function InvestmentsPage() {
 
                         <div>
                             <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Período (Anos)</label>
-                            <div className="input-group" style={{ margin: 0 }}>
-                                <span className="icon">⏳</span>
+                            <div className="tx-field" style={{ position: 'relative', margin: 0 }}>
+                                <span className="icon" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>⏳</span>
                                 <input 
                                     type="number" 
+                                    style={{ paddingLeft: 40 }}
                                     value={simYears} 
                                     onChange={e => setSimYears(Number(e.target.value))}
                                     min="1"

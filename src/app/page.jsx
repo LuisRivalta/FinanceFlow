@@ -50,21 +50,11 @@ export default function DashboardPage() {
     const [showAllModal, setShowAllModal] = useState(false)
     const [allSearch, setAllSearch] = useState('')
     const [allFilter, setAllFilter] = useState('all')
-    const [period, setPeriod] = useState('all')
-    const [periodOpen, setPeriodOpen] = useState(false)
-    const periodRef = useRef(null)
+    const [currentDate, setCurrentDate] = useState(() => {
+        const d = new Date()
+        return new Date(d.getFullYear(), d.getMonth(), 1)
+    })
     const [detailView, setDetailView] = useState(null)
-
-
-
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        function handleClickOutside(e) {
-            if (periodRef.current && !periodRef.current.contains(e.target)) setPeriodOpen(false)
-        }
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
 
     // Greeting
     const [greeting, setGreeting] = useState('Olá 👋')
@@ -89,15 +79,15 @@ export default function DashboardPage() {
         load()
     }, [session, load, router])
 
-    // Filter transactions by selected period
+    // Filter transactions by selected month
     const filteredTransactions = useMemo(() => {
-        if (period === 'all') return transactions
-        const now = new Date()
-        const monthsMap = { '1m': 1, '3m': 3, '6m': 6, '1y': 12 }
-        const months = monthsMap[period] || 0
-        const cutoff = new Date(now.getFullYear(), now.getMonth() - months, now.getDate())
-        return transactions.filter(t => new Date(t.date + 'T00:00:00') >= cutoff)
-    }, [transactions, period])
+        const y = currentDate.getFullYear()
+        const m = currentDate.getMonth()
+        return transactions.filter(t => {
+            const d = new Date(t.date + 'T00:00:00')
+            return d.getFullYear() === y && d.getMonth() === m
+        })
+    }, [transactions, currentDate])
 
     const detailInfo = useMemo(() => {
         if (!detailView) return { transactions: [], title: '', color: '' }
@@ -156,9 +146,8 @@ export default function DashboardPage() {
     }, [transactions])
     
     const totalInvoices = useMemo(() => {
-        const now = new Date()
-        const y = now.getFullYear()
-        const m = now.getMonth()
+        const y = currentDate.getFullYear()
+        const m = currentDate.getMonth()
         return transactions.reduce((acc, t) => {
             const d = new Date(t.date + 'T00:00:00')
             if (t.account === 'credit' && t.type === 'expense' && d.getFullYear() === y && d.getMonth() === m) {
@@ -166,7 +155,7 @@ export default function DashboardPage() {
             }
             return acc
         }, 0)
-    }, [transactions])
+    }, [transactions, currentDate])
 
     const freeBalance = globalBalance - Math.max(0, totalInvoices)
 
@@ -217,132 +206,57 @@ export default function DashboardPage() {
     const balRef = useRef(null)
     const pieRef = useRef(null)
 
-    // Data generation
+    // Data generation for sparklines (Weekly buckets within the selected month)
     const monthsData = useMemo(() => {
         if (!filteredTransactions) return { inc: { data: [] }, exp: { data: [] }, inv: { data: [] }, bal: { data: [] } }
 
-        // For 1-month view, use weekly buckets within the current month
-        if (period === '1m') {
-            const now = new Date()
-            const year = now.getFullYear()
-            const month = now.getMonth()
-            // Create 4 weekly buckets
-            const weekLabels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4']
-            const weekRanges = [
-                { start: 1, end: 7 },
-                { start: 8, end: 14 },
-                { start: 15, end: 21 },
-                { start: 22, end: 31 }
-            ]
-            const wInc = [0, 0, 0, 0], wExp = [0, 0, 0, 0], wInv = [0, 0, 0, 0], wBal = [0, 0, 0, 0]
+        const year = currentDate.getFullYear()
+        const month = currentDate.getMonth()
+        // Create 4 weekly buckets
+        const weekLabels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4']
+        const wInc = [0, 0, 0, 0], wExp = [0, 0, 0, 0], wInv = [0, 0, 0, 0], wBal = [0, 0, 0, 0]
 
-            filteredTransactions.forEach(t => {
-                const d = new Date(t.date + 'T00:00:00')
-                if (d.getFullYear() === year && d.getMonth() === month) {
-                    const day = d.getDate()
-                    const wi = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3
-                    if (t.type === 'income') wInc[wi] += t.amount
-                    else if (t.type === 'expense') wExp[wi] += t.amount
-                    else if (t.type === 'investment') wInv[wi] += t.amount
-                }
-            })
-
-            // Cumulative balance per week
-            let runBal = 0
-            filteredTransactions
-                .filter(t => { const d = new Date(t.date + 'T00:00:00'); return d.getFullYear() === year && d.getMonth() === month })
-                .sort((a, b) => new Date(a.date) - new Date(b.date))
-                .forEach(t => {
-                    const d = new Date(t.date + 'T00:00:00')
-                    const day = d.getDate()
-                    const wi = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3
-                    if (t.type === 'income') runBal += t.amount
-                    else if (t.type === 'expense') runBal -= t.amount
-                    else if (t.type === 'investment') runBal -= t.amount
-                    wBal[wi] = runBal
-                })
-
-            const buildWeekMetric = (data) => {
-                const maxVal = Math.max(...data, 0)
-                let bestMonth = '-'
-                if (maxVal > 0) {
-                    const idx = data.indexOf(maxVal)
-                    bestMonth = weekLabels[idx]
-                }
-                return { labels: weekLabels, data, bestMonth, bestVal: maxVal }
+        filteredTransactions.forEach(t => {
+            const d = new Date(t.date + 'T00:00:00')
+            if (d.getFullYear() === year && d.getMonth() === month) {
+                const day = d.getDate()
+                const wi = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3
+                if (t.type === 'income') wInc[wi] += t.amount
+                else if (t.type === 'expense') wExp[wi] += t.amount
+                else if (t.type === 'investment') wInv[wi] += t.amount
             }
+        })
 
-            return {
-                inc: buildWeekMetric(wInc),
-                exp: buildWeekMetric(wExp),
-                inv: buildWeekMetric(wInv),
-                bal: buildWeekMetric(wBal)
+        // Cumulative balance per week
+        const prevBalance = transactions.reduce((acc, t) => {
+            const d = new Date(t.date + 'T00:00:00')
+            if (d < new Date(year, month, 1)) {
+                if (t.type === 'income') return acc + t.amount
+                if (t.type === 'expense' && t.account !== 'credit') return acc - t.amount
             }
-        }
+            return acc
+        }, 0)
 
-        // For other periods, use monthly buckets
-        const bucketCount = period === '3m' ? 3 : period === '6m' ? 6 : period === '1y' ? 12 : 6
-        const bucketsInc = {}, bucketsExp = {}, bucketsInv = {}, bucketsBal = {}
-        for (let i = bucketCount - 1; i >= 0; i--) {
-            const d = new Date()
-            d.setMonth(d.getMonth() - i)
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-            bucketsInc[key] = 0; bucketsExp[key] = 0; bucketsInv[key] = 0; bucketsBal[key] = 0
-        }
+        wBal[0] = prevBalance + wInc[0] - wExp[0] - wInv[0]
+        wBal[1] = wBal[0] + wInc[1] - wExp[1] - wInv[1]
+        wBal[2] = wBal[1] + wInc[2] - wExp[2] - wInv[2]
+        wBal[3] = wBal[2] + wInc[3] - wExp[3] - wInv[3]
 
-        const sorted = [...filteredTransactions].sort((a, b) => new Date(a.date) - new Date(b.date))
-
-        for (const k of Object.keys(bucketsInc)) {
-            const [y, m] = k.split('-')
-            const nextMonth = new Date(+y, +m, 1)
-
-            sorted.forEach(t => {
-                const d = new Date(t.date + 'T00:00:00')
-                if (d.getFullYear() === +y && d.getMonth() + 1 === +m) {
-                    if (t.type === 'income') bucketsInc[k] += t.amount
-                    else if (t.type === 'expense') bucketsExp[k] += t.amount
-                    else if (t.type === 'investment') bucketsInv[k] += t.amount
-                }
-
-                if (d < nextMonth) {
-                    if (t.type === 'income') bucketsBal[k] = (bucketsBal[k] || 0) + t.amount
-                    else if (t.type === 'expense') bucketsBal[k] = (bucketsBal[k] || 0) - t.amount
-                    else if (t.type === 'investment') bucketsBal[k] = (bucketsBal[k] || 0) - t.amount
-                }
-            })
-        }
-
-        const buildMetric = (buckets) => {
-            const data = Object.values(buckets)
-            const maxVal = Math.max(...data, 0)
-            let bestMonth = "-"
-            if (maxVal > 0 || data.length > 0) {
-                for (const [k, v] of Object.entries(buckets)) {
-                    if (v === maxVal && maxVal > 0) {
-                        const [y, m] = k.split('-')
-                        bestMonth = new Date(+y, +m - 1).toLocaleDateString('pt-BR', { month: 'short' })
-                        break
-                    }
-                }
-            }
-            return {
-                labels: Object.keys(buckets).map(k => {
-                    const [y, m] = k.split('-')
-                    return new Date(+y, +m - 1).toLocaleDateString('pt-BR', { month: 'short' })
-                }),
-                data,
-                bestMonth,
-                bestVal: maxVal
-            }
-        }
+        const buildWeekMetric = (arr) => ({
+            labels: weekLabels, data: arr,
+            bestMonth: weekLabels[arr.indexOf(Math.max(...arr))],
+            bestVal: Math.max(...arr, 0)
+        })
 
         return {
-            inc: buildMetric(bucketsInc),
-            exp: buildMetric(bucketsExp),
-            inv: buildMetric(bucketsInv),
-            bal: buildMetric(bucketsBal)
+            inc: buildWeekMetric(wInc),
+            exp: buildWeekMetric(wExp),
+            inv: buildWeekMetric(wInv),
+            bal: buildWeekMetric(wBal)
         }
-    }, [filteredTransactions, period])
+    }, [filteredTransactions, transactions, currentDate])
+
+
 
     const sparkOpts = useMemo(() => ({
         responsive: true, maintainAspectRatio: false,
@@ -362,46 +276,43 @@ export default function DashboardPage() {
     useChart(balRef, balConfig, [balConfig])
 
     const pieConfig = useMemo(() => {
-        const inc = calcIncome(filteredTransactions)
-        const exp = calcExpense(filteredTransactions)
-        const inv = calcInvestment(filteredTransactions)
+        const expenses = filteredTransactions.filter(t => t.type === 'expense' && t.category !== 'invoice_payment')
+        const catTotals = {}
+        let totalExp = 0
+        expenses.forEach(t => {
+            catTotals[t.category] = (catTotals[t.category] || 0) + t.amount
+            totalExp += t.amount
+        })
 
-        let data = [inc, exp, inv]
-        if (inc === 0 && exp === 0 && inv === 0) {
-            data = [1, 1, 1] // placeholder
+        if (totalExp === 0) {
+            return {
+                type: 'doughnut',
+                data: { labels: ['Sem Despesas'], datasets: [{ data: [1], backgroundColor: ['#334155'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { enabled: false }, legend: { position: 'right', labels: { color: '#94a3b8', usePointStyle: true, padding: 20 } } }, cutout: '75%' }
+            }
         }
 
-        return {
-            type: 'bar',
-            data: { labels: ['Receitas', 'Despesas', 'Investimentos'], datasets: [{ data, backgroundColor: ['#10b981', '#ef4444', '#eab308'], borderRadius: 8, barThickness: 28 }] },
-            plugins: [{
-                id: 'valueLabelsPlugin',
-                afterDatasetsDraw(chart) {
-                    const { ctx, data } = chart;
-                    ctx.save();
-                    ctx.font = 'bold 12px sans-serif';
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                    ctx.textAlign = 'left';
-                    ctx.textBaseline = 'middle';
+        const sortedCats = Object.entries(catTotals).sort((a,b) => b[1] - a[1])
+        const labels = []
+        const data = []
+        const bg = []
+        
+        sortedCats.forEach(([catId, amount]) => {
+            const catDef = getCategoryDetails('expense', catId)
+            labels.push(`${catDef.icon} ${catDef.label}`)
+            data.push(amount)
+            bg.push(catDef.color)
+        })
 
-                    chart.getDatasetMeta(0).data.forEach((datapoint, index) => {
-                        const rawValue = data.datasets[0].data[index];
-                        // exclude placeholder
-                        if (rawValue > 0 && !(inc === 0 && exp === 0 && inv === 0)) {
-                            ctx.fillText(fmt(rawValue), datapoint.x + 8, datapoint.y);
-                        }
-                    });
-                    ctx.restore();
-                }
-            }],
+        return {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data, backgroundColor: bg, borderWidth: 2, borderColor: '#1a1f2e', hoverOffset: 4 }] },
             options: {
-                indexAxis: 'y',
-                layout: { padding: { right: 85 } },
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: { ...TOOLTIP_OPTS, callbacks: { label: ctx => { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? Math.round((ctx.raw / total) * 100) : 0; return inc === 0 && exp === 0 && inv === 0 ? ' Sem dados' : ` ${fmt(ctx.raw)} (${pct}%)` } } } },
-                scales: {
-                    x: { display: false, min: 0 },
-                    y: { border: { display: false }, grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.6)', font: { size: 12, weight: '600' } } }
+                responsive: true, maintainAspectRatio: false, cutout: '65%',
+                layout: { padding: 10 },
+                plugins: {
+                    legend: { position: 'right', labels: { color: '#cbd5e1', usePointStyle: true, padding: 16, font: { size: 12, family: "'Outfit', sans-serif" } } },
+                    tooltip: { ...TOOLTIP_OPTS, callbacks: { label: ctx => { const pct = Math.round((ctx.raw / totalExp) * 100); return ` ${fmt(ctx.raw)} (${pct}%)` } } }
                 }
             }
         }
@@ -425,59 +336,23 @@ export default function DashboardPage() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                                     <p className="page-subtitle" style={{ margin: 0 }}>Acompanhe suas finanças em tempo real com controle total.</p>
                                     {(() => {
-                                        const currentMonth = new Date().toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
-                                        const periodOptions = [
-                                            { key: '1m', label: `Este mês (${currentMonth})` },
-                                            { key: '3m', label: 'Últimos 3 meses' },
-                                            { key: '6m', label: 'Últimos 6 meses' },
-                                            { key: '1y', label: 'Último ano' },
-                                            { key: 'all', label: 'Todo o período' }
-                                        ]
-                                        const selectedLabel = periodOptions.find(p => p.key === period)?.label || 'Todo o período'
+                                        const rawMonth = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+                                        const displayMonth = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1)
                                         return (
-                                            <div ref={periodRef} style={{ position: 'relative', userSelect: 'none' }}>
-                                                <button
-                                                    onClick={() => setPeriodOpen(!periodOpen)}
-                                                    style={{
-                                                        display: 'flex', alignItems: 'center', gap: 6,
-                                                        padding: '5px 12px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
-                                                        border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8,
-                                                        cursor: 'pointer', transition: 'all 0.2s',
-                                                        background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)',
-                                                        whiteSpace: 'nowrap'
-                                                    }}
-                                                >
-                                                    📅 {selectedLabel}
-                                                    <span style={{ fontSize: 9, opacity: 0.5, transition: 'transform 0.2s', transform: periodOpen ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }}>
+                                                <button 
+                                                    onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+                                                    style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', padding: '8px 12px', cursor: 'pointer', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
+                                                    &lt;
                                                 </button>
-                                                {periodOpen && (
-                                                    <div style={{
-                                                        position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 200,
-                                                        background: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)',
-                                                        borderRadius: 10, padding: 4, minWidth: 180,
-                                                        boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
-                                                        animation: 'fadeUpAnim 0.15s ease forwards'
-                                                    }}>
-                                                        {periodOptions.map(p => (
-                                                            <button
-                                                                key={p.key}
-                                                                onClick={() => { setPeriod(p.key); setPeriodOpen(false) }}
-                                                                style={{
-                                                                    display: 'block', width: '100%', textAlign: 'left',
-                                                                    padding: '8px 12px', fontSize: 12, fontWeight: 500,
-                                                                    fontFamily: 'inherit', border: 'none', borderRadius: 7,
-                                                                    cursor: 'pointer', transition: 'all 0.15s',
-                                                                    background: period === p.key ? 'rgba(99,102,241,0.15)' : 'transparent',
-                                                                    color: period === p.key ? 'white' : 'rgba(255,255,255,0.55)'
-                                                                }}
-                                                                onMouseOver={e => { if (period !== p.key) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-                                                                onMouseOut={e => { if (period !== p.key) e.currentTarget.style.background = 'transparent' }}
-                                                            >
-                                                                {period === p.key && '• '}{p.label}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                                <div style={{ padding: '0 16px', fontWeight: 600, color: 'white', minWidth: 140, textAlign: 'center', fontSize: 14 }}>
+                                                    {displayMonth}
+                                                </div>
+                                                <button 
+                                                    onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+                                                    style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', padding: '8px 12px', cursor: 'pointer', borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+                                                    &gt;
+                                                </button>
                                             </div>
                                         )
                                     })()}
@@ -580,7 +455,7 @@ export default function DashboardPage() {
                             </div>
                         </section>
 
-                        {/* Bottom Stats Row (Row 2) */}
+
                         <section className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24, alignItems: 'stretch' }}>
                             {/* Balance */}
                             <div className="card glass-panel clickable-card" onClick={() => setDetailView('balance')} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 240, border: '1px solid rgba(59,130,246,0.3)', background: 'linear-gradient(180deg, rgba(59,130,246,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
@@ -636,13 +511,69 @@ export default function DashboardPage() {
                             </div>
                         </section>
 
+                        {/* Termômetro Financeiro */}
+                        <section className="fade-up delay-1" style={{ marginBottom: 24 }}>
+                            {(() => {
+                                const spendPct = income > 0 ? (expense / income) * 100 : expense > 0 ? 100 : 0;
+                                let statusMsg = "Tudo tranquilo! Você não gastou quase nada ainda.";
+                                let statusColor = "#10b981"; // green
+                                
+                                if (spendPct > 85) {
+                                    statusMsg = "Cuidado! Seus gastos estão altíssimos em relação à renda do mês.";
+                                    statusColor = "#ef4444"; // red
+                                } else if (spendPct > 60) {
+                                    statusMsg = "Atenção. Os gastos já ultrapassaram a metade da sua receita.";
+                                    statusColor = "#f59e0b"; // yellow
+                                } else if (spendPct > 0) {
+                                    statusMsg = "Saudável! Seus gastos estão sob controle.";
+                                    statusColor = "#3b82f6"; // blue
+                                } else if (income === 0 && expense === 0) {
+                                    statusMsg = "Sem lançamentos neste mês.";
+                                    statusColor = "#94a3b8"; // gray
+                                }
+
+                                return (
+                                    <div className="card glass-panel" style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', border: `1px solid ${statusColor}44`, background: `linear-gradient(90deg, ${statusColor}11 0%, rgba(255,255,255,0.02) 100%)` }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 }}>
+                                            <div>
+                                                <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                                                    Termômetro do Mês
+                                                </div>
+                                                <div style={{ fontSize: 22, fontWeight: 700, color: 'white' }}>
+                                                    {statusMsg}
+                                                </div>
+                                            </div>
+                                            <div style={{ fontSize: 28, fontWeight: 800, color: statusColor }}>
+                                                {Math.min(100, Math.round(spendPct))}%
+                                            </div>
+                                        </div>
+                                        
+                                        <div style={{ width: '100%', height: 12, background: 'rgba(255,255,255,0.1)', borderRadius: 10, overflow: 'hidden' }}>
+                                            <div style={{ 
+                                                height: '100%', 
+                                                width: `${Math.min(100, spendPct)}%`, 
+                                                background: statusColor,
+                                                borderRadius: 10,
+                                                transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)'
+                                            }} />
+                                        </div>
+                                        
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
+                                            <span>R$ 0</span>
+                                            <span>{formatCurrency(income)} (Receita)</span>
+                                        </div>
+                                    </div>
+                                )
+                            })()}
+                        </section>
+
                         {/* Pie Chart Row (Row 3) */}
                         <section className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24, marginBottom: 8 }}>
                             {/* Pie Chart */}
-                            <div className="card glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 240 }}>
+                            <div className="card glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 300 }}>
                                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'linear-gradient(135deg, #f59e0b, #ed8936)', flexShrink: 0 }} />
-                                    Distribuição por Tipo
+                                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'linear-gradient(135deg, #ef4444, #f87171)', flexShrink: 0 }} />
+                                    Despesas por Categoria
                                 </div>
                                 <div style={{ flex: 1, minHeight: 0, width: '100%', marginTop: 12, position: 'relative' }}>
                                     <canvas ref={pieRef} />

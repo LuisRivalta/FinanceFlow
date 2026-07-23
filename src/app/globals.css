@@ -1092,19 +1092,101 @@ body::after {
 }
 
 @media (max-width: 768px) {
-    .nav-menu {
-        display: none;
+    /* Transform Sidebar into Bottom Nav */
+    .sidebar {
+        padding: 8px 12px;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: rgba(15, 23, 42, 0.98);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        z-index: 1000;
+        border-right: none;
+        backdrop-filter: blur(12px);
+        border-radius: 0;
+        height: auto;
+    }
+
+    .sidebar .logo, 
+    .sidebar .user-profile { 
+        display: none !important; 
+    }
+    
+    .sidebar .nav-menu {
+        display: flex !important;
+        flex-direction: row;
+        width: 100%;
+        justify-content: space-between;
+        margin: 0;
+        padding: 0;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 4px;
+    }
+    
+    .sidebar .nav-item {
+        flex-direction: column;
+        padding: 6px;
+        gap: 4px;
+        font-size: 11px;
+        border-radius: 8px;
+        flex: 1;
+        justify-content: center;
+        text-align: center;
+        white-space: nowrap;
+    }
+    
+    .sidebar .nav-item span:first-child { 
+        margin: 0;
+        font-size: 18px; 
+    }
+    
+    /* Adjust layouts */
+    .app-container {
+        padding: 0 !important;
+        padding-bottom: 80px !important; /* Space for bottom nav */
+    }
+    
+    .main-content {
+        padding: 16px !important;
+        border-radius: 0 !important;
+    }
+
+    /* Force all hardcoded grids to be single column on mobile */
+    *[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Wrap flex containers that might overflow */
+    div[style*="display: flex"][style*="gap: 24"] {
+        flex-wrap: wrap !important;
+        gap: 16px !important;
     }
 
     .tx-form-grid {
         grid-template-columns: 1fr;
     }
+    
+    .tx-field {
+        min-width: 100% !important;
+    }
 
     .tx-card-desc {
-        max-width: 160px;
+        max-width: 120px;
     }
 
     .tx-card-actions {
         opacity: 1;
+    }
+
+    .modal-content {
+        padding: 20px !important;
+        width: 95% !important;
+        margin: 10px !important;
+    }
+
+    h2, h3 {
+        font-size: 20px !important;
     }
 }

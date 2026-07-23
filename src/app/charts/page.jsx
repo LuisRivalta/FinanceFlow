@@ -178,15 +178,38 @@ export default function ChartsPage() {
     }, [filtered])
     useChart(catExpenseRef, catExpenseConfig, [catExpenseConfig])
 
-    // 4. Type Distribution Pie
+    // 4. Payment Distribution Pie
     const typeDistConfig = useMemo(() => {
-        if (!filtered.length) return null
-        const inc = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-        const exp = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-        const inv = filtered.filter(t => t.type === 'investment').reduce((s, t) => s + t.amount, 0)
+        const expenses = filtered.filter(t => t.type === 'expense')
+        if (!expenses.length) return null
+        
+        const totals = { checking: 0, savings: 0, credit: 0 }
+        expenses.forEach(t => { totals[t.account] = (totals[t.account] || 0) + t.amount })
+        
+        const rawLabels = ['💳 Cartão de Crédito', '🏦 Conta Corrente', '💰 Poupança']
+        const rawData = [totals.credit || 0, totals.checking || 0, totals.savings || 0]
+        const rawBg = ['rgba(139,92,246,0.8)', 'rgba(59,130,246,0.8)', 'rgba(16,185,129,0.8)']
+        const rawBd = ['#8b5cf6', '#3b82f6', '#10b981']
+
+        const labels = []
+        const data = []
+        const bg = []
+        const bd = []
+        
+        rawData.forEach((v, i) => {
+            if (v > 0) {
+                labels.push(rawLabels[i])
+                data.push(v)
+                bg.push(rawBg[i])
+                bd.push(rawBd[i])
+            }
+        })
+
+        if (!data.length) return null
+
         return {
             type: 'pie',
-            data: { labels: ['📥 Receitas', '📤 Despesas', '📈 Investimentos'], datasets: [{ data: [inc, exp, inv], backgroundColor: ['rgba(16,185,129,0.8)', 'rgba(239,68,68,0.8)', 'rgba(139,92,246,0.8)'], borderColor: ['#10b981', '#ef4444', '#8b5cf6'], borderWidth: 2, hoverOffset: 8 }] },
+            data: { labels, datasets: [{ data, backgroundColor: bg, borderColor: bd, borderWidth: 2, hoverOffset: 8 }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 14 } }, tooltip: { ...TOOLTIP_OPTS, callbacks: { label: ctx => { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? Math.round((ctx.raw / total) * 100) : 0; return ` ${fmt(ctx.raw)} (${pct}%)` } } } }
@@ -222,6 +245,14 @@ export default function ChartsPage() {
         const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, 6)
         const max = entries[0]?.[1] || 1
         return entries.map(([id, val]) => ({ cat: getCat(id), val, pct: Math.round((val / max) * 100) }))
+    }, [filtered])
+
+    // Top Expenses
+    const topExpenses = useMemo(() => {
+        return filtered
+            .filter(t => t.type === 'expense' && t.category !== 'invoice_payment')
+            .sort((a, b) => b.amount - a.amount)
+            .slice(0, 6)
     }, [filtered])
 
     if (session === undefined) return null;
@@ -280,7 +311,7 @@ export default function ChartsPage() {
                             {/* Charts Grid */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 20 }}>
                                 {/* 1. Balance */}
-                                <ChartCard title="📉 Evolução do Saldo" subtitle="Saldo acumulado ao longo do tempo" full>
+                                <ChartCard title="🚀 Evolução do Patrimônio" subtitle="Saldo acumulado ao longo do tempo" full>
                                     <div style={{ position: 'relative', height: 320, width: '100%' }}>
                                         {!balanceChartConfig ? <Empty /> : <canvas ref={balanceRef} />}
                                     </div>
@@ -301,7 +332,7 @@ export default function ChartsPage() {
                                 </ChartCard>
 
                                 {/* 4. Type Dist */}
-                                <ChartCard title="🥧 Distribuição por Tipo" subtitle="Quanto vai para cada categoria financeira">
+                                <ChartCard title="💳 Gastos por Conta" subtitle="Meios de pagamento mais utilizados">
                                     <div style={{ position: 'relative', height: 260, width: '100%' }}>
                                         {!typeDistConfig ? <Empty /> : <canvas ref={typeDistRef} />}
                                     </div>
@@ -330,6 +361,44 @@ export default function ChartsPage() {
                                     <div style={{ position: 'relative', height: 260, width: '100%' }}>
                                         {!catIncomeConfig ? <Empty msg="Sem receitas" /> : <canvas ref={catIncomeRef} />}
                                     </div>
+                                </ChartCard>
+
+                                {/* 7. Top Expenses Table */}
+                                <ChartCard title="🚨 Maiores Despesas Individuais" subtitle="As compras/contas mais caras do período" full>
+                                    {topExpenses.length === 0 ? (
+                                        <Empty msg="Nenhuma despesa" />
+                                    ) : (
+                                        <div style={{ overflowX: 'auto' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                                                <thead>
+                                                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>
+                                                        <th style={{ padding: '12px 8px', fontWeight: 600 }}>Descrição</th>
+                                                        <th style={{ padding: '12px 8px', fontWeight: 600 }}>Categoria</th>
+                                                        <th style={{ padding: '12px 8px', fontWeight: 600 }}>Data</th>
+                                                        <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Valor</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {topExpenses.map((tx, i) => {
+                                                        const cat = getCat(tx.category)
+                                                        const dateStr = new Date(tx.date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+                                                        return (
+                                                            <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                                                <td style={{ padding: '12px 8px', fontWeight: 600, color: 'white' }}>{tx.description}</td>
+                                                                <td style={{ padding: '12px 8px' }}>
+                                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: cat.color + '15', color: cat.color, borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                                                                        {cat.icon} {cat.label}
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ padding: '12px 8px', color: 'rgba(255,255,255,0.5)' }}>{dateStr}</td>
+                                                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 700, color: '#ef4444' }}>{fmt(tx.amount)}</td>
+                                                            </tr>
+                                                        )
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </ChartCard>
                             </div>
                         </section>
