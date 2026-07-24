@@ -2,7 +2,7 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'FinanceFlow | Controle Seus Gastos',
+  title: 'Blumii | Controle Seus Gastos',
   description: 'Dashboard financeiro premium para controle de gastos, investimentos e salários.',
 }
 

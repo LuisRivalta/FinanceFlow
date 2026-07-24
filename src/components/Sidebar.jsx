@@ -61,7 +61,7 @@ export default function Sidebar() {
         <header className="sidebar glass-panel">
             <div className="logo">
                 <LogoIcon />
-                <h1>FinanceFlow</h1>
+                <h1>Blumii</h1>
             </div>
 
             <nav className="nav-menu">

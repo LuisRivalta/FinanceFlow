@@ -1,4 +1,4 @@
-# FinanceFlow 💸
+# Blumii 💸
 
 Um sistema financeiro pessoal moderno, dinâmico e focado em design de alto padrão (Glassmorphism e Dark Mode).
 
