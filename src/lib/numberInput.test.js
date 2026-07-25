@@ -29,6 +29,34 @@ describe('sanitizeNumericText', () => {
     it('preserva string vazia para o usuário poder apagar o campo', () => {
         expect(sanitizeNumericText('')).toBe('')
     })
+
+    it('remove separador de milhar quando há ponto e vírgula', () => {
+        expect(sanitizeNumericText('1.500,75')).toBe('1500,75')
+    })
+
+    it('remove símbolo de moeda e separador de milhar', () => {
+        expect(sanitizeNumericText('R$ 1.500,75')).toBe('1500,75')
+    })
+
+    it('remove múltiplos separadores de milhar quando há vírgula decimal', () => {
+        expect(sanitizeNumericText('12.345.678,90')).toBe('12345678,90')
+    })
+
+    it('trata ponto seguido de exatamente 3 dígitos como milhar', () => {
+        expect(sanitizeNumericText('1.000')).toBe('1000')
+    })
+
+    it('remove múltiplos separadores de milhar mesmo sem vírgula decimal', () => {
+        expect(sanitizeNumericText('1.234.567')).toBe('1234567')
+    })
+
+    it('mantém ponto com 2 dígitos como decimal (caso taxa CDI)', () => {
+        expect(sanitizeNumericText('14.15')).toBe('14,15')
+    })
+
+    it('preserva vírgula solta enquanto o usuário digita a parte decimal', () => {
+        expect(sanitizeNumericText('1,')).toBe('1,')
+    })
 })
 
 describe('parseNumericText', () => {
@@ -43,6 +71,10 @@ describe('parseNumericText', () => {
     it('devolve null para separador solto', () => {
         expect(parseNumericText(',')).toBeNull()
     })
+
+    it('trata vírgula solta no fim como parte inteira já digitada', () => {
+        expect(parseNumericText('1,')).toBe(1)
+    })
 })
 
 describe('clampNumber', () => {
@@ -56,6 +88,18 @@ describe('clampNumber', () => {
 
     it('não mexe em valor dentro da faixa', () => {
         expect(clampNumber(10, { min: 1, max: 50 })).toBe(10)
+    })
+
+    it('aplica só o máximo quando não há mínimo', () => {
+        expect(clampNumber(5, { max: 3 })).toBe(3)
+    })
+
+    it('aplica só o mínimo quando não há máximo', () => {
+        expect(clampNumber(5, { min: 10 })).toBe(10)
+    })
+
+    it('devolve o valor sem alteração quando nenhuma opção é passada', () => {
+        expect(clampNumber(7)).toBe(7)
     })
 })
 
@@ -78,5 +122,20 @@ describe('formatNumericValue', () => {
 
     it('devolve vazio para valor inválido', () => {
         expect(formatNumericValue(NaN, { decimals: 2 })).toBe('')
+    })
+
+    it('devolve vazio para valor undefined', () => {
+        expect(formatNumericValue(undefined, { decimals: 2 })).toBe('')
+    })
+})
+
+describe('truncamento na entrada vs arredondamento na exibição', () => {
+    // Comportamento intencionalmente assimétrico: sanitizeNumericText trunca
+    // porque está limitando o que o usuário pode digitar (não faz sentido
+    // "arredondar" enquanto a pessoa ainda está escrevendo), enquanto
+    // formatNumericValue arredonda porque está exibindo o valor final.
+    it('entrada trunca as casas, exibição arredonda', () => {
+        expect(sanitizeNumericText('1,239')).toBe('1,23')
+        expect(formatNumericValue(1.239, { decimals: 2 })).toBe('1,24')
     })
 })
