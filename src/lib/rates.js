@@ -54,25 +54,47 @@ export function parseSeriesResponse(payload, unit) {
     if (!Array.isArray(payload) || payload.length === 0) return null
 
     const latest = payload[payload.length - 1]
-    const value = parseFloat(latest?.valor)
+    const raw = latest?.valor
+
+    // Exige decimal com ponto. parseFloat('0,6723') devolve 0 sem reclamar, e o
+    // Number.isFinite abaixo aprovaria: a poupança apareceria como 0,00% a.a. com
+    // cara de dado real do BCB, sem stale nem degraded. Degradar é melhor que
+    // exibir número errado. Number é aceito caso a API mude o tipo algum dia.
+    let value
+    if (typeof raw === 'number') value = raw
+    else if (typeof raw === 'string' && /^-?\d+(\.\d+)?$/.test(raw)) value = parseFloat(raw)
+    else return null
+
     if (!Number.isFinite(value)) return null
 
-    return {
-        value: unit === 'monthly' ? monthlyToAnnual(value) : round2(value),
-        date: latest.data,
-    }
+    const annual = unit === 'monthly' ? monthlyToAnnual(value) : round2(value)
+    // Guarda na SAÍDA, não só na entrada: monthlyToAnnual eleva a 12, então um
+    // valor absurdo estoura para Infinity, que o JSON.stringify serializa como
+    // null e chegaria assim no browser.
+    if (!Number.isFinite(annual)) return null
+
+    return { value: annual, date: latest.data }
 }
 
 // Nunca lança: cada série que falha cai no seu fallback e entra em `degraded`,
 // para a UI poder avisar que está exibindo o último valor conhecido.
-export async function fetchAllRates({ fetchImpl = fetch, now = new Date(), fetchOptions = {} } = {}) {
+//
+// `timeoutMs` limita o tempo TOTAL das quatro séries com um sinal único. Sem ele,
+// uma conexão pendurada do BCB nunca settla: o Promise.allSettled espera todas as
+// quatro, então uma trava a resposta inteira mesmo com as outras três prontas —
+// e o route handler fica pendurado junto. O abort virou rejeição, que o
+// allSettled já converte em degradação por série. O caller pode passar o próprio
+// `signal` via fetchOptions para sobrescrever.
+export async function fetchAllRates({ fetchImpl = fetch, now = new Date(), fetchOptions = {}, timeoutMs = 5000 } = {}) {
     const keys = Object.keys(SGS_SERIES)
+    const signal = Number.isFinite(timeoutMs) && timeoutMs > 0 ? AbortSignal.timeout(timeoutMs) : undefined
 
     const settled = await Promise.allSettled(
         keys.map(async key => {
             const { code, unit } = SGS_SERIES[key]
             const res = await fetchImpl(buildSeriesUrl(code, now), {
                 headers: { Accept: 'application/json' },
+                signal,
                 ...fetchOptions,
             })
             if (!res.ok) throw new Error(`SGS ${code} respondeu ${res.status}`)
