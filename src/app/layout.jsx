@@ -1,7 +1,9 @@
 
 import './globals.css'
 import LenisScroll from '../components/LenisScroll'
-import GlobalBackground from '../components/3d/GlobalBackground'
+import dynamic from 'next/dynamic'
+
+const GlobalBackground = dynamic(() => import('../components/3d/GlobalBackground'), { ssr: false })
 
 export const metadata = {
   title: 'Blumii | Controle Seus Gastos',

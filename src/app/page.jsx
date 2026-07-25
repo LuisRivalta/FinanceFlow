@@ -7,8 +7,10 @@ import Sidebar from '../components/Sidebar'
 import TxCard from '../components/TxCard'
 import TransactionModal from '../components/TransactionModal'
 import DetailsModal from '../components/DetailsModal'
-import Coin3D from '../components/3d/Coin3D'
+import dynamic from 'next/dynamic'
 import { useSession } from '../hooks/useSession'
+
+const Coin3D = dynamic(() => import('../components/3d/Coin3D'), { ssr: false })
 import { useTransactions } from '../hooks/useTransactions'
 import { formatCurrency, calcBalance, calcIncome, calcExpense, calcInvestment, getCategoryDetails } from '../helpers'
 

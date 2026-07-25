@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import Sidebar from '../../components/Sidebar'
-import Card3D from '../../components/3d/Card3D'
 import { useSession } from '../../hooks/useSession'
+
+const Card3D = dynamic(() => import('../../components/3d/Card3D'), { ssr: false })
 import { useCreditCards } from '../../hooks/useCards'
 import { useTransactions } from '../../hooks/useTransactions'
 import { formatCurrency } from '../../helpers'

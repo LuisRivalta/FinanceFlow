@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import Sidebar from '../../components/Sidebar'
 import Wallet from '../../components/Wallet'
 import NumberField from '../../components/NumberField'
-import WealthParticles from '../../components/3d/WealthParticles'
+import dynamic from 'next/dynamic'
 import { useSession } from '../../hooks/useSession'
+
+const WealthParticles = dynamic(() => import('../../components/3d/WealthParticles'), { ssr: false })
 import { useTransactions } from '../../hooks/useTransactions'
 import { useRates } from '../../hooks/useRates'
 import { INVESTMENT_PRODUCTS, DEFAULT_PRODUCT_ID, getProduct, deriveRate, multiplierLabel } from '../../lib/investmentProducts'
