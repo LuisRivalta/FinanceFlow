@@ -30,9 +30,9 @@ export default function InvestmentsPage() {
     const product = getProduct(productId) || getProduct(DEFAULT_PRODUCT_ID)
     const multiplierFieldLabel = multiplierLabel(product)
 
-    const [simInitial, setSimInitial] = useState(1000)
-    const [simMonthly, setSimMonthly] = useState(200)
-    const [simYears, setSimYears] = useState(5)
+    const [simInitial, setSimInitial] = useState('')
+    const [simMonthly, setSimMonthly] = useState('')
+    const [simYears, setSimYears] = useState('')
     // No primeiro render `rates` já é FALLBACK_RATES, então a taxa inicial sai da
     // mesma derivação que o effect usa depois — sem número mágico duplicado.
     const [simRate, setSimRate] = useState(() => deriveRate(product, rates, multiplier))
@@ -117,11 +117,26 @@ export default function InvestmentsPage() {
 
     // Simulator Calculation
     const simData = useMemo(() => {
-        const months = simYears * 12
-        const monthlyRate = Math.pow(1 + (simRate / 100), 1/12) - 1
+        const initial = Number(simInitial) || 0
+        const monthly = Number(simMonthly) || 0
+        const years = Number(simYears) || 0
         
-        let currentGross = simInitial
-        let currentInvested = simInitial
+        if (years === 0 && initial === 0 && monthly === 0) {
+            return {
+                labels: ['Hoje', '1 Ano', '2 Anos', '3 Anos', '4 Anos', '5 Anos'],
+                dataGross: [0, 0, 0, 0, 0, 0],
+                dataInvested: [0, 0, 0, 0, 0, 0],
+                finalGross: 0,
+                finalInvested: 0
+            }
+        }
+
+        const months = years * 12
+        const rate = Number(simRate) || 0
+        const monthlyRate = Math.pow(1 + (rate / 100), 1/12) - 1
+        
+        let currentGross = initial
+        let currentInvested = initial
         
         const labels = []
         const dataGross = []
@@ -132,8 +147,8 @@ export default function InvestmentsPage() {
         dataInvested.push(currentInvested)
 
         for (let m = 1; m <= months; m++) {
-            currentGross = currentGross * (1 + monthlyRate) + simMonthly
-            currentInvested += simMonthly
+            currentGross = currentGross * (1 + monthlyRate) + monthly
+            currentInvested += monthly
             
             // Gravar por ano ou a cada 6 meses se for muito longo
             if (m % 12 === 0 || m === months) {
@@ -159,8 +174,8 @@ export default function InvestmentsPage() {
         gradGross.addColorStop(1, 'rgba(234, 179, 8, 0.0)')
 
         const gradInvested = ctx.createLinearGradient(0, 0, 0, 400)
-        gradInvested.addColorStop(0, 'rgba(255, 255, 255, 0.15)')
-        gradInvested.addColorStop(1, 'rgba(255, 255, 255, 0.0)')
+        gradInvested.addColorStop(0, 'rgba(96, 165, 250, 0.15)')
+        gradInvested.addColorStop(1, 'rgba(96, 165, 250, 0.0)')
 
         chartInstance.current = new Chart(ctx, {
             type: 'line',
@@ -182,7 +197,7 @@ export default function InvestmentsPage() {
                     {
                         label: 'Total Investido',
                         data: simData.dataInvested,
-                        borderColor: 'rgba(255,255,255,0.4)',
+                        borderColor: '#60a5fa',
                         backgroundColor: gradInvested,
                         borderWidth: 2,
                         pointRadius: 0,
@@ -381,7 +396,7 @@ export default function InvestmentsPage() {
                         <div style={{ marginTop: 'auto', paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
                                 <span style={{ color: 'var(--text-secondary)' }}>Total Investido:</span>
-                                <span>{formatCurrency(simData.finalInvested)}</span>
+                                <span style={{ color: '#60a5fa' }}>{formatCurrency(simData.finalInvested)}</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
                                 <span style={{ color: 'var(--text-secondary)' }}>Juros Ganhos:</span>
