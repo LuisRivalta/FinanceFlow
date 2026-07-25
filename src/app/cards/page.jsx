@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '../../components/Sidebar'
+import Card3D from '../../components/3d/Card3D'
 import { useSession } from '../../hooks/useSession'
 import { useCreditCards } from '../../hooks/useCards'
 import { useTransactions } from '../../hooks/useTransactions'
@@ -124,15 +125,22 @@ export default function CardsPage() {
                 <Sidebar />
 
                 <main className="main-content">
-                    <header className="top-header fade-up">
-                        <div>
-                            <h2 className="page-title">Meus Cartões</h2>
-                            <p className="page-subtitle">Gerencie suas faturas, assinaturas e parcelamentos.</p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <header className="top-header fade-up" style={{ flex: 1 }}>
+                            <div>
+                                <h2 className="page-title">Meus Cartões</h2>
+                                <p className="page-subtitle">Gerencie suas faturas, assinaturas e parcelamentos.</p>
+                            </div>
+                            <button className="btn-primary" style={{ marginTop: 20 }} onClick={() => { cancelEdit(); setIsAddingCard(true); }}>
+                                <span className="icon">💳</span> Adicionar Cartão
+                            </button>
+                        </header>
+                        
+                        {/* 3D Holographic Card Interactive visual */}
+                        <div className="fade-up" style={{ width: '300px', height: '220px', position: 'relative', zIndex: 50, marginRight: 40 }}>
+                            <Card3D />
                         </div>
-                        <button className="btn-primary" onClick={() => { cancelEdit(); setIsAddingCard(true); }}>
-                            <span className="icon">💳</span> Adicionar Cartão
-                        </button>
-                    </header>
+                    </div>
 
                     {isAddingCard && (
                         <div className="glass-panel fade-up" style={{ padding: 24, marginBottom: 24, border: '1px solid rgba(139,92,246,0.3)' }}>

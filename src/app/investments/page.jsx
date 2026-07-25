@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Sidebar from '../../components/Sidebar'
 import Wallet from '../../components/Wallet'
 import NumberField from '../../components/NumberField'
+import WealthParticles from '../../components/3d/WealthParticles'
 import { useSession } from '../../hooks/useSession'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useRates } from '../../hooks/useRates'
@@ -32,7 +33,8 @@ export default function InvestmentsPage() {
 
     const [simInitial, setSimInitial] = useState('')
     const [simMonthly, setSimMonthly] = useState('')
-    const [simYears, setSimYears] = useState('')
+    const [simPeriodValue, setSimPeriodValue] = useState('')
+    const [simPeriodType, setSimPeriodType] = useState('anos')
     // No primeiro render `rates` já é FALLBACK_RATES, então a taxa inicial sai da
     // mesma derivação que o effect usa depois — sem número mágico duplicado.
     const [simRate, setSimRate] = useState(() => deriveRate(product, rates, multiplier))
@@ -119,9 +121,9 @@ export default function InvestmentsPage() {
     const simData = useMemo(() => {
         const initial = Number(simInitial) || 0
         const monthly = Number(simMonthly) || 0
-        const years = Number(simYears) || 0
+        const period = Number(simPeriodValue) || 0
         
-        if (years === 0 && initial === 0 && monthly === 0) {
+        if (period === 0 && initial === 0 && monthly === 0) {
             return {
                 labels: ['Hoje', '1 Ano', '2 Anos', '3 Anos', '4 Anos', '5 Anos'],
                 dataGross: [0, 0, 0, 0, 0, 0],
@@ -131,7 +133,7 @@ export default function InvestmentsPage() {
             }
         }
 
-        const months = years * 12
+        const months = simPeriodType === 'anos' ? period * 12 : period
         const rate = Number(simRate) || 0
         const monthlyRate = Math.pow(1 + (rate / 100), 1/12) - 1
         
@@ -150,16 +152,28 @@ export default function InvestmentsPage() {
             currentGross = currentGross * (1 + monthlyRate) + monthly
             currentInvested += monthly
             
-            // Gravar por ano ou a cada 6 meses se for muito longo
-            if (m % 12 === 0 || m === months) {
-                labels.push(`${m/12} ${m === 12 ? 'Ano' : 'Anos'}`)
+            const step = months <= 12 ? 1 : months <= 24 ? 2 : 12;
+
+            if (m % step === 0 || m === months) {
+                let lbl = '';
+                if (m % 12 === 0) {
+                    const y = m / 12;
+                    lbl = `${y} ${y === 1 ? 'Ano' : 'Anos'}`
+                } else {
+                    lbl = `${m} ${m === 1 ? 'Mês' : 'Meses'}`
+                }
+                
+                // Avoid duplicating the last label if it coincidentally hits the modulo
+                if (labels.length > 0 && labels[labels.length - 1] === lbl) continue;
+
+                labels.push(lbl)
                 dataGross.push(currentGross)
                 dataInvested.push(currentInvested)
             }
         }
 
         return { labels, dataGross, dataInvested, finalGross: currentGross, finalInvested: currentInvested }
-    }, [simInitial, simMonthly, simYears, simRate])
+    }, [simInitial, simMonthly, simPeriodValue, simPeriodType, simRate])
 
     useEffect(() => {
         if (!chartRef.current) return
@@ -240,6 +254,8 @@ export default function InvestmentsPage() {
                     },
                     y: {
                         grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+                        suggestedMax: 1000,
+                        suggestedMin: 0,
                         ticks: {
                             color: 'rgba(255,255,255,0.4)',
                             callback: (val) => new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(val)
@@ -297,7 +313,8 @@ export default function InvestmentsPage() {
                 <h3 className="fade-up delay-2" style={{ fontSize: 24, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span>🧮</span> Simulador de Juros Compostos
                 </h3>
-                <div className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: 24, alignItems: 'stretch' }}>
+                <div className="fade-up delay-2" style={{ position: 'relative', display: 'grid', gridTemplateColumns: '350px 1fr', gap: 24, alignItems: 'stretch' }}>
+                    <WealthParticles color="#10b981" />
                     
                     {/* Controles do Simulador */}
                     <div className="card glass-panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -381,15 +398,21 @@ export default function InvestmentsPage() {
                         </div>
 
                         <div>
-                            <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Período (Anos)</label>
+                            <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>
+                                <span>Período</span>
+                                <select value={simPeriodType} onChange={e => setSimPeriodType(e.target.value)} style={{ background: 'transparent', border: 'none', color: '#60a5fa', outline: 'none', cursor: 'pointer', fontSize: 14, padding: 0, textAlign: 'right' }}>
+                                    <option value="anos" style={{ color: 'black' }}>Anos</option>
+                                    <option value="meses" style={{ color: 'black' }}>Meses</option>
+                                </select>
+                            </label>
                             <NumberField
-                                value={simYears}
-                                onChange={setSimYears}
+                                value={simPeriodValue}
+                                onChange={setSimPeriodValue}
                                 min={1}
-                                max={50}
+                                max={simPeriodType === 'anos' ? 50 : 600}
                                 decimals={0}
                                 icon="⏳"
-                                ariaLabel="Período em anos"
+                                ariaLabel={`Período em ${simPeriodType}`}
                             />
                         </div>
 
