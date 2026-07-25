@@ -7,7 +7,9 @@ import Wallet from '../../components/Wallet'
 import NumberField from '../../components/NumberField'
 import { useSession } from '../../hooks/useSession'
 import { useTransactions } from '../../hooks/useTransactions'
-import { formatCurrency, calcInvestment, CATEGORY_MAP } from '../../helpers'
+import { useRates } from '../../hooks/useRates'
+import { INVESTMENT_PRODUCTS, DEFAULT_PRODUCT_ID, getProduct, deriveRate, multiplierLabel } from '../../lib/investmentProducts'
+import { formatCurrency, formatPercent, calcInvestment, CATEGORY_MAP } from '../../helpers'
 import { Chart, ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler } from 'chart.js'
 
 Chart.register(ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler)
@@ -18,11 +20,23 @@ export default function InvestmentsPage() {
     const { transactions, loading: txLoading } = useTransactions(session?.email)
 
     // Simulator State
+    const { rates, degraded, loading: ratesLoading } = useRates()
+
+    const [productId, setProductId] = useState(DEFAULT_PRODUCT_ID)
+    const [multiplier, setMultiplier] = useState(() => getProduct(DEFAULT_PRODUCT_ID).defaultMultiplier)
+
+    // Consts comuns, não hooks — a ordem das chamadas de hook não é afetada.
+    // Precisam vir antes do useState de simRate, que os consome no initializer.
+    const product = getProduct(productId) || getProduct(DEFAULT_PRODUCT_ID)
+    const multiplierFieldLabel = multiplierLabel(product)
+
     const [simInitial, setSimInitial] = useState(1000)
     const [simMonthly, setSimMonthly] = useState(200)
     const [simYears, setSimYears] = useState(5)
-    const [simRate, setSimRate] = useState(10.4) // Annual rate %
-    
+    // No primeiro render `rates` já é FALLBACK_RATES, então a taxa inicial sai da
+    // mesma derivação que o effect usa depois — sem número mágico duplicado.
+    const [simRate, setSimRate] = useState(() => deriveRate(product, rates, multiplier))
+
     const chartRef = useRef(null)
     const chartInstance = useRef(null)
 
@@ -32,6 +46,51 @@ export default function InvestmentsPage() {
             router.push('/login')
         }
     }, [session, router])
+
+    // Escreve a taxa derivada em simRate quando produto, multiplicador ou taxas
+    // mudam. deriveRate devolve null para o Personalizado, e é isso que impede o
+    // effect de atropelar a taxa digitada à mão — sem comparar id nenhum.
+    useEffect(() => {
+        const derived = deriveRate(product, rates, multiplier)
+        if (derived === null) return
+        setSimRate(derived)
+    }, [product, rates, multiplier])
+
+    const handleProductChange = e => {
+        const next = getProduct(e.target.value)
+        if (!next) return
+        setProductId(next.id)
+        if (next.defaultMultiplier !== null) setMultiplier(next.defaultMultiplier)
+    }
+
+    // Digitar uma taxa própria muda o produto para Personalizado, o que faz
+    // deriveRate devolver null e o effect acima parar de sobrescrever.
+    const handleRateChange = rate => {
+        setSimRate(rate)
+        setProductId('custom')
+    }
+
+    // Linha embaixo do campo de taxa, substituindo a dica hardcoded
+    // "Ex: 10.4 para CDI/Selic atual", que estava desatualizada.
+    const rateStatus = useMemo(() => {
+        const muted = 'rgba(255,255,255,0.3)'
+
+        if (!product.index) {
+            return { text: 'taxa definida por você', tone: muted }
+        }
+        if (ratesLoading) {
+            return { text: 'buscando taxas no Banco Central…', tone: muted }
+        }
+        if (degraded.includes(product.index)) {
+            return { text: '⚠ não deu pra atualizar; usando último valor conhecido', tone: '#f59e0b' }
+        }
+
+        const indexRate = rates[product.index]
+        return {
+            text: `${product.indexLabel} ${formatPercent(indexRate.value)} a.a. · Banco Central, ${indexRate.date}`,
+            tone: muted,
+        }
+    }, [product, rates, degraded, ratesLoading])
 
     const invTransactions = useMemo(() => transactions.filter(t => t.type === 'investment'), [transactions])
     
@@ -219,6 +278,37 @@ export default function InvestmentsPage() {
                     {/* Controles do Simulador */}
                     <div className="card glass-panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
                         <div>
+                            <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Tipo de Investimento</label>
+                            <div className="tx-field" style={{ margin: 0 }}>
+                                <select value={productId} onChange={handleProductChange} aria-label="Tipo de investimento">
+                                    {INVESTMENT_PRODUCTS.map(p => (
+                                        <option key={p.id} value={p.id}>{p.icon} {p.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            {product.hint && (
+                                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 8, lineHeight: 1.5 }}>
+                                    {product.hint}
+                                </div>
+                            )}
+                        </div>
+
+                        {multiplierFieldLabel && (
+                            <div>
+                                <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>{multiplierFieldLabel}</label>
+                                <NumberField
+                                    value={multiplier}
+                                    onChange={setMultiplier}
+                                    min={0}
+                                    max={product.multiplierKind === 'percent_of' ? 300 : 50}
+                                    decimals={2}
+                                    icon={product.multiplierKind === 'percent_of' ? '✖️' : '➕'}
+                                    ariaLabel={multiplierFieldLabel}
+                                />
+                            </div>
+                        )}
+
+                        <div>
                             <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Valor Inicial</label>
                             <NumberField
                                 value={simInitial}
@@ -248,7 +338,7 @@ export default function InvestmentsPage() {
                             <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Taxa de Rendimento Anual (%)</label>
                             <NumberField
                                 value={simRate}
-                                onChange={setSimRate}
+                                onChange={handleRateChange}
                                 min={0}
                                 max={100}
                                 decimals={2}
@@ -256,7 +346,14 @@ export default function InvestmentsPage() {
                                 suffix="%"
                                 ariaLabel="Taxa de rendimento anual"
                             />
-                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 8 }}>Ex: 10.4 para CDI/Selic atual</div>
+                            <div style={{ fontSize: 12, marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                                <span style={{ color: rateStatus.tone }}>{rateStatus.text}</span>
+                                {product.taxExempt && (
+                                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: '#10b981', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 6, padding: '2px 6px' }}>
+                                        isento de IR
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
                         <div>
@@ -284,6 +381,9 @@ export default function InvestmentsPage() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, marginTop: 12, color: '#eab308' }}>
                                 <span>Valor Final Bruto:</span>
                                 <span>{formatCurrency(simData.finalGross)}</span>
+                            </div>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginTop: 16, lineHeight: 1.5 }}>
+                                Simulação com taxa constante, em valor bruto — sem descontar impostos ou taxas. Rentabilidade passada não garante retorno futuro.
                             </div>
                         </div>
                     </div>
