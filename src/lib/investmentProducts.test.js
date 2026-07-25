@@ -6,6 +6,7 @@ import {
     deriveRate,
     multiplierLabel,
 } from './investmentProducts'
+import { FALLBACK_RATES, SGS_SERIES } from './rates'
 
 const RATES = {
     cdi: { value: 14.15, date: '23/07/2026' },
@@ -99,5 +100,42 @@ describe('catálogo', () => {
         expect(getProduct('poupanca').taxExempt).toBe(true)
         expect(getProduct('lci_lca').taxExempt).toBe(true)
         expect(getProduct('cdb').taxExempt).toBe(false)
+    })
+})
+
+// Duas listas independentes precisam concordar: os índices que os produtos citam
+// e as chaves que rates.js entrega. Se divergirem, a página lê rates[índice]
+// como undefined e lança TypeError durante o render — sem error boundary, tela
+// branca. Este teste é o que impede isso de acontecer em silêncio.
+describe('produtos e séries do BCB concordam', () => {
+    it('todo índice citado por um produto existe em FALLBACK_RATES', () => {
+        INVESTMENT_PRODUCTS
+            .filter(p => p.index !== null)
+            .forEach(p => {
+                expect(Object.keys(FALLBACK_RATES)).toContain(p.index)
+            })
+    })
+
+    it('todo índice citado por um produto existe em SGS_SERIES', () => {
+        INVESTMENT_PRODUCTS
+            .filter(p => p.index !== null)
+            .forEach(p => {
+                expect(Object.keys(SGS_SERIES)).toContain(p.index)
+            })
+    })
+
+    it('deriveRate nunca devolve null com FALLBACK_RATES e o multiplicador default', () => {
+        INVESTMENT_PRODUCTS
+            .filter(p => p.index !== null)
+            .forEach(p => {
+                expect(deriveRate(p, FALLBACK_RATES, p.defaultMultiplier)).not.toBeNull()
+            })
+    })
+
+    it('só o Personalizado devolve null, que é o sinal de não sobrescrever', () => {
+        const nulls = INVESTMENT_PRODUCTS
+            .filter(p => deriveRate(p, FALLBACK_RATES, p.defaultMultiplier) === null)
+            .map(p => p.id)
+        expect(nulls).toEqual(['custom'])
     })
 })

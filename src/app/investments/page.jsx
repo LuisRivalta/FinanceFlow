@@ -66,6 +66,10 @@ export default function InvestmentsPage() {
     // Digitar uma taxa própria muda o produto para Personalizado, o que faz
     // deriveRate devolver null e o effect acima parar de sobrescrever.
     const handleRateChange = rate => {
+        // Guarda redundante com o `dirty` do NumberField, de propósito: trocar o
+        // produto é destrutivo (desliga a taxa automática), então não depende de
+        // um único ponto de controle.
+        if (rate === simRate) return
         setSimRate(rate)
         setProductId('custom')
     }
@@ -81,11 +85,16 @@ export default function InvestmentsPage() {
         if (ratesLoading) {
             return { text: 'buscando taxas no Banco Central…', tone: muted }
         }
-        if (degraded.includes(product.index)) {
+        const indexRate = rates?.[product.index]
+
+        // `degraded` cobre série que o BCB não entregou. Esta segunda guarda cobre
+        // chave ausente do objeto inteiro: sem ela, `indexRate.value` lançaria
+        // TypeError dentro do useMemo, durante o render, e como não há error
+        // boundary em src/app/ a página de investimentos ficaria em branco.
+        if (degraded.includes(product.index) || !indexRate || !Number.isFinite(indexRate.value)) {
             return { text: '⚠ não deu pra atualizar; usando último valor conhecido', tone: '#f59e0b' }
         }
 
-        const indexRate = rates[product.index]
         return {
             text: `${product.indexLabel} ${formatPercent(indexRate.value)} a.a. · Banco Central, ${indexRate.date}`,
             tone: muted,
