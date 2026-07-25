@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { PresentationControls, Environment, ContactShadows } from '@react-three/drei';
+import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
 import * as THREE from 'three';
 
 function CreditCard() {
@@ -62,16 +62,15 @@ export default function Card3D({ style }) {
                 <directionalLight position={[5, 5, 5]} intensity={1} />
                 <spotLight position={[-5, 5, 5]} angle={0.15} penumbra={1} intensity={2} color="#6366f1" />
                 
-                <PresentationControls 
-                    global 
-                    rotation={[0, 0, 0]} 
-                    polar={[-Math.PI / 4, Math.PI / 4]} 
-                    azimuth={[-Math.PI / 4, Math.PI / 4]}
-                    config={{ mass: 2, tension: 400 }}
-                    snap={{ mass: 4, tension: 400 }}
-                >
-                    <CreditCard />
-                </PresentationControls>
+                <OrbitControls 
+                    enableZoom={false}
+                    enablePan={false}
+                    minPolarAngle={Math.PI / 2 - 0.2}
+                    maxPolarAngle={Math.PI / 2 + 0.2}
+                    minAzimuthAngle={-0.5}
+                    maxAzimuthAngle={0.5}
+                />
+                <CreditCard />
 
                 <ContactShadows position={[0, -1.5, 0]} opacity={0.4} scale={10} blur={2} far={4} color="#000000" />
                 <Environment preset="city" />
