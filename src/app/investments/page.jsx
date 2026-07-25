@@ -184,91 +184,95 @@ export default function InvestmentsPage() {
             chartInstance.current.destroy()
         }
 
-        const ctx = chartRef.current.getContext('2d')
-        
-        const gradGross = ctx.createLinearGradient(0, 0, 0, 400)
-        gradGross.addColorStop(0, 'rgba(234, 179, 8, 0.4)')
-        gradGross.addColorStop(1, 'rgba(234, 179, 8, 0.0)')
+        let timeoutId = setTimeout(() => {
+            const ctx = chartRef.current.getContext('2d')
+            
+            const gradGross = ctx.createLinearGradient(0, 0, 0, 400)
+            gradGross.addColorStop(0, 'rgba(234, 179, 8, 0.4)')
+            gradGross.addColorStop(1, 'rgba(234, 179, 8, 0.0)')
 
-        const gradInvested = ctx.createLinearGradient(0, 0, 0, 400)
-        gradInvested.addColorStop(0, 'rgba(96, 165, 250, 0.15)')
-        gradInvested.addColorStop(1, 'rgba(96, 165, 250, 0.0)')
+            const gradInvested = ctx.createLinearGradient(0, 0, 0, 400)
+            gradInvested.addColorStop(0, 'rgba(96, 165, 250, 0.15)')
+            gradInvested.addColorStop(1, 'rgba(96, 165, 250, 0.0)')
 
-        chartInstance.current = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: simData.labels,
-                datasets: [
-                    {
-                        label: simData.isPlaceholder ? 'Simulação (Exemplo)' : 'Valor Total Bruto',
-                        data: simData.dataGross,
-                        borderColor: simData.isPlaceholder ? 'rgba(255,255,255,0.2)' : '#eab308',
-                        backgroundColor: simData.isPlaceholder ? 'transparent' : gradGross,
-                        borderWidth: simData.isPlaceholder ? 2 : 3,
-                        borderDash: simData.isPlaceholder ? [5, 5] : [],
-                        pointBackgroundColor: simData.isPlaceholder ? 'transparent' : '#eab308',
-                        pointBorderColor: simData.isPlaceholder ? 'transparent' : '#fff',
-                        pointRadius: simData.isPlaceholder ? 0 : 4,
-                        fill: !simData.isPlaceholder,
-                        tension: 0.4
-                    },
-                    {
-                        label: simData.isPlaceholder ? 'Aportes (Exemplo)' : 'Total Investido',
-                        data: simData.dataInvested,
-                        borderColor: simData.isPlaceholder ? 'rgba(255,255,255,0.05)' : '#60a5fa',
-                        backgroundColor: simData.isPlaceholder ? 'transparent' : gradInvested,
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        borderDash: simData.isPlaceholder ? [5, 5] : [5, 5],
-                        fill: !simData.isPlaceholder,
-                        tension: 0.4
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
+            chartInstance.current = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: simData.labels,
+                    datasets: [
+                        {
+                            label: simData.isPlaceholder ? 'Simulação (Exemplo)' : 'Valor Total Bruto',
+                            data: simData.dataGross,
+                            borderColor: simData.isPlaceholder ? 'rgba(255,255,255,0.2)' : '#eab308',
+                            backgroundColor: simData.isPlaceholder ? 'transparent' : gradGross,
+                            borderWidth: simData.isPlaceholder ? 2 : 3,
+                            borderDash: simData.isPlaceholder ? [5, 5] : [],
+                            pointBackgroundColor: simData.isPlaceholder ? 'transparent' : '#eab308',
+                            pointBorderColor: simData.isPlaceholder ? 'transparent' : '#fff',
+                            pointRadius: simData.isPlaceholder ? 0 : 4,
+                            fill: !simData.isPlaceholder,
+                            tension: 0.4
+                        },
+                        {
+                            label: simData.isPlaceholder ? 'Aportes (Exemplo)' : 'Total Investido',
+                            data: simData.dataInvested,
+                            borderColor: simData.isPlaceholder ? 'rgba(255,255,255,0.05)' : '#60a5fa',
+                            backgroundColor: simData.isPlaceholder ? 'transparent' : gradInvested,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            borderDash: simData.isPlaceholder ? [5, 5] : [5, 5],
+                            fill: !simData.isPlaceholder,
+                            tension: 0.4
+                        }
+                    ]
                 },
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: { color: 'rgba(255,255,255,0.7)', usePointStyle: true, padding: 20 }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
                     },
-                    tooltip: {
-                        enabled: !simData.isPlaceholder,
-                        backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                        titleColor: 'rgba(255,255,255,0.9)',
-                        bodyColor: '#eab308',
-                        borderColor: 'rgba(255,255,255,0.1)',
-                        borderWidth: 1,
-                        padding: 12,
-                        callbacks: {
-                            label: (ctx) => {
-                                return ctx.dataset.label + ': ' + formatCurrency(ctx.raw)
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { color: 'rgba(255,255,255,0.7)', usePointStyle: true, padding: 20 }
+                        },
+                        tooltip: {
+                            enabled: !simData.isPlaceholder,
+                            backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                            titleColor: 'rgba(255,255,255,0.9)',
+                            bodyColor: '#eab308',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            padding: 12,
+                            callbacks: {
+                                label: (ctx) => {
+                                    return ctx.dataset.label + ': ' + formatCurrency(ctx.raw)
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+                            ticks: { color: 'rgba(255,255,255,0.4)' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+                            suggestedMax: 1000,
+                            suggestedMin: 0,
+                            ticks: {
+                                color: 'rgba(255,255,255,0.4)',
+                                callback: (val) => new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(val)
                             }
                         }
                     }
-                },
-                scales: {
-                    x: {
-                        grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
-                        ticks: { color: 'rgba(255,255,255,0.4)' }
-                    },
-                    y: {
-                        grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
-                        suggestedMax: 1000,
-                        suggestedMin: 0,
-                        ticks: {
-                            color: 'rgba(255,255,255,0.4)',
-                            callback: (val) => new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(val)
-                        }
-                    }
                 }
-            }
-        })
+            })
+        }, 50)
+
+        return () => clearTimeout(timeoutId)
     }, [simData])
 
     if (!session) return null
@@ -446,7 +450,7 @@ export default function InvestmentsPage() {
                             Projeção de Crescimento do Patrimônio
                         </div>
                         <div style={{ flex: 1, minHeight: 400, position: 'relative' }}>
-                            <canvas ref={chartRef} />
+                            <canvas ref={chartRef} style={{ width: '100%', height: '100%', display: 'block' }} />
                         </div>
                     </div>
                 </div>

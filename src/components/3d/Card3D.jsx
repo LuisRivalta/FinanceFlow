@@ -20,70 +20,82 @@ function CardControls() {
     return null;
 }
 
-function CreditCard() {
+function CreditCard({ color }) {
     const cardRef = useRef();
     
-    useFrame((state) => {
-        const t = state.clock.getElapsedTime();
-        cardRef.current.position.y = Math.sin(t * 2) * 0.1;
-        cardRef.current.rotation.x = Math.sin(t * 1) * 0.05;
-        cardRef.current.rotation.y = Math.cos(t * 1) * 0.05;
+    useFrame((state, delta) => {
+        if (cardRef.current) {
+            // Subtle floating effect
+            cardRef.current.position.y = Math.sin(state.clock.elapsedTime * 2) * 0.1;
+        }
     });
 
     return (
         <group ref={cardRef}>
             {/* Card Body */}
             <mesh castShadow receiveShadow>
-                <boxGeometry args={[3.37, 2.12, 0.05]} />
-                <meshPhysicalMaterial 
-                    color="#1e1b4b" 
-                    metalness={0.8} 
-                    roughness={0.2} 
-                    clearcoat={1} 
-                    clearcoatRoughness={0.1}
+                <boxGeometry args={[3.37, 2.12, 0.04]} />
+                <meshStandardMaterial 
+                    color={color || "#1e1b4b"} 
+                    metalness={0.7} 
+                    roughness={0.3} 
                 />
             </mesh>
             
             {/* Chip */}
-            <mesh position={[-1.1, 0.2, 0.026]}>
+            <mesh position={[-1.1, 0.2, 0.021]}>
                 <boxGeometry args={[0.4, 0.3, 0.01]} />
-                <meshStandardMaterial color="#fbbf24" metalness={1} roughness={0.2} />
-            </mesh>
-
-            {/* Logo placeholder */}
-            <mesh position={[1.1, -0.6, 0.026]}>
-                <boxGeometry args={[0.5, 0.15, 0.01]} />
-                <meshStandardMaterial color="#818cf8" metalness={0.5} roughness={0.2} />
-            </mesh>
-            <mesh position={[1.1, -0.4, 0.026]}>
-                <boxGeometry args={[0.5, 0.15, 0.01]} />
-                <meshStandardMaterial color="#34d399" metalness={0.5} roughness={0.2} />
+                <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.2} />
             </mesh>
 
             {/* Magnetic Stripe (Back) */}
-            <mesh position={[0, 0.5, -0.026]}>
+            <mesh position={[0, 0.5, -0.021]}>
                 <boxGeometry args={[3.37, 0.4, 0.01]} />
-                <meshStandardMaterial color="#000000" metalness={0.1} roughness={0.8} />
+                <meshStandardMaterial color="#000000" metalness={0.2} roughness={0.8} />
             </mesh>
         </group>
     );
 }
 
-export default function Card3D({ style }) {
-    return (
-        <div style={{ width: '100%', height: '300px', cursor: 'grab', ...style }}>
-            <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
-                <ambientLight intensity={0.5} />
-                <directionalLight position={[5, 5, 5]} intensity={1} />
-                <CardControls />
-                <CreditCard />
+export default function Card3D({ card, onClose }) {
+    if (!card) return null;
 
-                {/* Fake shadow */}
-                <mesh position={[0, -1.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                    <planeGeometry args={[5, 5]} />
-                    <meshBasicMaterial color="#000000" transparent opacity={0.3} />
-                </mesh>
-            </Canvas>
+    return (
+        <div style={{ 
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
+            backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 9999, 
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' 
+        }}>
+            <div style={{ position: 'absolute', top: 40, right: 40 }}>
+                <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 16 }}>
+                    Fechar ✖
+                </button>
+            </div>
+            
+            <div style={{ marginBottom: 20, textAlign: 'center' }}>
+                <h2 style={{ fontSize: 32, margin: 0, color: 'white' }}>{card.name}</h2>
+                <p style={{ color: 'rgba(255,255,255,0.5)', margin: 0 }}>Arraste para girar em 3D</p>
+            </div>
+
+            <div style={{ width: '600px', height: '400px', cursor: 'grab' }}>
+                <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
+                    {/* Rich Lighting setup to fake environment reflections */}
+                    <ambientLight intensity={1.5} />
+                    <directionalLight position={[5, 5, 5]} intensity={2.5} />
+                    <directionalLight position={[-5, -5, 5]} intensity={1.5} color="#ffffff" />
+                    <pointLight position={[0, 0, 5]} intensity={2} color="#ffffff" />
+                    <spotLight position={[5, -5, 5]} angle={0.2} penumbra={1} intensity={2} />
+
+                    <CardControls />
+                    <CreditCard color={card.color} />
+
+                    {/* Fake shadow on the floor */}
+                    <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                        <planeGeometry args={[10, 10]} />
+                        <meshBasicMaterial color="#000000" transparent opacity={0.5} />
+                    </mesh>
+                </Canvas>
+            </div>
         </div>
     );
 }

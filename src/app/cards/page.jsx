@@ -35,6 +35,7 @@ export default function CardsPage() {
     const [isAddingCard, setIsAddingCard] = useState(false)
     const [editingCardId, setEditingCardId] = useState(null)
     const [newCard, setNewCard] = useState({ name: '', brand: 'Mastercard', limit: '', closingDay: '', dueDay: '', color: '#8b5cf6' })
+    const [selectedCard3D, setSelectedCard3D] = useState(null)
 
     function handleEditCardClick(card) {
         setEditingCardId(card.id)
@@ -137,11 +138,6 @@ export default function CardsPage() {
                                 <span className="icon">💳</span> Adicionar Cartão
                             </button>
                         </header>
-                        
-                        {/* 3D Holographic Card Interactive visual */}
-                        <div className="fade-up" style={{ width: '300px', height: '220px', position: 'relative', zIndex: 50, marginRight: 40 }}>
-                            <Card3D />
-                        </div>
                     </div>
 
                     {isAddingCard && (
@@ -205,7 +201,7 @@ export default function CardsPage() {
                             const available = card.credit_limit - invoiceAmount
 
                             return (
-                                <div key={card.id} className="card glass-panel" style={{ padding: 24, background: `linear-gradient(135deg, ${card.color}22 0%, rgba(0,0,0,0.3) 100%)`, border: `1px solid ${card.color}55`, position: 'relative', overflow: 'hidden' }}>
+                                <div key={card.id} onClick={() => setSelectedCard3D(card)} className="card glass-panel" style={{ padding: 24, background: `linear-gradient(135deg, ${card.color}22 0%, rgba(0,0,0,0.3) 100%)`, border: `1px solid ${card.color}55`, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
                                     <div style={{ position: 'absolute', top: -20, right: -20, opacity: 0.1, color: card.color }}>
                                         <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
                                     </div>
@@ -215,8 +211,8 @@ export default function CardsPage() {
                                             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{card.brand}</span>
                                         </div>
                                         <div style={{ display: 'flex', gap: 12, position: 'relative', zIndex: 10 }}>
-                                            <button onClick={() => handleEditCardClick(card)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>✏️</button>
-                                            <button onClick={() => removeCard(card.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}>🗑️</button>
+                                            <button onClick={(e) => { e.stopPropagation(); handleEditCardClick(card); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>✏️</button>
+                                            <button onClick={(e) => { e.stopPropagation(); removeCard(card.id); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}>🗑️</button>
                                         </div>
                                     </div>
                                     <div style={{ marginBottom: 16 }}>
@@ -230,7 +226,7 @@ export default function CardsPage() {
                                     <button 
                                         className="btn-primary" 
                                         style={{ width: '100%', padding: '8px 0', fontSize: 13, background: invoiceAmount > 0 ? card.color : 'rgba(255,255,255,0.1)', position: 'relative', zIndex: 10 }}
-                                        onClick={() => handlePayInvoice(card, invoiceAmount)}
+                                        onClick={(e) => { e.stopPropagation(); handlePayInvoice(card, invoiceAmount); }}
                                         disabled={invoiceAmount <= 0}
                                     >
                                         {invoiceAmount > 0 ? '🧾 Pagar Fatura' : '✨ Fatura Paga'}
@@ -299,6 +295,7 @@ export default function CardsPage() {
 
                 </main>
             </div>
+            {selectedCard3D && <Card3D card={selectedCard3D} onClose={() => setSelectedCard3D(null)} />}
         </div>
     )
 }
