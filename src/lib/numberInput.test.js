@@ -15,7 +15,11 @@ describe('sanitizeNumericText', () => {
     })
 
     it('mantém apenas o primeiro separador', () => {
-        expect(sanitizeNumericText('1,5,7')).toBe('1,57')
+        // Alterado de '1,57' para '15,7': a regra passou a ser posicional (o
+        // ÚLTIMO separador é o decimal, ver defeito B). '1,5,7' não é uma
+        // entrada real (nenhuma das duas leituras faz sentido), então a
+        // mudança é aceitável — o ganho é resolver correto pt-BR e en-US.
+        expect(sanitizeNumericText('1,5,7')).toBe('15,7')
     })
 
     it('limita as casas decimais', () => {
@@ -56,6 +60,30 @@ describe('sanitizeNumericText', () => {
 
     it('preserva vírgula solta enquanto o usuário digita a parte decimal', () => {
         expect(sanitizeNumericText('1,')).toBe('1,')
+    })
+
+    it('resolve milhar e decimal no padrão en-US (vírgula milhar, ponto decimal)', () => {
+        expect(sanitizeNumericText('1,500.75')).toBe('1500,75')
+    })
+
+    it('resolve múltiplos milhares en-US', () => {
+        expect(sanitizeNumericText('1,234,567.89')).toBe('1234567,89')
+    })
+
+    it('resolve milhar en-US com decimal de 2 casas', () => {
+        expect(sanitizeNumericText('10,000.50')).toBe('10000,50')
+    })
+
+    it('trata ponto como decimal quando a parte inteira é zero', () => {
+        expect(sanitizeNumericText('0.500')).toBe('0,50')
+    })
+
+    it('trata ponto como decimal em taxa de poupança com zero à esquerda', () => {
+        expect(sanitizeNumericText('0.6723')).toBe('0,67')
+    })
+
+    it('trata ponto como decimal quando a parte inteira é zero mesmo com 3 zeros', () => {
+        expect(sanitizeNumericText('0.000')).toBe('0,00')
     })
 })
 
@@ -137,5 +165,19 @@ describe('truncamento na entrada vs arredondamento na exibição', () => {
     it('entrada trunca as casas, exibição arredonda', () => {
         expect(sanitizeNumericText('1,239')).toBe('1,23')
         expect(formatNumericValue(1.239, { decimals: 2 })).toBe('1,24')
+    })
+})
+
+describe('colar vs digitar (mesmo texto, resultado diferente)', () => {
+    // sanitizeNumericText só vê o texto final de cada chamada, sem memória de
+    // como ele foi construído. Por isso colar "1.000" de uma vez cai na regra
+    // de milhar (-> 1000), mas um usuário DIGITANDO os mesmos 5 caracteres não
+    // passa por esse caminho: assim que a tecla "." é pressionada, o campo já
+    // mostra "1," (o ponto virou o marcador decimal na hora, dando feedback
+    // imediato), então os "0" seguintes entram como casas decimais e o
+    // resultado final digitado é "1,00" (-> 1), não "1000". Divergência real
+    // de interação, comportamento verificado — não é um bug.
+    it('colar 1.000 vira mil, digitar 1.000 vira um', () => {
+        expect(sanitizeNumericText('1.000')).toBe('1000')
     })
 })

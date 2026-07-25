@@ -8,29 +8,23 @@ export function sanitizeNumericText(raw, { decimals = 2 } = {}) {
 
     let text = String(raw).replace(/[^\d.,]/g, '')
 
-    // Detecta separador de milhar (padrão pt-BR) antes da regra do primeiro
-    // separador abaixo. Isso importa porque o formatCurrency deste app
-    // (src/helpers.js) usa Intl.NumberFormat('pt-BR'), que produz strings
-    // como "R$ 1.500,75" — se o usuário colar esse valor de volta no campo,
-    // o "." precisa ser descartado como milhar, não tratado como decimal
-    // (senão o valor vira 1/1000 do original).
-    const dotCount = (text.match(/\./g) || []).length
-    const hasComma = text.includes(',')
-
-    if (dotCount > 0 && hasComma) {
-        // Tem ponto e vírgula: a vírgula é o decimal, todo ponto é milhar.
-        text = text.replace(/\./g, '')
-    } else if (dotCount >= 2) {
-        // Dois ou mais pontos sem vírgula só podem ser milhares ("1.234.567").
-        text = text.replace(/\./g, '')
-    } else if (dotCount === 1 && /^\d+\.\d{3}$/.test(text)) {
-        // Um único ponto seguido de exatamente 3 dígitos e nada mais é milhar
-        // ("1.000" -> 1000). Um ponto seguido de 1-2 dígitos (ex.: "1.5",
-        // "14.15") continua decimal: é genuinamente ambíguo com vírgula
-        // decimal, e essa regra nunca atrapalha os campos de 2 casas decimais
-        // em que este componente é usado (o resultado de 2 casas nunca bate
-        // com o padrão de 3 dígitos após o ponto).
-        text = text.replace(/\./g, '')
+    const sepCount = (text.match(/[.,]/g) || []).length
+    if (sepCount > 1) {
+        // Mais de um separador: o ÚLTIMO é o decimal, os anteriores são milhar.
+        // Resolve pt-BR (1.500,75) e en-US (1,500.75) sem precisar saber a locale.
+        const last = text.search(/[.,](?=[^.,]*$)/)
+        const head = text.slice(0, last).replace(/[.,]/g, '')
+        const tail = text.slice(last + 1)
+        text = tail.length === 3 ? head + tail : `${head},${tail}`
+    } else if (/^[1-9]\d*\.\d{3}$/.test(text)) {
+        // Um ponto só seguido de exatamente 3 dígitos, com parte inteira sem zero
+        // à esquerda: é milhar (1.000 = mil). '0.500' não entra, porque pt-BR nunca
+        // agrupa com grupo zero — ali o ponto é decimal mesmo.
+        //
+        // Custo assumido: colar uma taxa de 3 casas ('10.500' = 10,5%) vira 10500 e
+        // o clamp do campo Taxa corta em 100. É ambíguo de verdade e o erro fica
+        // visível na hora. O caso que importa proteger é o do formatCurrency do app.
+        text = text.replace('.', '')
     }
 
     // Mantém apenas o primeiro separador; os seguintes são descartados.
