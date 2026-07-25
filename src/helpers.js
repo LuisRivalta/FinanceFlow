@@ -102,3 +102,8 @@ export function mapFromDB(t) {
         installmentTotal: t.installment_total
     }
 }
+
+export function formatPercent(value, decimals = 2) {
+    if (!Number.isFinite(value)) return '—'
+    return `${value.toFixed(decimals).replace('.', ',')}%`
+}
