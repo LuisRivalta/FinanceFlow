@@ -201,12 +201,12 @@ export default function CardsPage() {
                             const available = card.credit_limit - invoiceAmount
 
                             return (
-                                <div key={card.id} className="card glass-panel" style={{ padding: 24, background: 'rgba(0,0,0,0.5)', border: `1px solid ${card.color}55`, position: 'relative', overflow: 'hidden' }}>
+                                <div key={card.id} className="card glass-panel" style={{ padding: '20px 24px', background: 'rgba(0,0,0,0.5)', border: `1px solid ${card.color}55`, position: 'relative', overflow: 'hidden', aspectRatio: '1.586 / 1', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                                     <Card3D card={card} />
                                     
                                     {/* Overlay content over the 3D canvas */}
-                                    <div style={{ position: 'relative', zIndex: 10 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                                    <div style={{ position: 'relative', zIndex: 10, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                                         <div>
                                             <h3 style={{ margin: 0, fontSize: 18 }}>{card.name}</h3>
                                             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{card.brand}</span>
@@ -216,11 +216,11 @@ export default function CardsPage() {
                                                 <button onClick={() => removeCard(card.id)} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: 6, borderRadius: 6 }}>🗑️</button>
                                             </div>
                                     </div>
-                                    <div style={{ marginBottom: 16 }}>
-                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Fatura Atual</div>
-                                        <div style={{ fontSize: 28, fontWeight: 800, color: 'white' }}>{formatCurrency(Math.max(0, invoiceAmount))}</div>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'rgba(255,255,255,0.7)', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 16, marginBottom: 12 }}>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Fatura Atual</div>
+                                            <div style={{ fontSize: 24, fontWeight: 800, color: 'white' }}>{formatCurrency(Math.max(0, invoiceAmount))}</div>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'rgba(255,255,255,0.8)', borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: 12, marginBottom: 12 }}>
                                         <div>Vence dia <strong>{card.due_day}</strong></div>
                                         <div>Limite: {formatCurrency(card.credit_limit)}</div>
                                     </div>

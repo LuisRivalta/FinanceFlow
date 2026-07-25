@@ -22,27 +22,15 @@ function CardControls() {
 
 function CreditCard({ color }) {
     return (
-        <group rotation={[0.1, -0.15, 0]}>
-            {/* Card Body */}
+        <group rotation={[0.2, -0.2, 0]}>
+            {/* Seamless Metallic Surface */}
             <mesh castShadow receiveShadow>
-                <boxGeometry args={[3.37, 2.12, 0.04]} />
+                <boxGeometry args={[10, 10, 0.1]} />
                 <meshStandardMaterial 
                     color={color || "#1e1b4b"} 
                     metalness={0.8} 
                     roughness={0.2} 
                 />
-            </mesh>
-            
-            {/* Chip */}
-            <mesh position={[-1.1, 0.2, 0.021]}>
-                <boxGeometry args={[0.4, 0.3, 0.01]} />
-                <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.2} />
-            </mesh>
-
-            {/* Magnetic Stripe (Back) */}
-            <mesh position={[0, 0.5, -0.021]}>
-                <boxGeometry args={[3.37, 0.4, 0.01]} />
-                <meshStandardMaterial color="#000000" metalness={0.2} roughness={0.8} />
             </mesh>
         </group>
     );
@@ -52,8 +40,8 @@ export default function Card3D({ card }) {
     if (!card) return null;
 
     return (
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, opacity: 0.85, pointerEvents: 'none' }}>
-            <Canvas camera={{ position: [0, 0, 2.4], fov: 45 }} frameloop="demand">
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }}>
+            <Canvas camera={{ position: [0, 0, 3], fov: 45 }} frameloop="demand">
                 <ambientLight intensity={1.5} />
                 <directionalLight position={[5, 5, 5]} intensity={2.5} />
                 <directionalLight position={[-5, -5, 5]} intensity={1.5} color="#ffffff" />
