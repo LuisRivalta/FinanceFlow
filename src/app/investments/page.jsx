@@ -128,10 +128,11 @@ export default function InvestmentsPage() {
         if (period === 0 && initial === 0 && monthly === 0) {
             return {
                 labels: ['Hoje', '1 Ano', '2 Anos', '3 Anos', '4 Anos', '5 Anos'],
-                dataGross: [0, 0, 0, 0, 0, 0],
-                dataInvested: [0, 0, 0, 0, 0, 0],
+                dataGross: [0, 1000, 2200, 3600, 5200, 7000], // Placeholder curve
+                dataInvested: [0, 800, 1600, 2400, 3200, 4000],
                 finalGross: 0,
-                finalInvested: 0
+                finalInvested: 0,
+                isPlaceholder: true
             }
         }
 
@@ -199,26 +200,27 @@ export default function InvestmentsPage() {
                 labels: simData.labels,
                 datasets: [
                     {
-                        label: 'Valor Total Bruto',
+                        label: simData.isPlaceholder ? 'Simulação (Exemplo)' : 'Valor Total Bruto',
                         data: simData.dataGross,
-                        borderColor: '#eab308',
-                        backgroundColor: gradGross,
-                        borderWidth: 3,
-                        pointBackgroundColor: '#eab308',
-                        pointBorderColor: '#fff',
-                        pointRadius: 4,
-                        fill: true,
+                        borderColor: simData.isPlaceholder ? 'rgba(255,255,255,0.2)' : '#eab308',
+                        backgroundColor: simData.isPlaceholder ? 'transparent' : gradGross,
+                        borderWidth: simData.isPlaceholder ? 2 : 3,
+                        borderDash: simData.isPlaceholder ? [5, 5] : [],
+                        pointBackgroundColor: simData.isPlaceholder ? 'transparent' : '#eab308',
+                        pointBorderColor: simData.isPlaceholder ? 'transparent' : '#fff',
+                        pointRadius: simData.isPlaceholder ? 0 : 4,
+                        fill: !simData.isPlaceholder,
                         tension: 0.4
                     },
                     {
-                        label: 'Total Investido',
+                        label: simData.isPlaceholder ? 'Aportes (Exemplo)' : 'Total Investido',
                         data: simData.dataInvested,
-                        borderColor: '#60a5fa',
-                        backgroundColor: gradInvested,
+                        borderColor: simData.isPlaceholder ? 'rgba(255,255,255,0.05)' : '#60a5fa',
+                        backgroundColor: simData.isPlaceholder ? 'transparent' : gradInvested,
                         borderWidth: 2,
                         pointRadius: 0,
-                        borderDash: [5, 5],
-                        fill: true,
+                        borderDash: simData.isPlaceholder ? [5, 5] : [5, 5],
+                        fill: !simData.isPlaceholder,
                         tension: 0.4
                     }
                 ]
@@ -236,6 +238,7 @@ export default function InvestmentsPage() {
                         labels: { color: 'rgba(255,255,255,0.7)', usePointStyle: true, padding: 20 }
                     },
                     tooltip: {
+                        enabled: !simData.isPlaceholder,
                         backgroundColor: 'rgba(17, 24, 39, 0.9)',
                         titleColor: 'rgba(255,255,255,0.9)',
                         bodyColor: '#eab308',
