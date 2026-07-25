@@ -16,5 +16,5 @@ export default function LenisScroll({ children }) {
         };
     }, []);
 
-    return children;
+    return <>{children}</>;
 }

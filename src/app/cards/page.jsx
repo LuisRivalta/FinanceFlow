@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Sidebar from '../../components/Sidebar'
 import { useSession } from '../../hooks/useSession'
-
-const Card3D = dynamic(() => import('../../components/3d/Card3D'), { ssr: false })
 import { useCreditCards } from '../../hooks/useCards'
 import { useTransactions } from '../../hooks/useTransactions'
 import { formatCurrency } from '../../helpers'
+
+const Card3D = dynamic(() => import('../../components/3d/Card3D'), { ssr: false })
 
 export default function CardsPage() {
     const router = useRouter()

@@ -7,13 +7,13 @@ import Wallet from '../../components/Wallet'
 import NumberField from '../../components/NumberField'
 import dynamic from 'next/dynamic'
 import { useSession } from '../../hooks/useSession'
-
-const WealthParticles = dynamic(() => import('../../components/3d/WealthParticles'), { ssr: false })
 import { useTransactions } from '../../hooks/useTransactions'
 import { useRates } from '../../hooks/useRates'
 import { INVESTMENT_PRODUCTS, DEFAULT_PRODUCT_ID, getProduct, deriveRate, multiplierLabel } from '../../lib/investmentProducts'
 import { formatCurrency, formatPercent, calcInvestment, CATEGORY_MAP } from '../../helpers'
 import { Chart, ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler } from 'chart.js'
+
+const WealthParticles = dynamic(() => import('../../components/3d/WealthParticles'), { ssr: false })
 
 Chart.register(ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler)
 
