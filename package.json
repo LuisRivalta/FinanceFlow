@@ -12,8 +12,7 @@
     },
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
-        "@react-three/drei": "^9.122.0",
-        "@react-three/fiber": "^8.18.0",
+        "@react-three/fiber": "^9.0.0-rc.2",
         "@supabase/supabase-js": "^2.49.8",
         "animejs": "^3.2.2",
         "chart.js": "^4.4.9",
