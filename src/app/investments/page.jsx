@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '../../components/Sidebar'
 import Wallet from '../../components/Wallet'
+import NumberField from '../../components/NumberField'
 import { useSession } from '../../hooks/useSession'
 import { useTransactions } from '../../hooks/useTransactions'
 import { formatCurrency, calcInvestment, CATEGORY_MAP } from '../../helpers'
@@ -219,62 +220,58 @@ export default function InvestmentsPage() {
                     <div className="card glass-panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
                         <div>
                             <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Valor Inicial</label>
-                            <div className="tx-field" style={{ position: 'relative', margin: 0 }}>
-                                <span className="icon" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>💰</span>
-                                <input 
-                                    type="number"
-                                    style={{ paddingLeft: 40 }}
-                                    value={simInitial} 
-                                    onChange={e => setSimInitial(Number(e.target.value))}
-                                    min="0"
-                                />
-                            </div>
+                            <NumberField
+                                value={simInitial}
+                                onChange={setSimInitial}
+                                min={0}
+                                max={1000000000}
+                                decimals={2}
+                                icon="💰"
+                                ariaLabel="Valor inicial"
+                            />
                         </div>
 
                         <div>
                             <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Aporte Mensal</label>
-                            <div className="tx-field" style={{ position: 'relative', margin: 0 }}>
-                                <span className="icon" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>📅</span>
-                                <input 
-                                    type="number" 
-                                    style={{ paddingLeft: 40 }}
-                                    value={simMonthly} 
-                                    onChange={e => setSimMonthly(Number(e.target.value))}
-                                    min="0"
-                                />
-                            </div>
+                            <NumberField
+                                value={simMonthly}
+                                onChange={setSimMonthly}
+                                min={0}
+                                max={1000000000}
+                                decimals={2}
+                                icon="📅"
+                                ariaLabel="Aporte mensal"
+                            />
                         </div>
 
                         <div>
                             <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Taxa de Rendimento Anual (%)</label>
-                            <div className="tx-field" style={{ position: 'relative', margin: 0 }}>
-                                <span className="icon" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>📈</span>
-                                <input 
-                                    type="number" 
-                                    style={{ paddingLeft: 40 }}
-                                    value={simRate} 
-                                    onChange={e => setSimRate(Number(e.target.value))}
-                                    step="0.1"
-                                />
-                            </div>
+                            <NumberField
+                                value={simRate}
+                                onChange={setSimRate}
+                                min={0}
+                                max={100}
+                                decimals={2}
+                                icon="📈"
+                                suffix="%"
+                                ariaLabel="Taxa de rendimento anual"
+                            />
                             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 8 }}>Ex: 10.4 para CDI/Selic atual</div>
                         </div>
 
                         <div>
                             <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14 }}>Período (Anos)</label>
-                            <div className="tx-field" style={{ position: 'relative', margin: 0 }}>
-                                <span className="icon" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>⏳</span>
-                                <input 
-                                    type="number" 
-                                    style={{ paddingLeft: 40 }}
-                                    value={simYears} 
-                                    onChange={e => setSimYears(Number(e.target.value))}
-                                    min="1"
-                                    max="50"
-                                />
-                            </div>
+                            <NumberField
+                                value={simYears}
+                                onChange={setSimYears}
+                                min={1}
+                                max={50}
+                                decimals={0}
+                                icon="⏳"
+                                ariaLabel="Período em anos"
+                            />
                         </div>
-                        
+
                         <div style={{ marginTop: 'auto', paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
                                 <span style={{ color: 'var(--text-secondary)' }}>Total Investido:</span>
