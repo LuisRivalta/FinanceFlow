@@ -201,19 +201,20 @@ export default function CardsPage() {
                             const available = card.credit_limit - invoiceAmount
 
                             return (
-                                <div key={card.id} onClick={() => setSelectedCard3D(card)} className="card glass-panel" style={{ padding: 24, background: `linear-gradient(135deg, ${card.color}22 0%, rgba(0,0,0,0.3) 100%)`, border: `1px solid ${card.color}55`, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
-                                    <div style={{ position: 'absolute', top: -20, right: -20, opacity: 0.1, color: card.color }}>
-                                        <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                                <div key={card.id} className="card glass-panel" style={{ padding: 24, background: 'rgba(0,0,0,0.5)', border: `1px solid ${card.color}55`, position: 'relative', overflow: 'hidden' }}>
+                                    <Card3D card={card} />
+                                    
+                                    {/* Overlay content over the 3D canvas */}
+                                    <div style={{ position: 'relative', zIndex: 10 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                                         <div>
                                             <h3 style={{ margin: 0, fontSize: 18 }}>{card.name}</h3>
                                             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{card.brand}</span>
                                         </div>
-                                        <div style={{ display: 'flex', gap: 12, position: 'relative', zIndex: 10 }}>
-                                            <button onClick={(e) => { e.stopPropagation(); handleEditCardClick(card); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>✏️</button>
-                                            <button onClick={(e) => { e.stopPropagation(); removeCard(card.id); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}>🗑️</button>
-                                        </div>
+                                            <div style={{ display: 'flex', gap: 12, position: 'relative', zIndex: 10 }}>
+                                                <button onClick={() => handleEditCardClick(card)} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', padding: 6, borderRadius: 6 }}>✏️</button>
+                                                <button onClick={() => removeCard(card.id)} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: 6, borderRadius: 6 }}>🗑️</button>
+                                            </div>
                                     </div>
                                     <div style={{ marginBottom: 16 }}>
                                         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Fatura Atual</div>
@@ -223,14 +224,15 @@ export default function CardsPage() {
                                         <div>Vence dia <strong>{card.due_day}</strong></div>
                                         <div>Limite: {formatCurrency(card.credit_limit)}</div>
                                     </div>
-                                    <button 
-                                        className="btn-primary" 
-                                        style={{ width: '100%', padding: '8px 0', fontSize: 13, background: invoiceAmount > 0 ? card.color : 'rgba(255,255,255,0.1)', position: 'relative', zIndex: 10 }}
-                                        onClick={(e) => { e.stopPropagation(); handlePayInvoice(card, invoiceAmount); }}
-                                        disabled={invoiceAmount <= 0}
-                                    >
-                                        {invoiceAmount > 0 ? '🧾 Pagar Fatura' : '✨ Fatura Paga'}
-                                    </button>
+                                        <button 
+                                            className="btn-primary" 
+                                            style={{ width: '100%', padding: '8px 0', fontSize: 13, background: invoiceAmount > 0 ? card.color : 'rgba(255,255,255,0.1)', position: 'relative', zIndex: 10, border: '1px solid rgba(255,255,255,0.2)' }}
+                                            onClick={() => handlePayInvoice(card, invoiceAmount)}
+                                            disabled={invoiceAmount <= 0}
+                                        >
+                                            {invoiceAmount > 0 ? '🧾 Pagar Fatura' : '✨ Fatura Paga'}
+                                        </button>
+                                    </div>
                                 </div>
                             )
                         })}
