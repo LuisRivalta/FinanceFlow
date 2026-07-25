@@ -1211,3 +1211,261 @@ html.lenis, html.lenis body {
 .lenis.lenis-smooth iframe {
   pointer-events: none;
 }
+/* ==========================================================================
+   Cartão de crédito realista (CreditCardItem)
+   Não usa .card/.glass-panel de propósito: o .glass-panel.card:hover aplica
+   transform: translateY(-4px), que sobrescreveria o transform do parallax.
+   ========================================================================== */
+
+.cc-item {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.cc-face {
+    position: relative;
+    aspect-ratio: 1.586 / 1;
+    border-radius: 16px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    isolation: isolate;
+
+    /* A cor vem inline via --cc-color. As camadas de rgba por cima funcionam
+       com qualquer cor escolhida pelo usuário, sem precisar de color-mix. */
+    background-color: var(--cc-color, #3b82f6);
+    background-image:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.05) 38%, rgba(0, 0, 0, 0.3) 100%);
+
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+
+    transform:
+        perspective(900px)
+        rotateX(var(--cc-rx, 0deg))
+        rotateY(var(--cc-ry, 0deg));
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+    will-change: transform;
+}
+
+/* Enquanto o ponteiro está sobre o cartão a transição precisa ser curta,
+   senão o movimento fica arrastado e atrasado em relação ao mouse. */
+.cc-face[data-tilting='true'] {
+    transition: transform 0.09s linear;
+}
+
+/* Brilho que segue o cursor */
+.cc-face::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+        380px circle at var(--cc-mx, 50%) var(--cc-my, 0%),
+        rgba(255, 255, 255, 0.2),
+        rgba(255, 255, 255, 0) 62%
+    );
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.cc-face[data-tilting='true']::after {
+    opacity: 1;
+}
+
+/* Camadas do parallax. Amplitudes diferentes é o que dá profundidade —
+   só inclinar a face não passa a mesma sensação. */
+.cc-row {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cc-face[data-tilting='true'] .cc-row {
+    transition: transform 0.09s linear;
+}
+
+.cc-depth-far {
+    transform: translate3d(calc(var(--cc-px, 0) * 8px), calc(var(--cc-py, 0) * 8px), 0);
+}
+
+.cc-depth-mid {
+    transform: translate3d(calc(var(--cc-px, 0) * 4px), calc(var(--cc-py, 0) * 4px), 0);
+}
+
+.cc-depth-near {
+    transform: translate3d(calc(var(--cc-px, 0) * 2px), calc(var(--cc-py, 0) * 2px), 0);
+}
+
+/* Chip metálico. Cinza-prata de propósito — o chip amarelo foi removido em 3a07c97. */
+.cc-chip {
+    width: 40px;
+    height: 29px;
+    border-radius: 5px;
+    flex: none;
+    background-color: #9aa3ae;
+    background-image:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 46%),
+        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.3) 0 1px, rgba(0, 0, 0, 0) 1px 7px);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+        0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.cc-brand {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.92);
+    white-space: nowrap;
+    transition: opacity 0.25s ease;
+}
+
+/* As ações ocupam o mesmo canto da bandeira: uma troca de lugar com a outra. */
+.cc-face:hover .cc-brand,
+.cc-face:focus-within .cc-brand {
+    opacity: 0;
+}
+
+.cc-actions {
+    display: flex;
+    gap: 8px;
+    position: absolute;
+    top: 0;
+    right: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+.cc-face:hover .cc-actions,
+.cc-face:focus-within .cc-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.cc-action {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    line-height: 1;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.42);
+    color: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.cc-action:hover {
+    background: rgba(0, 0, 0, 0.68);
+    transform: scale(1.08);
+}
+
+.cc-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.62);
+    margin-bottom: 2px;
+}
+
+/* Ocupa a posição onde ficaria o número gravado no cartão. */
+.cc-amount {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    color: #fff;
+    line-height: 1.1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.cc-name {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.95);
+
+    /* O NUBANK ULTRAVIOLETA quebrava em duas linhas e empurrava o resto. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.cc-due {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.68);
+    white-space: nowrap;
+}
+
+/* Bolinhas decorativas: não representam dado nenhum, são só a silhueta. */
+.cc-dots {
+    display: flex;
+    gap: 7px;
+    flex: none;
+    align-self: flex-end;
+}
+
+.cc-dots > span {
+    display: flex;
+    gap: 3px;
+}
+
+.cc-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.55);
+    box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.3);
+}
+
+/* Barra de limite, fora da face */
+.cc-usage-track {
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.09);
+    overflow: hidden;
+}
+
+.cc-usage-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cc-usage-legend {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cc-face,
+    .cc-row {
+        transform: none !important;
+        transition: none !important;
+    }
+
+    .cc-face::after {
+        display: none;
+    }
+}

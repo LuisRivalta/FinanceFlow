@@ -2,14 +2,12 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
 import Sidebar from '../../components/Sidebar'
+import CreditCardItem from '../../components/CreditCardItem'
 import { useSession } from '../../hooks/useSession'
 import { useCreditCards } from '../../hooks/useCards'
 import { useTransactions } from '../../hooks/useTransactions'
 import { formatCurrency } from '../../helpers'
-
-const Card3D = dynamic(() => import('../../components/3d/Card3D'), { ssr: false })
 
 export default function CardsPage() {
     const router = useRouter()
@@ -35,7 +33,6 @@ export default function CardsPage() {
     const [isAddingCard, setIsAddingCard] = useState(false)
     const [editingCardId, setEditingCardId] = useState(null)
     const [newCard, setNewCard] = useState({ name: '', brand: 'Mastercard', limit: '', closingDay: '', dueDay: '', color: '#8b5cf6' })
-    const [selectedCard3D, setSelectedCard3D] = useState(null)
 
     function handleEditCardClick(card) {
         setEditingCardId(card.id)
@@ -201,39 +198,14 @@ export default function CardsPage() {
                             const available = card.credit_limit - invoiceAmount
 
                             return (
-                                <div key={card.id} className="card glass-panel" style={{ padding: '20px 24px', background: 'rgba(0,0,0,0.5)', border: `1px solid ${card.color}55`, position: 'relative', overflow: 'hidden', aspectRatio: '1.586 / 1', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                    <Card3D card={card} />
-                                    
-                                    {/* Overlay content over the 3D canvas */}
-                                    <div style={{ position: 'relative', zIndex: 10, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                                        <div>
-                                            <h3 style={{ margin: 0, fontSize: 18 }}>{card.name}</h3>
-                                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{card.brand}</span>
-                                        </div>
-                                            <div style={{ display: 'flex', gap: 12, position: 'relative', zIndex: 10 }}>
-                                                <button onClick={() => handleEditCardClick(card)} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', padding: 6, borderRadius: 6 }}>✏️</button>
-                                                <button onClick={() => removeCard(card.id)} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: 6, borderRadius: 6 }}>🗑️</button>
-                                            </div>
-                                    </div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Fatura Atual</div>
-                                            <div style={{ fontSize: 24, fontWeight: 800, color: 'white' }}>{formatCurrency(Math.max(0, invoiceAmount))}</div>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'rgba(255,255,255,0.8)', borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: 12, marginBottom: 12 }}>
-                                        <div>Vence dia <strong>{card.due_day}</strong></div>
-                                        <div>Limite: {formatCurrency(card.credit_limit)}</div>
-                                    </div>
-                                        <button 
-                                            className="btn-primary" 
-                                            style={{ width: '100%', padding: '8px 0', fontSize: 13, background: invoiceAmount > 0 ? card.color : 'rgba(255,255,255,0.1)', position: 'relative', zIndex: 10, border: '1px solid rgba(255,255,255,0.2)' }}
-                                            onClick={() => handlePayInvoice(card, invoiceAmount)}
-                                            disabled={invoiceAmount <= 0}
-                                        >
-                                            {invoiceAmount > 0 ? '🧾 Pagar Fatura' : '✨ Fatura Paga'}
-                                        </button>
-                                    </div>
-                                </div>
+                                <CreditCardItem
+                                    key={card.id}
+                                    card={card}
+                                    invoiceAmount={invoiceAmount}
+                                    onEdit={handleEditCardClick}
+                                    onRemove={removeCard}
+                                    onPayInvoice={handlePayInvoice}
+                                />
                             )
                         })}
                     </section>
@@ -297,7 +269,6 @@ export default function CardsPage() {
 
                 </main>
             </div>
-            {selectedCard3D && <Card3D card={selectedCard3D} onClose={() => setSelectedCard3D(null)} />}
         </div>
     )
 }
