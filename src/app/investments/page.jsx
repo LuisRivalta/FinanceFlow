@@ -43,6 +43,7 @@ export default function InvestmentsPage() {
 
     const chartRef = useRef(null)
     const chartInstance = useRef(null)
+    const [layoutReady, setLayoutReady] = useState(false)
 
     useEffect(() => {
         if (session === undefined) return
@@ -50,6 +51,12 @@ export default function InvestmentsPage() {
             router.push('/login')
         }
     }, [session, router])
+
+    // Wait for fade-up animations to complete before drawing chart
+    useEffect(() => {
+        const t = setTimeout(() => setLayoutReady(true), 600)
+        return () => clearTimeout(t)
+    }, [])
 
     // Escreve a taxa derivada em simRate quando produto, multiplicador ou taxas
     // mudam. deriveRate devolve null para o Personalizado, e é isso que impede o
@@ -179,101 +186,101 @@ export default function InvestmentsPage() {
     }, [simInitial, simMonthly, simPeriodValue, simPeriodType, simRate])
 
     useEffect(() => {
-        if (!chartRef.current) return
+        if (!layoutReady || !chartRef.current) return
+        
         if (chartInstance.current) {
             chartInstance.current.destroy()
         }
 
-        let timeoutId = setTimeout(() => {
-            const ctx = chartRef.current.getContext('2d')
-            
-            const gradGross = ctx.createLinearGradient(0, 0, 0, 400)
-            gradGross.addColorStop(0, 'rgba(234, 179, 8, 0.4)')
-            gradGross.addColorStop(1, 'rgba(234, 179, 8, 0.0)')
+        const ctx = chartRef.current.getContext('2d')
+        
+        const gradGross = ctx.createLinearGradient(0, 0, 0, 400)
+        gradGross.addColorStop(0, 'rgba(234, 179, 8, 0.4)')
+        gradGross.addColorStop(1, 'rgba(234, 179, 8, 0.0)')
 
-            const gradInvested = ctx.createLinearGradient(0, 0, 0, 400)
-            gradInvested.addColorStop(0, 'rgba(96, 165, 250, 0.15)')
-            gradInvested.addColorStop(1, 'rgba(96, 165, 250, 0.0)')
+        const gradInvested = ctx.createLinearGradient(0, 0, 0, 400)
+        gradInvested.addColorStop(0, 'rgba(96, 165, 250, 0.15)')
+        gradInvested.addColorStop(1, 'rgba(96, 165, 250, 0.0)')
 
-            chartInstance.current = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: simData.labels,
-                    datasets: [
-                        {
-                            label: simData.isPlaceholder ? 'Simulação (Exemplo)' : 'Valor Total Bruto',
-                            data: simData.dataGross,
-                            borderColor: simData.isPlaceholder ? 'rgba(255,255,255,0.2)' : '#eab308',
-                            backgroundColor: simData.isPlaceholder ? 'transparent' : gradGross,
-                            borderWidth: simData.isPlaceholder ? 2 : 3,
-                            borderDash: simData.isPlaceholder ? [5, 5] : [],
-                            pointBackgroundColor: simData.isPlaceholder ? 'transparent' : '#eab308',
-                            pointBorderColor: simData.isPlaceholder ? 'transparent' : '#fff',
-                            pointRadius: simData.isPlaceholder ? 0 : 4,
-                            fill: !simData.isPlaceholder,
-                            tension: 0.4
-                        },
-                        {
-                            label: simData.isPlaceholder ? 'Aportes (Exemplo)' : 'Total Investido',
-                            data: simData.dataInvested,
-                            borderColor: simData.isPlaceholder ? 'rgba(255,255,255,0.05)' : '#60a5fa',
-                            backgroundColor: simData.isPlaceholder ? 'transparent' : gradInvested,
-                            borderWidth: 2,
-                            pointRadius: 0,
-                            borderDash: simData.isPlaceholder ? [5, 5] : [5, 5],
-                            fill: !simData.isPlaceholder,
-                            tension: 0.4
-                        }
-                    ]
+        chartInstance.current = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: simData.labels,
+                datasets: [
+                    {
+                        label: simData.isPlaceholder ? 'Simulação (Exemplo)' : 'Valor Total Bruto',
+                        data: simData.dataGross,
+                        borderColor: simData.isPlaceholder ? 'rgba(255,255,255,0.2)' : '#eab308',
+                        backgroundColor: simData.isPlaceholder ? 'transparent' : gradGross,
+                        borderWidth: simData.isPlaceholder ? 2 : 3,
+                        borderDash: simData.isPlaceholder ? [5, 5] : [],
+                        pointBackgroundColor: simData.isPlaceholder ? 'transparent' : '#eab308',
+                        pointBorderColor: simData.isPlaceholder ? 'transparent' : '#fff',
+                        pointRadius: simData.isPlaceholder ? 0 : 4,
+                        fill: !simData.isPlaceholder,
+                        tension: 0.4
+                    },
+                    {
+                        label: simData.isPlaceholder ? 'Aportes (Exemplo)' : 'Total Investido',
+                        data: simData.dataInvested,
+                        borderColor: simData.isPlaceholder ? 'rgba(255,255,255,0.05)' : '#60a5fa',
+                        backgroundColor: simData.isPlaceholder ? 'transparent' : gradInvested,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        borderDash: simData.isPlaceholder ? [5, 5] : [5, 5],
+                        fill: !simData.isPlaceholder,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
+                animation: {
+                    duration: 500
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.7)', usePointStyle: true, padding: 20 }
                     },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: { color: 'rgba(255,255,255,0.7)', usePointStyle: true, padding: 20 }
-                        },
-                        tooltip: {
-                            enabled: !simData.isPlaceholder,
-                            backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                            titleColor: 'rgba(255,255,255,0.9)',
-                            bodyColor: '#eab308',
-                            borderColor: 'rgba(255,255,255,0.1)',
-                            borderWidth: 1,
-                            padding: 12,
-                            callbacks: {
-                                label: (ctx) => {
-                                    return ctx.dataset.label + ': ' + formatCurrency(ctx.raw)
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
-                            ticks: { color: 'rgba(255,255,255,0.4)' }
-                        },
-                        y: {
-                            grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
-                            suggestedMax: 1000,
-                            suggestedMin: 0,
-                            ticks: {
-                                color: 'rgba(255,255,255,0.4)',
-                                callback: (val) => new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(val)
+                    tooltip: {
+                        enabled: !simData.isPlaceholder,
+                        backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                        titleColor: 'rgba(255,255,255,0.9)',
+                        bodyColor: '#eab308',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        padding: 12,
+                        callbacks: {
+                            label: (ctx) => {
+                                return ctx.dataset.label + ': ' + formatCurrency(ctx.raw)
                             }
                         }
                     }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+                        ticks: { color: 'rgba(255,255,255,0.4)' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+                        suggestedMax: 1000,
+                        suggestedMin: 0,
+                        ticks: {
+                            color: 'rgba(255,255,255,0.4)',
+                            callback: (val) => new Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(val)
+                        }
+                    }
                 }
-            })
-        }, 50)
-
-        return () => clearTimeout(timeoutId)
-    }, [simData])
+            }
+        })
+    }, [simData, layoutReady])
 
     if (!session) return null
 
