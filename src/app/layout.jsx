@@ -1,9 +1,6 @@
-
 import './globals.css'
 import LenisScroll from '../components/LenisScroll'
-import dynamic from 'next/dynamic'
-
-const GlobalBackground = dynamic(() => import('../components/3d/GlobalBackground'), { ssr: false })
+import GlobalBackgroundWrapper from '../components/3d/GlobalBackgroundWrapper'
 
 export const metadata = {
   title: 'Blumii | Controle Seus Gastos',
@@ -14,7 +11,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR">
       <body className="antialiased">
-        <GlobalBackground />
+        <GlobalBackgroundWrapper />
         <LenisScroll>
           {children}
         </LenisScroll>
