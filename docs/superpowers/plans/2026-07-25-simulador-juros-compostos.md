@@ -12,6 +12,16 @@
 
 ---
 
+## Correções aplicadas durante a execução
+
+**Task 1 — separador de milhar pt-BR (commit `c20d0fa`).** O código de `sanitizeNumericText` como escrito neste plano tratava `.` sempre como separador decimal. Mas o `formatCurrency` do próprio app (`src/helpers.js:47`) usa `Intl.NumberFormat('pt-BR', { style: 'currency' })`, que emite `R$ 1.500,75` — ponto como separador de **milhar**. Resultado: qualquer valor exibido pelo app, colado de volta num campo, virava 1/1000 dele mesmo. Erro de 1000x num app de finanças.
+
+A correção adiciona detecção de milhar antes da regra de "primeiro separador vence", em três regras: ponto **e** vírgula presentes → todos os pontos são milhar; 2+ pontos sem vírgula → todos são milhar; exatamente um ponto seguido de exatamente 3 dígitos e nada mais → milhar. Um ponto antes de 1–2 dígitos continua decimal, porque `1.5` é genuinamente ambíguo com `1,5`.
+
+O `include` do vitest também virou `['src/**/*.test.{js,jsx}']`: o glob original não pegava `.test.jsx`, e teste que silenciosamente não roda é pior que teste que falha.
+
+**Tasks 2 e 6 — `max` nos campos monetários.** Valor Inicial e Aporte Mensal ganharam `max={1000000000}`. Sem teto, `formatNumericValue` podia emitir notação exponencial (`1e+22`), e o sanitizador então destruía isso em `'122'`. Um bilhão cobre qualquer valor real de finanças pessoais com folga e mantém o display fora da faixa exponencial.
+
 ## Desvio deliberado do spec
 
 O spec especificava a série **432** (Meta Selic definida pelo Copom) para o índice Selic. Este plano usa a série **1178** (Selic efetiva anualizada base 252) por dois motivos:
@@ -380,6 +390,7 @@ Em `src/app/investments/page.jsx`, dentro do painel de controles do simulador (o
                                 value={simInitial}
                                 onChange={setSimInitial}
                                 min={0}
+                                max={1000000000}
                                 decimals={2}
                                 icon="💰"
                                 ariaLabel="Valor inicial"
@@ -392,6 +403,7 @@ Em `src/app/investments/page.jsx`, dentro do painel de controles do simulador (o
                                 value={simMonthly}
                                 onChange={setSimMonthly}
                                 min={0}
+                                max={1000000000}
                                 decimals={2}
                                 icon="📅"
                                 ariaLabel="Aporte mensal"
@@ -1327,6 +1339,7 @@ Substituir o bloco dos quatro `<div>` de campo (que a Task 2 deixou entre a aber
                                 value={simInitial}
                                 onChange={setSimInitial}
                                 min={0}
+                                max={1000000000}
                                 decimals={2}
                                 icon="💰"
                                 ariaLabel="Valor inicial"
@@ -1339,6 +1352,7 @@ Substituir o bloco dos quatro `<div>` de campo (que a Task 2 deixou entre a aber
                                 value={simMonthly}
                                 onChange={setSimMonthly}
                                 min={0}
+                                max={1000000000}
                                 decimals={2}
                                 icon="📅"
                                 ariaLabel="Aporte mensal"
