@@ -2,7 +2,6 @@
 
 import { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, Environment } from '@react-three/drei';
 import anime from 'animejs';
 
 function CoinMesh() {
@@ -10,8 +9,14 @@ function CoinMesh() {
     const [hovered, setHovered] = useState(false);
 
     useFrame((state, delta) => {
-        if (meshRef.current && !hovered) {
-            meshRef.current.rotation.y += delta * 1.5;
+        if (meshRef.current) {
+            // Replicate Float behavior
+            meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 3) * 0.1;
+            meshRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 1.5) * 0.1;
+            
+            if (!hovered) {
+                meshRef.current.rotation.y += delta * 1.5;
+            }
         }
     });
 
@@ -46,7 +51,7 @@ function CoinMesh() {
     };
 
     return (
-        <Float speed={3} rotationIntensity={0.5} floatIntensity={1}>
+        <group>
             <mesh 
                 ref={meshRef} 
                 onPointerOver={handlePointerOver} 
@@ -85,7 +90,7 @@ function CoinMesh() {
                 <torusGeometry args={[0.2, 0.1, 16, 32, Math.PI]} />
                 <meshStandardMaterial color="#ffffff" metalness={0.5} roughness={0.5} />
             </mesh>
-        </Float>
+        </group>
     );
 }
 
@@ -97,7 +102,7 @@ export default function Coin3D({ style }) {
                 <directionalLight position={[2, 5, 2]} intensity={1.5} />
                 <spotLight position={[-2, 2, 5]} angle={0.3} penumbra={1} intensity={2} color="#f59e0b" />
                 <CoinMesh />
-                <Environment preset="city" />
+                <directionalLight position={[0, -5, 0]} intensity={0.5} color="#fbbf24" />
             </Canvas>
         </div>
     );

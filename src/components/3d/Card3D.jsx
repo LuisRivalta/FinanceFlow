@@ -1,9 +1,24 @@
 "use client";
 
-import { useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
+import { useRef, useEffect } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+
+function CardControls() {
+    const { camera, gl } = useThree();
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            const x = (e.clientX / window.innerWidth) * 2 - 1;
+            const y = -(e.clientY / window.innerHeight) * 2 + 1;
+            camera.position.x += (x * 0.5 - camera.position.x) * 0.05;
+            camera.position.y += (y * 0.5 - camera.position.y) * 0.05;
+            camera.lookAt(0, 0, 0);
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+    }, [camera]);
+    return null;
+}
 
 function CreditCard() {
     const cardRef = useRef();
@@ -60,20 +75,14 @@ export default function Card3D({ style }) {
             <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
                 <ambientLight intensity={0.5} />
                 <directionalLight position={[5, 5, 5]} intensity={1} />
-                <spotLight position={[-5, 5, 5]} angle={0.15} penumbra={1} intensity={2} color="#6366f1" />
-                
-                <OrbitControls 
-                    enableZoom={false}
-                    enablePan={false}
-                    minPolarAngle={Math.PI / 2 - 0.2}
-                    maxPolarAngle={Math.PI / 2 + 0.2}
-                    minAzimuthAngle={-0.5}
-                    maxAzimuthAngle={0.5}
-                />
+                <CardControls />
                 <CreditCard />
 
-                <ContactShadows position={[0, -1.5, 0]} opacity={0.4} scale={10} blur={2} far={4} color="#000000" />
-                <Environment preset="city" />
+                {/* Fake shadow */}
+                <mesh position={[0, -1.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <planeGeometry args={[5, 5]} />
+                    <meshBasicMaterial color="#000000" transparent opacity={0.3} />
+                </mesh>
             </Canvas>
         </div>
     );

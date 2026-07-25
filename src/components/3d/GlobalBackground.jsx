@@ -2,16 +2,21 @@
 
 import { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, Environment, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 
 function GlassShape({ position, rotation, scale, geometryType, color }) {
     const meshRef = useRef();
-
+    const groupRef = useRef();
     useFrame((state, delta) => {
-        if (meshRef.current) {
-            meshRef.current.rotation.x += delta * 0.1;
-            meshRef.current.rotation.y += delta * 0.15;
+        if (groupRef.current) {
+            // Replicate Float behavior
+            groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.2;
+            groupRef.current.rotation.x = rotation[0] + Math.sin(state.clock.elapsedTime * 1) * 0.1;
+            
+            if (meshRef.current) {
+                meshRef.current.rotation.x += delta * 0.1;
+                meshRef.current.rotation.y += delta * 0.15;
+            }
         }
     });
 
@@ -22,8 +27,8 @@ function GlassShape({ position, rotation, scale, geometryType, color }) {
     }, [geometryType]);
 
     return (
-        <Float speed={2} rotationIntensity={1} floatIntensity={2} position={position}>
-            <mesh ref={meshRef} rotation={rotation} scale={scale}>
+        <group ref={groupRef} position={position} rotation={rotation}>
+            <mesh ref={meshRef} scale={scale}>
                 {geometry}
                 <meshPhysicalMaterial
                     color={color}
@@ -33,12 +38,11 @@ function GlassShape({ position, rotation, scale, geometryType, color }) {
                     roughness={0.1}
                     ior={1.5}
                     thickness={0.5}
-                    envMapIntensity={1}
                     clearcoat={1}
                     clearcoatRoughness={0.1}
                 />
             </mesh>
-        </Float>
+        </group>
     );
 }
 
@@ -56,10 +60,9 @@ export default function GlobalBackground() {
                 <GlassShape position={[-5, -4, -4]} rotation={[0, Math.PI / 2, 0]} scale={1.2} geometryType="octahedron" color="#f59e0b" />
                 <GlassShape position={[6, 5, -6]} rotation={[0, 0, 0]} scale={1.8} geometryType="icosahedron" color="#eab308" />
                 
-                {/* Subtle particles across the screen */}
-                <Sparkles count={50} scale={15} size={2} speed={0.4} opacity={0.2} color="#ffffff" />
-                
-                <Environment preset="city" />
+                {/* Simple lighting replacing Environment */}
+                <directionalLight position={[0, -10, 0]} intensity={0.5} color="#10b981" />
+                <directionalLight position={[10, 0, -10]} intensity={0.5} color="#eab308" />
             </Canvas>
         </div>
     );
