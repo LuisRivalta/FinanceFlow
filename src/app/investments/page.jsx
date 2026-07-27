@@ -453,7 +453,7 @@ export default function InvestmentsPage() {
                         <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 20, color: 'white' }}>
                             Projeção de Crescimento do Patrimônio
                         </div>
-                        <div style={{ height: 'clamp(260px, 42vh, 440px)', width: '100%', position: 'relative' }}>
+                        <div className="sim-chart-box">
                             <canvas ref={chartRef} style={{ display: 'block' }} />
                         </div>
                     </div>

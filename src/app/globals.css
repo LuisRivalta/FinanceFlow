@@ -1219,6 +1219,33 @@ body::after {
     }
 }
 
+/* Container do canvas do simulador.
+ *
+ * Em duas colunas, o painel do gráfico é esticado pelo align-items: stretch até a
+ * altura do painel de controles, que é o item mais alto. Então aqui a altura vem
+ * do flex, não do conteúdo: `flex: 1` preenche o painel inteiro e `min-height: 0`
+ * é o que impede o laço de realimentação com o Chart.js — com um mínimo não-zero,
+ * o Chart.js dimensiona o canvas pelo container, o container cresce para caber o
+ * canvas, e não há nada que pare. É o mesmo par que os cinco gráficos da home já
+ * usam.
+ */
+.sim-chart-box {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    position: relative;
+}
+
+/* Empilhado, o painel deixa de receber altura da linha do grid e passa a se
+ * dimensionar pelo conteúdo. Aí `flex: 1` com base zero resolveria para ZERO e o
+ * gráfico sumiria — daí a altura explícita abaixo de 900px. */
+@media (max-width: 900px) {
+    .sim-chart-box {
+        flex: none;
+        height: clamp(260px, 42vh, 400px);
+    }
+}
+
 .profile-grid {
     display: grid;
     grid-template-columns: 1fr 2fr;
