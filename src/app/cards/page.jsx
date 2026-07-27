@@ -250,7 +250,7 @@ export default function CardsPage() {
         if (!ok) return
         try {
             for (const id of inst.txIds) {
-                await removeTx(id)
+                await removeTx(id, { skipConfirm: true })
             }
         } catch (err) {
             alert('Erro ao apagar parcelamento: ' + err.message)

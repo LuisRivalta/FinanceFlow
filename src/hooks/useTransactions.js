@@ -28,7 +28,7 @@ export function useTransactions(userEmail) {
 
     const create = useCallback(async (payload) => {
         let rows = []
-        if (payload.installmentTotal > 1) {
+        if (payload.installmentTotal > 1 && !payload.installmentNumber) {
             // Gera parcelas
             for (let i = 1; i <= payload.installmentTotal; i++) {
                 const dateObj = new Date(payload.date + 'T00:00:00')
@@ -70,8 +70,8 @@ export function useTransactions(userEmail) {
                 parent_id: payload.parentId || null,
                 credit_card_id: payload.creditCardId || null,
                 is_subscription: payload.isSubscription || false,
-                installment_number: null,
-                installment_total: null
+                installment_number: payload.installmentNumber || null,
+                installment_total: payload.installmentTotal || null
             })
         }
 
@@ -106,8 +106,8 @@ export function useTransactions(userEmail) {
         return updated
     }, [])
 
-    const remove = useCallback(async (id) => {
-        if (!confirm('Excluir esta transação definitivamente?')) return
+    const remove = useCallback(async (id, options = {}) => {
+        if (!options.skipConfirm && !confirm('Excluir esta transação definitivamente?')) return
         setTransactions(prev => prev.filter(t => t.id !== id))
         await supabase.from('transactions').delete().eq('id', id)
     }, [])
