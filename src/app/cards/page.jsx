@@ -249,14 +249,16 @@ export default function CardsPage() {
     const activeInstallments = useMemo(() => {
         const groups = {}
         installments.forEach(t => {
-            const match = t.desc.match(/\s\((\d+)\/(\d+)\)$/)
-            const baseName = t.desc.replace(/\s\(\d+\/\d+\)$/, '')
+            const match = t.desc.match(/\((\d+)[\s\/de]+(\d+)\)/i)
+            const cleanName = t.desc.replace(/\s*\(\d+[\s\/de]+\d+\).*/gi, '').trim() || t.desc
             const instNum = t.installmentNumber || (match ? parseInt(match[1]) : 1)
             const instTotal = t.installmentTotal || (match ? parseInt(match[2]) : 1)
 
-            if (!groups[baseName]) {
-                groups[baseName] = { 
-                    name: baseName, 
+            const groupKey = `${cleanName.toLowerCase()}_${t.creditCardId || ''}_${t.amount}`
+
+            if (!groups[groupKey]) {
+                groups[groupKey] = { 
+                    name: cleanName, 
                     total: instTotal, 
                     amount: t.amount, 
                     minNum: instNum, 
@@ -264,14 +266,17 @@ export default function CardsPage() {
                     cardId: t.creditCardId 
                 }
             } else {
-                if (instNum < groups[baseName].minNum) {
-                    groups[baseName].minNum = instNum
+                if (instNum < groups[groupKey].minNum) {
+                    groups[groupKey].minNum = instNum
+                }
+                if (instTotal > groups[groupKey].total) {
+                    groups[groupKey].total = instTotal
                 }
             }
 
             const txDate = new Date(t.date + 'T00:00:00')
             if (txDate <= new Date()) {
-                groups[baseName].paidCount++
+                groups[groupKey].paidCount++
             }
         })
 
