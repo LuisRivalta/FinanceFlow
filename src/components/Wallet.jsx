@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../helpers';
+import { useRates } from '../hooks/useRates';
+import { getProduct, deriveRate } from '../lib/investmentProducts';
 
 // Map common user inputs to AwesomeAPI tickers
 const TICKER_MAP = {
@@ -16,20 +18,32 @@ const TICKER_MAP = {
     'EURO': 'EUR-BRL'
 };
 
+const ASSET_TYPES = [
+    { id: 'cdb', label: 'CDB / RDB (100% CDI)', category: 'fixed', defaultMultiplier: 100 },
+    { id: 'tesouro_selic', label: 'Tesouro Selic', category: 'fixed', defaultMultiplier: 0 },
+    { id: 'poupanca', label: 'Poupança', category: 'fixed', defaultMultiplier: null },
+    { id: 'tesouro_ipca', label: 'Tesouro IPCA+', category: 'fixed', defaultMultiplier: 6 },
+    { id: 'lci_lca', label: 'LCI / LCA (95% CDI)', category: 'fixed', defaultMultiplier: 95 },
+    { id: 'crypto', label: 'Criptomoeda (BTC, ETH...)', category: 'crypto', defaultMultiplier: null },
+    { id: 'currency', label: 'Moeda Estrangeira (USD, EUR...)', category: 'currency', defaultMultiplier: null },
+    { id: 'fixed', label: 'Outros Renda Fixa', category: 'fixed', defaultMultiplier: null }
+];
+
 export default function Wallet({ userEmail }) {
     const [assets, setAssets] = useState([]);
     const [livePrices, setLivePrices] = useState({});
     const [loadingPrices, setLoadingPrices] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
+
+    const { rates } = useRates();
     
     // Form state
-    const [addType, setAddType] = useState('crypto'); // crypto, currency, fixed
+    const [addType, setAddType] = useState('cdb');
     const [addName, setAddName] = useState('');
     const [addAmount, setAddAmount] = useState('');
     const [addRate, setAddRate] = useState('');
-    const [addManualBalance, setAddManualBalance] = useState('');
 
-    // Editing manual balance inline state
+    // Inline edit manual balance state
     const [editingAssetId, setEditingAssetId] = useState(null);
     const [editBalanceVal, setEditBalanceVal] = useState('');
 
@@ -53,12 +67,29 @@ export default function Wallet({ userEmail }) {
         window.dispatchEvent(new Event('wallet_updated'));
     }, [assets, userEmail]);
 
-    // Fetch live prices
+    // Auto populate rate when addType or rates change
+    useEffect(() => {
+        const selectedPreset = ASSET_TYPES.find(t => t.id === addType);
+        if (selectedPreset && selectedPreset.category === 'fixed') {
+            const product = getProduct(selectedPreset.id);
+            if (product) {
+                const derived = deriveRate(product, rates, selectedPreset.defaultMultiplier);
+                if (derived !== null) {
+                    setAddRate(String(derived));
+                    return;
+                }
+            }
+        }
+        if (addType === 'fixed' && !addRate) {
+            setAddRate('10.4');
+        }
+    }, [addType, rates]);
+
+    // Fetch live prices for crypto / currency
     const fetchPrices = async () => {
         const fetchTargets = assets.filter(a => a.type === 'crypto' || a.type === 'currency').map(a => TICKER_MAP[a.ticker?.toUpperCase()] || `${a.ticker?.toUpperCase()}-BRL`);
         if (fetchTargets.length === 0) return;
 
-        // Deduplicate
         const uniqueTargets = [...new Set(fetchTargets)];
         const url = `https://economia.awesomeapi.com.br/last/${uniqueTargets.join(',')}`;
         
@@ -82,26 +113,28 @@ export default function Wallet({ userEmail }) {
         }
     };
 
-    // Fetch prices when assets change or on mount
     useEffect(() => {
         fetchPrices();
-        const interval = setInterval(fetchPrices, 60000); // refresh every minute
+        const interval = setInterval(fetchPrices, 60000);
         return () => clearInterval(interval);
     }, [assets]);
 
     const handleAddAsset = (e) => {
         e.preventDefault();
+        const selectedPreset = ASSET_TYPES.find(t => t.id === addType) || ASSET_TYPES[0];
+        const categoryType = selectedPreset.category;
+
         const newAsset = {
             id: Date.now().toString(),
-            type: addType,
+            type: categoryType,
+            presetId: selectedPreset.id,
             amount: parseFloat(addAmount),
-            date: new Date().toISOString(),
-            manualBalance: addManualBalance ? parseFloat(addManualBalance) : null
+            date: new Date().toISOString()
         };
 
-        if (addType === 'fixed') {
-            newAsset.name = addName;
-            newAsset.rate = parseFloat(addRate);
+        if (categoryType === 'fixed') {
+            newAsset.name = addName || selectedPreset.label;
+            newAsset.rate = parseFloat(addRate) || 10.4;
         } else {
             newAsset.ticker = addName.toUpperCase();
             newAsset.name = addName.toUpperCase();
@@ -112,7 +145,6 @@ export default function Wallet({ userEmail }) {
         setAddName('');
         setAddAmount('');
         setAddRate('');
-        setAddManualBalance('');
     };
 
     const removeAsset = (id) => {
@@ -138,14 +170,12 @@ export default function Wallet({ userEmail }) {
             return parseFloat(asset.manualBalance);
         }
         if (asset.type === 'fixed') {
-            // Compound interest based on days elapsed
             const start = new Date(asset.date);
             const now = new Date();
             const daysElapsed = Math.max(0, (now - start) / (1000 * 60 * 60 * 24));
             const yearsElapsed = daysElapsed / 365;
             return asset.amount * Math.pow(1 + ((asset.rate || 0) / 100), yearsElapsed);
         } else {
-            // Live price from API
             const targetKey = TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`;
             const price = livePrices[targetKey] || 0;
             return price > 0 ? asset.amount * price : asset.amount;
@@ -153,6 +183,7 @@ export default function Wallet({ userEmail }) {
     };
 
     const totalNetWorth = assets.reduce((sum, asset) => sum + calculateCurrentValue(asset), 0);
+    const currentPreset = ASSET_TYPES.find(t => t.id === addType) || ASSET_TYPES[0];
 
     return (
         <div style={{ marginTop: 40, marginBottom: 40 }}>
@@ -172,28 +203,28 @@ export default function Wallet({ userEmail }) {
             {isAdding && (
                 <div className="card glass-panel fade-up" style={{ padding: 24, marginBottom: 24, border: '1px solid var(--accent-primary)' }}>
                     <form onSubmit={handleAddAsset} style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                        <div className="tx-field" style={{ flex: 1, minWidth: 150 }}>
+                        <div className="tx-field" style={{ flex: 1, minWidth: 180 }}>
                             <label>Tipo de Ativo</label>
                             <select value={addType} onChange={e => setAddType(e.target.value)}>
-                                <option value="crypto">Criptomoeda</option>
-                                <option value="currency">Moeda Estrangeira</option>
-                                <option value="fixed">Renda Fixa / CDI</option>
+                                {ASSET_TYPES.map(t => (
+                                    <option key={t.id} value={t.id}>{t.label}</option>
+                                ))}
                             </select>
                         </div>
                         
-                        <div className="tx-field" style={{ flex: 1, minWidth: 150 }}>
-                            <label>{addType === 'fixed' ? 'Nome (ex: Poupança, CDB)' : 'Sigla (ex: BTC, USD)'}</label>
+                        <div className="tx-field" style={{ flex: 1, minWidth: 160 }}>
+                            <label>{currentPreset.category === 'fixed' ? 'Nome do Objetivo / Ativo' : 'Sigla (ex: BTC, USD)'}</label>
                             <input 
                                 required
                                 type="text" 
                                 value={addName} 
                                 onChange={e => setAddName(e.target.value)} 
-                                placeholder={addType === 'fixed' ? 'Tesouro Direto / CDB' : 'BTC'}
+                                placeholder={currentPreset.category === 'fixed' ? 'Ex: Viagem, Reserva...' : 'BTC'}
                             />
                         </div>
 
                         <div className="tx-field" style={{ flex: 1, minWidth: 150 }}>
-                            <label>{addType === 'fixed' ? 'Valor Investido (R$)' : 'Quantidade'}</label>
+                            <label>{currentPreset.category === 'fixed' ? 'Valor Investido (R$)' : 'Quantidade'}</label>
                             <input 
                                 required
                                 type="number" 
@@ -201,17 +232,17 @@ export default function Wallet({ userEmail }) {
                                 min="0"
                                 value={addAmount} 
                                 onChange={e => setAddAmount(e.target.value)} 
-                                placeholder={addType === 'fixed' ? '10000' : '0.5'}
+                                placeholder={currentPreset.category === 'fixed' ? '1000,00' : '0.5'}
                             />
                         </div>
 
-                        {addType === 'fixed' && (
-                            <div className="tx-field" style={{ flex: 1, minWidth: 150 }}>
+                        {currentPreset.category === 'fixed' && (
+                            <div className="tx-field" style={{ flex: 1, minWidth: 140 }}>
                                 <label>Taxa Anual (%)</label>
                                 <input 
                                     required
                                     type="number" 
-                                    step="0.1"
+                                    step="0.01"
                                     min="0"
                                     value={addRate} 
                                     onChange={e => setAddRate(e.target.value)} 
@@ -219,18 +250,6 @@ export default function Wallet({ userEmail }) {
                                 />
                             </div>
                         )}
-
-                        <div className="tx-field" style={{ flex: 1, minWidth: 150 }}>
-                            <label>Saldo Atual (R$) (opcional)</label>
-                            <input 
-                                type="number" 
-                                step="0.01"
-                                min="0"
-                                value={addManualBalance} 
-                                onChange={e => setAddManualBalance(e.target.value)} 
-                                placeholder="Deixe em branco para auto"
-                            />
-                        </div>
 
                         <button type="submit" className="btn-primary" style={{ padding: '11px 24px' }}>
                             Salvar
@@ -267,7 +286,7 @@ export default function Wallet({ userEmail }) {
                         const isLive = asset.type !== 'fixed';
                         const isManual = asset.manualBalance !== undefined && asset.manualBalance !== null && asset.manualBalance !== '';
 
-                        // Calculation of profit for fixed income or overall
+                        // Calculation of profit
                         const initialCost = asset.type === 'fixed' ? asset.amount : 0;
                         const profit = initialCost > 0 ? currentValue - initialCost : 0;
                         const profitPct = initialCost > 0 ? (profit / initialCost) * 100 : 0;
@@ -289,7 +308,7 @@ export default function Wallet({ userEmail }) {
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{asset.name}</div>
                                         <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                                            {asset.type === 'fixed' ? `Taxa base ${asset.rate}% a.a.` : `${asset.amount} unidades`}
+                                            {asset.type === 'fixed' ? `Taxa ${asset.rate}% a.a.` : `${asset.amount} unidades`}
                                         </div>
                                     </div>
                                 </div>
@@ -309,7 +328,7 @@ export default function Wallet({ userEmail }) {
                                                 step="0.01"
                                                 value={editBalanceVal}
                                                 onChange={e => setEditBalanceVal(e.target.value)}
-                                                placeholder="Digite o saldo atual exato..."
+                                                placeholder="Digite o saldo atual..."
                                                 style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #3b82f6', background: '#111827', color: 'white', fontSize: 14 }}
                                                 autoFocus
                                             />
@@ -319,7 +338,7 @@ export default function Wallet({ userEmail }) {
                                                     onClick={() => handleSaveManualBalance(asset.id, editBalanceVal)}
                                                     style={{ flex: 1, padding: '6px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                                                 >
-                                                    Salvar Saldo
+                                                    Salvar
                                                 </button>
                                                 {isManual && (
                                                     <button 
