@@ -57,12 +57,14 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
         }
     }, [type, category])
 
-    // Se selecionou cartão de crédito, e tem cartões, seleciona o primeiro por padrão
+    // Se selecionou cartão de crédito ou pagamento de fatura, e tem cartões, seleciona o primeiro por padrão se nenhum estiver selecionado
     useEffect(() => {
-        if (account === 'credit' && cards.length > 0 && !creditCardId) {
-            setCreditCardId(cards[0].id)
+        if ((account === 'credit' || category === 'invoice_payment') && cards.length > 0) {
+            if (!creditCardId || !cards.some(c => String(c.id) === String(creditCardId))) {
+                setCreditCardId(String(cards[0].id))
+            }
         }
-    }, [account, cards, creditCardId])
+    }, [account, category, cards, creditCardId])
 
     function resetForm() {
         setType('expense')
@@ -87,7 +89,7 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
         if (!['income', 'expense', 'investment'].includes(type)) errs.push('Tipo inválido.')
         if (!category) errs.push('Selecione uma categoria.')
         if (!account) errs.push('Selecione uma conta.')
-        if (account === 'credit' && !creditCardId) errs.push('Selecione o cartão de crédito utilizado.')
+        if ((account === 'credit' || category === 'invoice_payment') && !creditCardId) errs.push('Selecione o cartão de crédito utilizado.')
         if (account === 'credit' && cardPurchaseType === 'installment' && (!installmentTotal || installmentTotal < 2)) errs.push('Informe a quantidade de parcelas (mínimo 2).')
         if (!date) errs.push('Informe a data.')
         return errs
@@ -204,36 +206,40 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
                         </div>
                         
                         {/* Lógica Específica Cartão de Crédito */}
-                        {account === 'credit' && (
+                        {(account === 'credit' || category === 'invoice_payment') && (
                             <div className="tx-field tx-form-full" style={{ padding: 16, background: 'rgba(59,130,246,0.1)', borderRadius: 10, border: '1px solid rgba(59,130,246,0.2)' }}>
                                 <div style={{ marginBottom: 12 }}>
                                     <label style={{ color: '#93c5fd' }}>Qual Cartão?</label>
                                     <select value={creditCardId} onChange={e => setCreditCardId(e.target.value)} style={{ borderColor: 'rgba(59,130,246,0.3)' }} required>
                                         <option value="" disabled>Selecione um cartão...</option>
-                                        {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        {cards.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
                                     </select>
                                 </div>
-                                <div style={{ marginBottom: 12 }}>
-                                    <label style={{ color: '#93c5fd' }}>Tipo de Cobrança no Cartão</label>
-                                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                                        {['normal', 'subscription', 'installment'].map(t => (
-                                            <button 
-                                                key={t}
-                                                type="button" 
-                                                onClick={() => setCardPurchaseType(t)}
-                                                style={{ flex: 1, padding: '8px 4px', fontSize: 12, borderRadius: 6, border: '1px solid', borderColor: cardPurchaseType === t ? '#3b82f6' : 'rgba(255,255,255,0.1)', background: cardPurchaseType === t ? 'rgba(59,130,246,0.2)' : 'transparent', color: 'white', cursor: 'pointer' }}
-                                            >
-                                                {t === 'normal' ? 'Avulsa' : t === 'subscription' ? 'Assinatura' : 'Parcelado'}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                {cardPurchaseType === 'installment' && (
-                                    <div>
-                                        <label style={{ color: '#93c5fd' }}>Quantidade de Parcelas</label>
-                                        <input type="number" value={installmentTotal} onChange={e => setInstallmentTotal(e.target.value)} placeholder="Ex: 12" min="2" style={{ borderColor: 'rgba(59,130,246,0.3)' }} required />
-                                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4, display: 'block' }}>O valor lá de cima (R$) deve ser o valor de CADA parcela.</span>
-                                    </div>
+                                {account === 'credit' && (
+                                    <>
+                                        <div style={{ marginBottom: 12 }}>
+                                            <label style={{ color: '#93c5fd' }}>Tipo de Cobrança no Cartão</label>
+                                            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                                                {['normal', 'subscription', 'installment'].map(t => (
+                                                    <button 
+                                                        key={t}
+                                                        type="button" 
+                                                        onClick={() => setCardPurchaseType(t)}
+                                                        style={{ flex: 1, padding: '8px 4px', fontSize: 12, borderRadius: 6, border: '1px solid', borderColor: cardPurchaseType === t ? '#3b82f6' : 'rgba(255,255,255,0.1)', background: cardPurchaseType === t ? 'rgba(59,130,246,0.2)' : 'transparent', color: 'white', cursor: 'pointer' }}
+                                                    >
+                                                        {t === 'normal' ? 'Avulsa' : t === 'subscription' ? 'Assinatura' : 'Parcelado'}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {cardPurchaseType === 'installment' && (
+                                            <div>
+                                                <label style={{ color: '#93c5fd' }}>Quantidade de Parcelas</label>
+                                                <input type="number" value={installmentTotal} onChange={e => setInstallmentTotal(e.target.value)} placeholder="Ex: 12" min="2" style={{ borderColor: 'rgba(59,130,246,0.3)' }} required />
+                                                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4, display: 'block' }}>O valor lá de cima (R$) deve ser o valor de CADA parcela.</span>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         )}

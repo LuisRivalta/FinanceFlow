@@ -154,8 +154,13 @@ export default function DashboardPage() {
         const m = currentDate.getMonth()
         return transactions.reduce((acc, t) => {
             const d = new Date(t.date + 'T00:00:00')
-            if (t.account === 'credit' && t.type === 'expense' && d.getFullYear() === y && d.getMonth() === m) {
-                return acc + t.amount
+            if (d.getFullYear() === y && d.getMonth() === m) {
+                if (t.account === 'credit' && t.type === 'expense') {
+                    return acc + t.amount
+                }
+                if (t.category === 'invoice_payment') {
+                    return acc - t.amount
+                }
             }
             return acc
         }, 0)

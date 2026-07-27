@@ -85,7 +85,7 @@ export default function CardsPage() {
                 category: 'invoice_payment',
                 account: 'checking',
                 date: new Date().toISOString().split('T')[0],
-                creditCardId: card.id
+                creditCardId: String(card.id)
             })
             alert('Fatura paga com sucesso! O valor foi deduzido da sua Conta Corrente.')
         } catch (err) {
@@ -94,7 +94,7 @@ export default function CardsPage() {
     }
 
     // Filter transactions
-    const cardTxs = useMemo(() => transactions.filter(t => t.creditCardId), [transactions])
+    const cardTxs = useMemo(() => transactions.filter(t => t.creditCardId != null && t.creditCardId !== ''), [transactions])
     const subscriptions = useMemo(() => cardTxs.filter(t => t.isSubscription), [cardTxs])
     const installments = useMemo(() => cardTxs.filter(t => t.installmentTotal > 1), [cardTxs])
 
@@ -108,7 +108,7 @@ export default function CardsPage() {
                 groups[baseName] = { name: baseName, total: t.installmentTotal, amount: t.amount, current: 0, cardId: t.creditCardId }
             }
             // Count how many are in the past or current month (simplified assumption for "paid")
-            const txDate = new Date(t.date)
+            const txDate = new Date(t.date + 'T00:00:00')
             if (txDate <= new Date()) {
                 groups[baseName].current++
             }
@@ -188,9 +188,16 @@ export default function CardsPage() {
                         )}
                         {cards.map(card => {
                             // Calcula fatura atual (soma de despesas subtraindo os pagamentos)
-                            const currentMonth = new Date().getMonth()
+                            const now = new Date()
+                            const currentYear = now.getFullYear()
+                            const currentMonth = now.getMonth()
+
                             const invoiceAmount = cardTxs
-                                .filter(t => t.creditCardId === card.id && new Date(t.date).getMonth() === currentMonth)
+                                .filter(t => {
+                                    if (!t.creditCardId || String(t.creditCardId) !== String(card.id)) return false
+                                    const d = new Date(t.date + 'T00:00:00')
+                                    return d.getFullYear() === currentYear && d.getMonth() === currentMonth
+                                })
                                 .reduce((acc, t) => {
                                     if (t.category === 'invoice_payment') return acc - t.amount
                                     return acc + t.amount
@@ -225,7 +232,7 @@ export default function CardsPage() {
                                     <div key={sub.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
                                         <div>
                                             <div style={{ fontWeight: 500 }}>{sub.desc}</div>
-                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Cartão: {cards.find(c => c.id === sub.creditCardId)?.name}</div>
+                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Cartão: {cards.find(c => String(c.id) === String(sub.creditCardId))?.name}</div>
                                         </div>
                                         <div style={{ fontWeight: 600, color: 'var(--danger-color)' }}>{formatCurrency(sub.amount)} /mês</div>
                                     </div>
