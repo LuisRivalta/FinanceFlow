@@ -66,7 +66,7 @@ export default function CardsPage() {
 
     // Inline Credit Card Installment Form state
     const [isAddingInstallment, setIsAddingInstallment] = useState(false)
-    const [newInstallment, setNewInstallment] = useState({ desc: '', amount: '', total: '', cardId: '' })
+    const [newInstallment, setNewInstallment] = useState({ desc: '', amount: '', total: '', paidCount: '0', billingPeriod: 'current', cardId: '' })
 
     // Financing Form state
     const [isAddingFinancing, setIsAddingFinancing] = useState(false)
@@ -144,19 +144,37 @@ export default function CardsPage() {
             alert('Preencha todos os campos do parcelamento.')
             return
         }
+
+        const total = parseInt(newInstallment.total)
+        const paid = parseInt(newInstallment.paidCount || 0)
+        if (paid >= total) {
+            alert('O número de parcelas já pagas não pode ser igual ou superior ao total de parcelas.')
+            return
+        }
+
         try {
-            await createTx({
-                desc: newInstallment.desc.trim(),
-                amount: parseFloat(newInstallment.amount),
-                type: 'expense',
-                category: 'other_expense',
-                account: 'credit',
-                date: new Date().toISOString().split('T')[0],
-                creditCardId: String(newInstallment.cardId),
-                installmentTotal: parseInt(newInstallment.total)
-            })
+            const today = new Date()
+            const startMonthOffset = newInstallment.billingPeriod === 'next' ? 1 : 0
+
+            for (let i = paid + 1; i <= total; i++) {
+                const stepIndex = i - (paid + 1)
+                const txDate = new Date(today.getFullYear(), today.getMonth() + startMonthOffset + stepIndex, today.getDate())
+                const dateStr = txDate.toISOString().split('T')[0]
+
+                await createTx({
+                    desc: `${newInstallment.desc.trim()} (${i}/${total})`,
+                    amount: parseFloat(newInstallment.amount),
+                    type: 'expense',
+                    category: 'other_expense',
+                    account: 'credit',
+                    date: dateStr,
+                    creditCardId: String(newInstallment.cardId),
+                    installmentNumber: i,
+                    installmentTotal: total
+                })
+            }
             setIsAddingInstallment(false)
-            setNewInstallment({ desc: '', amount: '', total: '', cardId: '' })
+            setNewInstallment({ desc: '', amount: '', total: '', paidCount: '0', billingPeriod: 'current', cardId: '' })
         } catch (err) {
             alert('Erro ao salvar compra parcelada: ' + err.message)
         }
@@ -231,16 +249,40 @@ export default function CardsPage() {
     const activeInstallments = useMemo(() => {
         const groups = {}
         installments.forEach(t => {
+            const match = t.desc.match(/\s\((\d+)\/(\d+)\)$/)
             const baseName = t.desc.replace(/\s\(\d+\/\d+\)$/, '')
+            const instNum = t.installmentNumber || (match ? parseInt(match[1]) : 1)
+            const instTotal = t.installmentTotal || (match ? parseInt(match[2]) : 1)
+
             if (!groups[baseName]) {
-                groups[baseName] = { name: baseName, total: t.installmentTotal, amount: t.amount, current: 0, cardId: t.creditCardId }
+                groups[baseName] = { 
+                    name: baseName, 
+                    total: instTotal, 
+                    amount: t.amount, 
+                    minNum: instNum, 
+                    paidCount: 0,
+                    cardId: t.creditCardId 
+                }
+            } else {
+                if (instNum < groups[baseName].minNum) {
+                    groups[baseName].minNum = instNum
+                }
             }
+
             const txDate = new Date(t.date + 'T00:00:00')
             if (txDate <= new Date()) {
-                groups[baseName].current++
+                groups[baseName].paidCount++
             }
         })
-        return Object.values(groups)
+
+        return Object.values(groups).map(g => {
+            const initialPaid = Math.max(0, g.minNum - 1)
+            const current = initialPaid + g.paidCount
+            return {
+                ...g,
+                current: Math.min(g.total, current)
+            }
+        })
     }, [installments])
 
     // Total debt statistics for financings
@@ -508,7 +550,18 @@ export default function CardsPage() {
                                             </div>
                                             <div className="tx-field">
                                                 <label>Total de Parcelas</label>
-                                                <input type="number" min="2" max="60" value={newInstallment.total} onChange={e => setNewInstallment({...newInstallment, total: e.target.value})} placeholder="10" required />
+                                                <input type="number" min="2" max="60" value={newInstallment.total} onChange={e => setNewInstallment({...newInstallment, total: e.target.value})} placeholder="12" required />
+                                            </div>
+                                            <div className="tx-field">
+                                                <label>Parcelas Já Pagas (Antigas)</label>
+                                                <input type="number" min="0" max={newInstallment.total || 60} value={newInstallment.paidCount} onChange={e => setNewInstallment({...newInstallment, paidCount: e.target.value})} placeholder="Ex: 6 (ou 0 para compra nova)" />
+                                            </div>
+                                            <div className="tx-field">
+                                                <label>Próxima Cobrança na Fatura</label>
+                                                <select value={newInstallment.billingPeriod} onChange={e => setNewInstallment({...newInstallment, billingPeriod: e.target.value})}>
+                                                    <option value="current">📅 Fatura Deste Mês (Atual)</option>
+                                                    <option value="next">📆 Próxima Fatura (Mês Que Vem)</option>
+                                                </select>
                                             </div>
                                             <div className="tx-field">
                                                 <label>Cartão de Crédito</label>
