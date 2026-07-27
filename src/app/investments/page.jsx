@@ -129,6 +129,7 @@ export default function InvestmentsPage() {
         const initial = Number(simInitial) || 0
         const monthly = Number(simMonthly) || 0
         const period = Number(simPeriodValue) || 0
+        const isTaxExempt = !!product?.taxExempt
         
         if (period === 0 && initial === 0 && monthly === 0) {
             return {
@@ -137,6 +138,13 @@ export default function InvestmentsPage() {
                 dataInvested: [0, 800, 1600, 2400, 3200, 4000],
                 finalGross: 0,
                 finalInvested: 0,
+                grossProfit: 0,
+                irDeduction: 0,
+                finalNet: 0,
+                netProfit: 0,
+                irRatePct: 0,
+                isTaxExempt,
+                months: 0,
                 isPlaceholder: true
             }
         }
@@ -180,8 +188,33 @@ export default function InvestmentsPage() {
             }
         }
 
-        return { labels, dataGross, dataInvested, finalGross: currentGross, finalInvested: currentInvested }
-    }, [simInitial, simMonthly, simPeriodValue, simPeriodType, simRate])
+        // Regressive IR calculation
+        let irRatePct = 0
+        if (!isTaxExempt) {
+            if (months <= 6) irRatePct = 22.5
+            else if (months <= 12) irRatePct = 20.0
+            else if (months <= 24) irRatePct = 17.5
+            else irRatePct = 15.0
+        }
+
+        const grossProfit = Math.max(0, currentGross - currentInvested)
+        const irDeduction = isTaxExempt ? 0 : grossProfit * (irRatePct / 100)
+        const finalNet = currentGross - irDeduction
+        const netProfit = Math.max(0, finalNet - currentInvested)
+
+        return { 
+            labels, dataGross, dataInvested, 
+            finalGross: currentGross, 
+            finalInvested: currentInvested,
+            grossProfit,
+            irDeduction,
+            finalNet,
+            netProfit,
+            irRatePct,
+            isTaxExempt,
+            months
+        }
+    }, [simInitial, simMonthly, simPeriodValue, simPeriodType, simRate, product])
 
     useEffect(() => {
         if (!layoutReady || !chartRef.current) return
@@ -432,18 +465,36 @@ export default function InvestmentsPage() {
                         <div style={{ marginTop: 'auto', paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
                                 <span style={{ color: 'var(--text-secondary)' }}>Total Investido:</span>
-                                <span style={{ color: '#60a5fa' }}>{formatCurrency(simData.finalInvested)}</span>
+                                <span style={{ color: '#60a5fa', fontWeight: 600 }}>{formatCurrency(simData.finalInvested)}</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
-                                <span style={{ color: 'var(--text-secondary)' }}>Juros Ganhos:</span>
-                                <span style={{ color: '#10b981' }}>+ {formatCurrency(simData.finalGross - simData.finalInvested)}</span>
+                                <span style={{ color: 'var(--text-secondary)' }}>Rendimento Bruto:</span>
+                                <span style={{ color: '#eab308', fontWeight: 600 }}>+ {formatCurrency(simData.grossProfit)}</span>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, marginTop: 12, color: '#eab308' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>
+                                    Desconto IR ({simData.isTaxExempt ? 'Isento' : `${simData.irRatePct}%`}):
+                                </span>
+                                <span style={{ color: simData.isTaxExempt ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                                    {simData.isTaxExempt ? 'Isento (R$ 0,00)' : `- ${formatCurrency(simData.irDeduction)}`}
+                                </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Rendimento Líquido:</span>
+                                <span style={{ color: '#10b981', fontWeight: 600 }}>+ {formatCurrency(simData.netProfit)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, marginTop: 12, color: 'rgba(255,255,255,0.7)' }}>
                                 <span>Valor Final Bruto:</span>
                                 <span>{formatCurrency(simData.finalGross)}</span>
                             </div>
-                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginTop: 16, lineHeight: 1.5 }}>
-                                Simulação com taxa constante, em valor bruto — sem descontar impostos ou taxas. Rentabilidade passada não garante retorno futuro.
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 800, marginTop: 6, color: '#10b981' }}>
+                                <span>Valor Final Líquido:</span>
+                                <span>{formatCurrency(simData.finalNet)}</span>
+                            </div>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 16, lineHeight: 1.5 }}>
+                                {simData.isTaxExempt 
+                                    ? '✓ Produto isento de Imposto de Renda (IR) para pessoa física.' 
+                                    : `* Desconto de IR calculado pela tabela regressiva de renda fixa (${simData.irRatePct}% para ${simData.months} meses).`}
                             </div>
                         </div>
                     </div>

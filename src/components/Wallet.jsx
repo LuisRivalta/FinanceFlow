@@ -19,14 +19,14 @@ const TICKER_MAP = {
 };
 
 const ASSET_TYPES = [
-    { id: 'cdb', label: 'CDB / RDB (100% CDI)', category: 'fixed', defaultMultiplier: 100 },
-    { id: 'tesouro_selic', label: 'Tesouro Selic', category: 'fixed', defaultMultiplier: 0 },
-    { id: 'poupanca', label: 'Poupança', category: 'fixed', defaultMultiplier: null },
-    { id: 'tesouro_ipca', label: 'Tesouro IPCA+', category: 'fixed', defaultMultiplier: 6 },
-    { id: 'lci_lca', label: 'LCI / LCA (95% CDI)', category: 'fixed', defaultMultiplier: 95 },
-    { id: 'crypto', label: 'Criptomoeda (BTC, ETH...)', category: 'crypto', defaultMultiplier: null },
-    { id: 'currency', label: 'Moeda Estrangeira (USD, EUR...)', category: 'currency', defaultMultiplier: null },
-    { id: 'fixed', label: 'Outros Renda Fixa', category: 'fixed', defaultMultiplier: null }
+    { id: 'cdb', label: 'CDB / RDB / CDI', category: 'fixed', defaultMultiplier: 100, hasCdiPercent: true },
+    { id: 'lci_lca', label: 'LCI / LCA (Isento IR)', category: 'fixed', defaultMultiplier: 95, hasCdiPercent: true },
+    { id: 'tesouro_selic', label: 'Tesouro Selic', category: 'fixed', defaultMultiplier: 0, hasCdiPercent: false },
+    { id: 'poupanca', label: 'Poupança (Isento IR)', category: 'fixed', defaultMultiplier: null, hasCdiPercent: false },
+    { id: 'tesouro_ipca', label: 'Tesouro IPCA+', category: 'fixed', defaultMultiplier: 6, hasCdiPercent: false },
+    { id: 'crypto', label: 'Criptomoeda (BTC, ETH...)', category: 'crypto', defaultMultiplier: null, hasCdiPercent: false },
+    { id: 'currency', label: 'Moeda Estrangeira (USD, EUR...)', category: 'currency', defaultMultiplier: null, hasCdiPercent: false },
+    { id: 'fixed', label: 'Outros Renda Fixa', category: 'fixed', defaultMultiplier: null, hasCdiPercent: false }
 ];
 
 export default function Wallet({ userEmail }) {
@@ -42,6 +42,7 @@ export default function Wallet({ userEmail }) {
     const [addName, setAddName] = useState('');
     const [addAmount, setAddAmount] = useState('');
     const [addRate, setAddRate] = useState('');
+    const [addCdiPercent, setAddCdiPercent] = useState('100');
 
     // Inline edit manual balance state
     const [editingAssetId, setEditingAssetId] = useState(null);
@@ -67,13 +68,14 @@ export default function Wallet({ userEmail }) {
         window.dispatchEvent(new Event('wallet_updated'));
     }, [assets, userEmail]);
 
-    // Auto populate rate when addType or rates change
+    // Auto populate rate when addType, addCdiPercent, or rates change
     useEffect(() => {
         const selectedPreset = ASSET_TYPES.find(t => t.id === addType);
         if (selectedPreset && selectedPreset.category === 'fixed') {
             const product = getProduct(selectedPreset.id);
             if (product) {
-                const derived = deriveRate(product, rates, selectedPreset.defaultMultiplier);
+                const multiplier = selectedPreset.hasCdiPercent ? (parseFloat(addCdiPercent) || 100) : selectedPreset.defaultMultiplier;
+                const derived = deriveRate(product, rates, multiplier);
                 if (derived !== null) {
                     setAddRate(String(derived));
                     return;
@@ -83,7 +85,14 @@ export default function Wallet({ userEmail }) {
         if (addType === 'fixed' && !addRate) {
             setAddRate('10.4');
         }
-    }, [addType, rates]);
+    }, [addType, addCdiPercent, rates]);
+
+    const handleTypeChange = (e) => {
+        const newT = e.target.value;
+        setAddType(newT);
+        if (newT === 'lci_lca') setAddCdiPercent('95');
+        else if (newT === 'cdb') setAddCdiPercent('100');
+    };
 
     // Fetch live prices for crypto / currency
     const fetchPrices = async () => {
@@ -135,6 +144,9 @@ export default function Wallet({ userEmail }) {
         if (categoryType === 'fixed') {
             newAsset.name = addName || selectedPreset.label;
             newAsset.rate = parseFloat(addRate) || 10.4;
+            if (selectedPreset.hasCdiPercent) {
+                newAsset.cdiPercent = parseFloat(addCdiPercent) || 100;
+            }
         } else {
             newAsset.ticker = addName.toUpperCase();
             newAsset.name = addName.toUpperCase();
@@ -145,6 +157,7 @@ export default function Wallet({ userEmail }) {
         setAddName('');
         setAddAmount('');
         setAddRate('');
+        setAddCdiPercent('100');
     };
 
     const removeAsset = (id) => {
@@ -205,7 +218,7 @@ export default function Wallet({ userEmail }) {
                     <form onSubmit={handleAddAsset} style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
                         <div className="tx-field" style={{ flex: 1, minWidth: 180 }}>
                             <label>Tipo de Ativo</label>
-                            <select value={addType} onChange={e => setAddType(e.target.value)}>
+                            <select value={addType} onChange={handleTypeChange}>
                                 {ASSET_TYPES.map(t => (
                                     <option key={t.id} value={t.id}>{t.label}</option>
                                 ))}
@@ -236,8 +249,23 @@ export default function Wallet({ userEmail }) {
                             />
                         </div>
 
+                        {currentPreset.hasCdiPercent && (
+                            <div className="tx-field" style={{ flex: 1, minWidth: 120 }}>
+                                <label>% do CDI</label>
+                                <input 
+                                    required
+                                    type="number" 
+                                    step="1"
+                                    min="1"
+                                    value={addCdiPercent} 
+                                    onChange={e => setAddCdiPercent(e.target.value)} 
+                                    placeholder="100"
+                                />
+                            </div>
+                        )}
+
                         {currentPreset.category === 'fixed' && (
-                            <div className="tx-field" style={{ flex: 1, minWidth: 140 }}>
+                            <div className="tx-field" style={{ flex: 1, minWidth: 130 }}>
                                 <label>Taxa Anual (%)</label>
                                 <input 
                                     required
@@ -308,7 +336,9 @@ export default function Wallet({ userEmail }) {
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{asset.name}</div>
                                         <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                                            {asset.type === 'fixed' ? `Taxa ${asset.rate}% a.a.` : `${asset.amount} unidades`}
+                                            {asset.type === 'fixed' 
+                                                ? (asset.cdiPercent ? `${asset.cdiPercent}% do CDI (${asset.rate}% a.a.)` : `Taxa ${asset.rate}% a.a.`) 
+                                                : `${asset.amount} unidades`}
                                         </div>
                                     </div>
                                 </div>
