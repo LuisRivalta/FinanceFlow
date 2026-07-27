@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import Sidebar from '../../components/Sidebar'
 import Wallet from '../../components/Wallet'
 import NumberField from '../../components/NumberField'
-import dynamic from 'next/dynamic'
 import { useSession } from '../../hooks/useSession'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useRates } from '../../hooks/useRates'
@@ -13,7 +12,6 @@ import { INVESTMENT_PRODUCTS, DEFAULT_PRODUCT_ID, getProduct, deriveRate, multip
 import { formatCurrency, formatPercent, calcInvestment, CATEGORY_MAP } from '../../helpers'
 import { Chart, ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler } from 'chart.js'
 
-const WealthParticles = dynamic(() => import('../../components/3d/WealthParticles'), { ssr: false })
 
 Chart.register(ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler)
 
@@ -329,9 +327,8 @@ export default function InvestmentsPage() {
                 <h3 className="fade-up delay-2" style={{ fontSize: 24, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span>🧮</span> Simulador de Juros Compostos
                 </h3>
-                <div className="fade-up delay-2" style={{ position: 'relative', display: 'grid', gridTemplateColumns: '350px 1fr', gap: 24, alignItems: 'stretch' }}>
-                    <WealthParticles color="#10b981" />
-                    
+                <div className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: 24, alignItems: 'stretch' }}>
+
                     {/* Controles do Simulador */}
                     <div className="card glass-panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
                         <div>
