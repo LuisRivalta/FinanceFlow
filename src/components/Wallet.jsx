@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { formatCurrency } from '../helpers';
 import { useRates } from '../hooks/useRates';
 import { getProduct, deriveRate } from '../lib/investmentProducts';
@@ -30,6 +31,7 @@ const ASSET_TYPES = [
 ];
 
 export default function Wallet({ userEmail }) {
+    const router = useRouter();
     const [assets, setAssets] = useState([]);
     const [livePrices, setLivePrices] = useState({});
     const [loadingPrices, setLoadingPrices] = useState(false);
@@ -47,6 +49,10 @@ export default function Wallet({ userEmail }) {
     // Inline edit manual balance state
     const [editingAssetId, setEditingAssetId] = useState(null);
     const [editBalanceVal, setEditBalanceVal] = useState('');
+
+    // Crypto / Currency simulation modal state
+    const [simulatingAsset, setSimulatingAsset] = useState(null);
+    const [simTargetPrice, setSimTargetPrice] = useState('');
 
     // Load assets from localStorage on mount
     useEffect(() => {
@@ -198,6 +204,12 @@ export default function Wallet({ userEmail }) {
     const totalNetWorth = assets.reduce((sum, asset) => sum + calculateCurrentValue(asset), 0);
     const currentPreset = ASSET_TYPES.find(t => t.id === addType) || ASSET_TYPES[0];
 
+    const openSimulationModal = (asset) => {
+        const currentP = livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`] || 1;
+        setSimulatingAsset(asset);
+        setSimTargetPrice((currentP * 1.5).toFixed(2));
+    };
+
     return (
         <div style={{ marginTop: 40, marginBottom: 40 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -320,7 +332,7 @@ export default function Wallet({ userEmail }) {
                         const profitPct = initialCost > 0 ? (profit / initialCost) * 100 : 0;
                         
                         return (
-                            <div key={asset.id} className="card glass-panel fade-up" style={{ padding: 20, animationDelay: `${(idx + 2) * 0.1}s`, position: 'relative' }}>
+                            <div key={asset.id} className="card glass-panel fade-up" style={{ padding: 20, animationDelay: `${(idx + 2) * 0.1}s`, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                                 <button 
                                     onClick={() => removeAsset(asset.id)}
                                     style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.5 }}
@@ -329,101 +341,207 @@ export default function Wallet({ userEmail }) {
                                     ✖
                                 </button>
                                 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                                        {asset.type === 'crypto' ? '₿' : asset.type === 'currency' ? '💵' : '🏦'}
-                                    </div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{asset.name}</div>
-                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                                            {asset.type === 'fixed' 
-                                                ? (asset.cdiPercent ? `${asset.cdiPercent}% do CDI (${asset.rate}% a.a.)` : `Taxa ${asset.rate}% a.a.`) 
-                                                : `${asset.amount} unidades`}
+                                <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                                            {asset.type === 'crypto' ? '₿' : asset.type === 'currency' ? '💵' : '🏦'}
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{asset.name}</div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                                                {asset.type === 'fixed' 
+                                                    ? (asset.cdiPercent ? `${asset.cdiPercent}% do CDI (${asset.rate}% a.a.)` : `Taxa ${asset.rate}% a.a.`) 
+                                                    : `${asset.amount} unidades`}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                
-                                <div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Valor Atual</span>
-                                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: isManual ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)', color: isManual ? '#60a5fa' : '#10b981' }}>
-                                            {isManual ? '✏️ Saldo Manual' : asset.type === 'fixed' ? '⚡ Auto Rendimento' : '📈 Cotação Ao Vivo'}
-                                        </span>
-                                    </div>
+                                    
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Valor Atual</span>
+                                            <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: isManual ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)', color: isManual ? '#60a5fa' : '#10b981' }}>
+                                                {isManual ? '✏️ Saldo Manual' : asset.type === 'fixed' ? '⚡ Auto Rendimento' : '📈 Cotação Ao Vivo'}
+                                            </span>
+                                        </div>
 
-                                    {editingAssetId === asset.id ? (
-                                        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                            <input 
-                                                type="number"
-                                                step="0.01"
-                                                value={editBalanceVal}
-                                                onChange={e => setEditBalanceVal(e.target.value)}
-                                                placeholder="Digite o saldo atual..."
-                                                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #3b82f6', background: '#111827', color: 'white', fontSize: 14 }}
-                                                autoFocus
-                                            />
-                                            <div style={{ display: 'flex', gap: 8 }}>
-                                                <button 
-                                                    type="button" 
-                                                    onClick={() => handleSaveManualBalance(asset.id, editBalanceVal)}
-                                                    style={{ flex: 1, padding: '6px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                                                >
-                                                    Salvar
-                                                </button>
-                                                {isManual && (
+                                        {editingAssetId === asset.id ? (
+                                            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                <input 
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={editBalanceVal}
+                                                    onChange={e => setEditBalanceVal(e.target.value)}
+                                                    placeholder="Digite o saldo atual..."
+                                                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #3b82f6', background: '#111827', color: 'white', fontSize: 14 }}
+                                                    autoFocus
+                                                />
+                                                <div style={{ display: 'flex', gap: 8 }}>
                                                     <button 
                                                         type="button" 
-                                                        onClick={() => handleResetToAutomatic(asset.id)}
-                                                        style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+                                                        onClick={() => handleSaveManualBalance(asset.id, editBalanceVal)}
+                                                        style={{ flex: 1, padding: '6px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                                                     >
-                                                        🔄 Usar Auto
+                                                        Salvar
                                                     </button>
+                                                    {isManual && (
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => handleResetToAutomatic(asset.id)}
+                                                            style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+                                                        >
+                                                            🔄 Usar Auto
+                                                        </button>
+                                                    )}
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => setEditingAssetId(null)}
+                                                        style={{ padding: '6px 10px', background: 'transparent', color: 'rgba(255,255,255,0.5)', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                                    <div style={{ fontSize: 24, fontWeight: 700, color: 'white' }}>
+                                                        {formatCurrency(currentValue)}
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => { setEditingAssetId(asset.id); setEditBalanceVal(currentValue.toFixed(2)); }}
+                                                        style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}
+                                                    >
+                                                        ✏️ Ajustar
+                                                    </button>
+                                                </div>
+
+                                                {asset.type === 'fixed' && initialCost > 0 && (
+                                                    <div style={{ fontSize: 12, marginTop: 6, color: profit >= 0 ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                                                        {profit >= 0 ? '▲' : '▼'} {formatCurrency(profit)} ({profitPct.toFixed(2)}%)
+                                                    </div>
                                                 )}
-                                                <button 
-                                                    type="button" 
-                                                    onClick={() => setEditingAssetId(null)}
-                                                    style={{ padding: '6px 10px', background: 'transparent', color: 'rgba(255,255,255,0.5)', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
-                                                >
-                                                    Cancelar
-                                                </button>
-                                            </div>
-                                        </div>
+
+                                                {isLive && (
+                                                    <div style={{ fontSize: 12, color: '#eab308', marginTop: 8, display: 'flex', justifyContent: 'space-between' }}>
+                                                        <span>Cotação Hoje:</span>
+                                                        <span>
+                                                            {livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`] 
+                                                                ? formatCurrency(livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`]) 
+                                                                : 'Buscando...'}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Simulation Button */}
+                                <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 8 }}>
+                                    {asset.type === 'fixed' ? (
+                                        <button 
+                                            onClick={() => router.push(`/investments?initial=${currentValue.toFixed(2)}&rate=${asset.rate}&product=${asset.presetId || 'cdb'}`)}
+                                            style={{ flex: 1, padding: '8px 12px', background: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                                        >
+                                            🚀 Simular no Simulador
+                                        </button>
                                     ) : (
-                                        <>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                                <div style={{ fontSize: 24, fontWeight: 700, color: 'white' }}>
-                                                    {formatCurrency(currentValue)}
-                                                </div>
-                                                <button 
-                                                    onClick={() => { setEditingAssetId(asset.id); setEditBalanceVal(currentValue.toFixed(2)); }}
-                                                    style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}
-                                                >
-                                                    ✏️ Ajustar
-                                                </button>
-                                            </div>
-
-                                            {asset.type === 'fixed' && initialCost > 0 && (
-                                                <div style={{ fontSize: 12, marginTop: 6, color: profit >= 0 ? '#10b981' : '#ef4444', fontWeight: 600 }}>
-                                                    {profit >= 0 ? '▲' : '▼'} {formatCurrency(profit)} ({profitPct.toFixed(2)}%)
-                                                </div>
-                                            )}
-
-                                            {isLive && (
-                                                <div style={{ fontSize: 12, color: '#eab308', marginTop: 8, display: 'flex', justifyContent: 'space-between' }}>
-                                                    <span>Cotação:</span>
-                                                    <span>
-                                                        {livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`] 
-                                                            ? formatCurrency(livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`]) 
-                                                            : 'Buscando...'}
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </>
+                                        <button 
+                                            onClick={() => openSimulationModal(asset)}
+                                            style={{ flex: 1, padding: '8px 12px', background: 'rgba(234,179,8,0.12)', color: '#eab308', border: '1px solid rgba(234,179,8,0.25)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                                        >
+                                            🚀 Simular Cotação Futura
+                                        </button>
                                     )}
                                 </div>
                             </div>
                         )
                     })}
+                </div>
+            )}
+
+            {/* Crypto / Currency Fictitious Price Simulation Modal */}
+            {simulatingAsset && (
+                <div 
+                    style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    onClick={e => { if (e.target === e.currentTarget) setSimulatingAsset(null) }}
+                >
+                    <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 32, width: '100%', maxWidth: 460, color: 'white', boxShadow: '0 25px 60px rgba(0,0,0,0.7)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <h4 style={{ fontSize: 18, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <span>🚀</span> Simular Cotação ({simulatingAsset.name})
+                            </h4>
+                            <button onClick={() => setSimulatingAsset(null)} style={{ background: 'rgba(255,255,255,0.07)', border: 'none', borderRadius: 8, color: 'white', cursor: 'pointer', width: 32, height: 32, fontSize: 16 }}>✕</button>
+                        </div>
+
+                        {(() => {
+                            const currentPrice = livePrices[TICKER_MAP[simulatingAsset.ticker] || `${simulatingAsset.ticker}-BRL`] || 1;
+                            const targetP = parseFloat(simTargetPrice) || 0;
+                            const currentVal = currentPrice * simulatingAsset.amount;
+                            const targetVal = targetP * simulatingAsset.amount;
+                            const profitVal = targetVal - currentVal;
+                            const profitPct = currentVal > 0 ? (profitVal / currentVal) * 100 : 0;
+                            const multiplierVal = currentPrice > 0 ? (targetP / currentPrice) : 0;
+
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)' }}>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Posição Atual</div>
+                                        <div style={{ fontSize: 16, fontWeight: 700, margin: '4px 0 2px' }}>
+                                            {simulatingAsset.amount} unidades de {simulatingAsset.name}
+                                        </div>
+                                        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                                            Cotação Hoje: {formatCurrency(currentPrice)} | Saldo Hoje: <strong style={{ color: 'white' }}>{formatCurrency(currentVal)}</strong>
+                                        </div>
+                                    </div>
+
+                                    <div className="tx-field">
+                                        <label>Cotação Futura Fictícia (R$)</label>
+                                        <input 
+                                            type="number"
+                                            step="any"
+                                            value={simTargetPrice}
+                                            onChange={e => setSimTargetPrice(e.target.value)}
+                                            placeholder="Digite o preço estimado por unidade..."
+                                            style={{ fontSize: 16, fontWeight: 700, color: '#eab308' }}
+                                        />
+                                    </div>
+
+                                    <div style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.1) 0%, rgba(0,0,0,0.2) 100%)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 16, padding: 20 }}>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>
+                                            Patrimônio Simulado
+                                        </div>
+                                        <div style={{ fontSize: 28, fontWeight: 800, color: '#eab308', margin: '4px 0 8px' }}>
+                                            {formatCurrency(targetVal)}
+                                        </div>
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10, marginTop: 10 }}>
+                                            <span style={{ color: 'var(--text-secondary)' }}>Lucro / Valorização:</span>
+                                            <span style={{ fontWeight: 700, color: profitVal >= 0 ? '#10b981' : '#ef4444' }}>
+                                                {profitVal >= 0 ? '+' : ''}{formatCurrency(profitVal)} ({profitPct.toFixed(2)}%)
+                                            </span>
+                                        </div>
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 6 }}>
+                                            <span style={{ color: 'var(--text-secondary)' }}>Multiplicador:</span>
+                                            <span style={{ fontWeight: 700, color: '#60a5fa' }}>
+                                                {multiplierVal.toFixed(2)}x
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setSimulatingAsset(null)}
+                                        className="btn-primary"
+                                        style={{ width: '100%', marginTop: 8, padding: 12 }}
+                                    >
+                                        Fechar Simulação
+                                    </button>
+                                </div>
+                            )
+                        })()}
+                    </div>
                 </div>
             )}
         </div>

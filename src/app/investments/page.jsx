@@ -56,6 +56,25 @@ export default function InvestmentsPage() {
         return () => clearTimeout(t)
     }, [])
 
+    // Read URL query parameters to pre-fill simulator when coming from Wallet asset simulation
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+        const params = new URLSearchParams(window.location.search)
+        const initParam = params.get('initial')
+        const rateParam = params.get('rate')
+        const prodParam = params.get('product')
+
+        if (initParam) setSimInitial(initParam)
+        if (rateParam && !isNaN(rateParam)) {
+            setSimRate(Number(rateParam))
+        }
+        if (prodParam && getProduct(prodParam)) {
+            const p = getProduct(prodParam)
+            setProductId(p.id)
+            if (p.defaultMultiplier !== null) setMultiplier(p.defaultMultiplier)
+        }
+    }, [])
+
     // Escreve a taxa derivada em simRate quando produto, multiplicador ou taxas
     // mudam. deriveRate devolve null para o Personalizado, e é isso que impede o
     // effect de atropelar a taxa digitada à mão — sem comparar id nenhum.
