@@ -140,7 +140,7 @@ export default function CardsPage() {
                     {isAddingCard && (
                         <div className="glass-panel fade-up" style={{ padding: 24, marginBottom: 24, border: '1px solid rgba(139,92,246,0.3)' }}>
                             <h3 style={{ marginBottom: 16 }}>{editingCardId ? 'Editar Cartão' : 'Novo Cartão de Crédito'}</h3>
-                            <form onSubmit={handleAddCard} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, alignItems: 'end' }}>
+                            <form onSubmit={handleAddCard} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, alignItems: 'end' }}>
                                 <div className="tx-field">
                                     <label>Nome do Cartão (ex: Nubank)</label>
                                     <input type="text" value={newCard.name} onChange={e => setNewCard({...newCard, name: e.target.value})} required />
@@ -182,7 +182,7 @@ export default function CardsPage() {
                     <section className="fade-up delay-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24, marginBottom: 32 }}>
                         {cards.length === 0 && !loadingCards && (
                             <div className="glass-panel" style={{ gridColumn: '1 / -1', padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
-                                <div style={{ fontSize: 40, marginBottom: 12 }}>💳</div>
+                                <div style={{ fontSize: 'clamp(28px, 6vw, 40px)', marginBottom: 12 }}>💳</div>
                                 Nenhum cartão cadastrado.
                             </div>
                         )}
@@ -210,7 +210,7 @@ export default function CardsPage() {
                         })}
                     </section>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
                         {/* Subscriptions */}
                         <div className="glass-panel fade-up delay-2" style={{ padding: 24 }}>
                             <div className="section-header" style={{ marginBottom: 16 }}>

@@ -300,7 +300,7 @@ export default function InvestmentsPage() {
                         </svg>
                         <div style={{ position: 'relative', zIndex: 1 }}>
                             <div style={{ fontSize: 14, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>Total Investido</div>
-                            <div style={{ fontSize: 48, fontWeight: 800, color: '#eab308' }}>
+                            <div style={{ fontSize: 'clamp(28px, 7vw, 48px)', fontWeight: 800, color: '#eab308' }}>
                                 {txLoading ? '...' : formatCurrency(totalInvested)}
                             </div>
                         </div>
@@ -327,7 +327,7 @@ export default function InvestmentsPage() {
                 <h3 className="fade-up delay-2" style={{ fontSize: 24, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span>🧮</span> Simulador de Juros Compostos
                 </h3>
-                <div className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: 24, alignItems: 'stretch' }}>
+                <div className="fade-up delay-2 sim-grid">
 
                     {/* Controles do Simulador */}
                     <div className="card glass-panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>

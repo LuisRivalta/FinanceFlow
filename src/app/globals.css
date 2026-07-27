@@ -1189,6 +1189,55 @@ body::after {
     h2, h3 {
         font-size: 20px !important;
     }
+
+    /* A sidebar acima virou position: fixed; bottom: 0. Sem esta folga o último
+       elemento de TODA página fica escondido atrás da navegação no celular. */
+    .main-content {
+        padding-bottom: 88px;
+    }
+
+    .profile-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Grids assimétricos. Não dá para resolver com auto-fit: ele produz colunas
+   iguais e destruiria a proporção intencional destes dois no desktop. Por isso
+   saem do estilo inline e viram classe, onde media query alcança. */
+.sim-grid {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 24px;
+    align-items: stretch;
+}
+
+/* 900px e não 768px: o painel de controles tem 350px fixos, então o gráfico ao
+   lado fica ilegível bem antes de a sidebar mudar de forma. */
+@media (max-width: 900px) {
+    .sim-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 24px;
+}
+
+@media (max-width: 480px) {
+    .app-container {
+        padding: 12px;
+    }
+
+    .card {
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .main-content {
+        gap: 14px;
+    }
 }
 
 /* Lenis CSS */

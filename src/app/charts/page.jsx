@@ -7,6 +7,7 @@ import Sidebar from '../../components/Sidebar'
 import { useSession } from '../../hooks/useSession'
 import { supabase } from '../../lib/supabase'
 import { mapFromDB, formatCurrency, getCategoryDetails, CATEGORY_MAP } from '../../helpers'
+import { currentLegendPosition } from '../../lib/responsive'
 
 // Register Chart.js components
 Chart.register(ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler)
@@ -173,7 +174,7 @@ export default function ChartsPage() {
         return {
             type: 'doughnut',
             data: { labels, datasets: [{ data, backgroundColor: colors.map(c => c + 'cc'), borderColor: colors, borderWidth: 2, hoverOffset: 8 }] },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, pointStyle: 'circle', padding: 12 } }, tooltip: { ...TOOLTIP_OPTS, callbacks: { label: ctx => ` ${fmt(ctx.raw)}` } } } }
+            options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: currentLegendPosition(), labels: { usePointStyle: true, pointStyle: 'circle', padding: 12 } }, tooltip: { ...TOOLTIP_OPTS, callbacks: { label: ctx => ` ${fmt(ctx.raw)}` } } } }
         }
     }, [filtered])
     useChart(catExpenseRef, catExpenseConfig, [catExpenseConfig])
@@ -231,7 +232,7 @@ export default function ChartsPage() {
         return {
             type: 'doughnut',
             data: { labels, datasets: [{ data, backgroundColor: colors.map(c => c + 'cc'), borderColor: colors, borderWidth: 2, hoverOffset: 8 }] },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, pointStyle: 'circle', padding: 12 } }, tooltip: { ...TOOLTIP_OPTS, callbacks: { label: ctx => { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? Math.round((ctx.raw / total) * 100) : 0; return ` ${fmt(ctx.raw)} (${pct}%)` } } } } }
+            options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: currentLegendPosition(), labels: { usePointStyle: true, pointStyle: 'circle', padding: 12 } }, tooltip: { ...TOOLTIP_OPTS, callbacks: { label: ctx => { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? Math.round((ctx.raw / total) * 100) : 0; return ` ${fmt(ctx.raw)} (${pct}%)` } } } } }
         }
     }, [filtered])
     useChart(catIncomeRef, catIncomeConfig, [catIncomeConfig])
@@ -293,7 +294,7 @@ export default function ChartsPage() {
                             </div>
 
                             {/* KPIs */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 28 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
                                 {[
                                     { label: '💰 Receitas Totais', val: totalIncome, count: kpiIncome.length, color: '#10b981' },
                                     { label: '💸 Despesas Totais', val: totalExpense, count: kpiExpense.length, color: '#ef4444' },
@@ -309,7 +310,7 @@ export default function ChartsPage() {
                             </div>
 
                             {/* Charts Grid */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 20 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20 }}>
                                 {/* 1. Balance */}
                                 <ChartCard title="🚀 Evolução do Patrimônio" subtitle="Saldo acumulado ao longo do tempo" full>
                                     <div style={{ position: 'relative', height: 320, width: '100%' }}>
@@ -422,7 +423,7 @@ function ChartCard({ title, subtitle, children, full }) {
 function Empty({ msg = 'Sem dados no período' }) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 120, color: 'rgba(255,255,255,0.2)', fontSize: 13, gap: 8 }}>
-            <span style={{ fontSize: 32 }}>📭</span>
+            <span style={{ fontSize: 'clamp(22px, 5vw, 32px)' }}>📭</span>
             {msg}
         </div>
     )

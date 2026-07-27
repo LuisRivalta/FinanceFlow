@@ -11,6 +11,7 @@ import dynamic from 'next/dynamic'
 import { useSession } from '../hooks/useSession'
 import { useTransactions } from '../hooks/useTransactions'
 import { formatCurrency, calcBalance, calcIncome, calcExpense, calcInvestment, getCategoryDetails } from '../helpers'
+import { currentLegendPosition } from '../lib/responsive'
 
 const Coin3D = dynamic(() => import('../components/3d/Coin3D'), { ssr: false })
 
@@ -291,7 +292,7 @@ export default function DashboardPage() {
             return {
                 type: 'doughnut',
                 data: { labels: ['Sem Despesas'], datasets: [{ data: [1], backgroundColor: ['#334155'], borderWidth: 0 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { enabled: false }, legend: { position: 'right', labels: { color: '#94a3b8', usePointStyle: true, padding: 20 } } }, cutout: '75%' }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { enabled: false }, legend: { position: currentLegendPosition(), labels: { color: '#94a3b8', usePointStyle: true, padding: 20 } } }, cutout: '75%' }
             }
         }
 
@@ -314,7 +315,7 @@ export default function DashboardPage() {
                 responsive: true, maintainAspectRatio: false, cutout: '65%',
                 layout: { padding: 10 },
                 plugins: {
-                    legend: { position: 'right', labels: { color: '#cbd5e1', usePointStyle: true, padding: 16, font: { size: 12, family: "'Outfit', sans-serif" } } },
+                    legend: { position: currentLegendPosition(), labels: { color: '#cbd5e1', usePointStyle: true, padding: 16, font: { size: 12, family: "'Outfit', sans-serif" } } },
                     tooltip: { ...TOOLTIP_OPTS, callbacks: { label: ctx => { const pct = Math.round((ctx.raw / totalExp) * 100); return ` ${fmt(ctx.raw)} (${pct}%)` } } }
                 }
             }
@@ -367,7 +368,7 @@ export default function DashboardPage() {
                         </header>
 
                         {/* Top Stats Row */}
-                        <section className="fade-up delay-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, flexShrink: 0 }}>
+                        <section className="fade-up delay-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24, flexShrink: 0 }}>
                             <div className="card glass-panel clickable-card" onClick={() => setDetailView('income')} style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 240, border: '1px solid rgba(16,185,129,0.3)', background: 'linear-gradient(180deg, rgba(16,185,129,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
                                 {/* Big faint background icon */}
                                 <svg style={{ position: 'absolute', top: -10, right: 85, width: 140, height: 140, opacity: 0.05, transform: 'rotate(-5deg)', color: '#10b981', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -459,7 +460,7 @@ export default function DashboardPage() {
                         </section>
 
 
-                        <section className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24, alignItems: 'stretch' }}>
+                        <section className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginBottom: 24, alignItems: 'stretch' }}>
                             {/* Balance */}
                             <div className="card glass-panel clickable-card" onClick={() => setDetailView('balance')} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 240, border: '1px solid rgba(59,130,246,0.3)', background: 'linear-gradient(180deg, rgba(59,130,246,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
                                 {/* Big faint background icon */}
@@ -676,7 +677,7 @@ export default function DashboardPage() {
                                     </div>
                                 ) : recentTxs.length === 0 ? (
                                     <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.3)' }}>
-                                        <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
+                                        <div style={{ fontSize: 'clamp(22px, 5vw, 32px)', marginBottom: 8 }}>📭</div>
                                         Nenhuma transação encontrada.
                                     </div>
                                 ) : recentTxs.map(tx => (
@@ -737,7 +738,7 @@ export default function DashboardPage() {
                         <div id="all-tx-list" style={{ overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                             {allTxs.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.3)' }}>
-                                    <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
+                                    <div style={{ fontSize: 'clamp(22px, 5vw, 32px)', marginBottom: 8 }}>📭</div>
                                     Nenhuma transação encontrada.
                                 </div>
                             ) : allTxs.map(tx => (

@@ -141,7 +141,7 @@ export default function ProfilePage() {
                         </button>
                     </header>
 
-                    <section className="fade-up delay-1" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24 }}>
+                    <section className="fade-up delay-1 profile-grid">
                         {/* Left: Avatar card */}
                         <div className="glass-panel" style={{ padding: 40, textAlign: 'center', height: 'fit-content' }}>
                             <input type="file" ref={fileInputRef} accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
@@ -149,7 +149,7 @@ export default function ProfilePage() {
                             {/* Avatar */}
                             <div
                                 onClick={handleAvatarClick}
-                                style={{ width: 120, height: 120, borderRadius: '50%', backgroundImage: avatarSrc ? `url('${avatarSrc}')` : 'linear-gradient(135deg, var(--accent-primary), #ec4899)', color: 'white', fontSize: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, margin: '0 auto 24px', boxShadow: '0 10px 25px var(--accent-glow)', position: 'relative', overflow: 'hidden', cursor: 'pointer', backgroundSize: 'cover', backgroundPosition: 'center' }}
+                                style={{ width: 120, height: 120, borderRadius: '50%', backgroundImage: avatarSrc ? `url('${avatarSrc}')` : 'linear-gradient(135deg, var(--accent-primary), #ec4899)', color: 'white', fontSize: 'clamp(28px, 7vw, 48px)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, margin: '0 auto 24px', boxShadow: '0 10px 25px var(--accent-glow)', position: 'relative', overflow: 'hidden', cursor: 'pointer', backgroundSize: 'cover', backgroundPosition: 'center' }}
                             >
                                 {!avatarSrc && initials}
                                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s', fontSize: 22, gap: 4 }}

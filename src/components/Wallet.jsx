@@ -205,7 +205,7 @@ export default function Wallet({ userEmail }) {
 
             {assets.length === 0 && !isAdding ? (
                 <div className="card glass-panel fade-up delay-1" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-                    <div style={{ fontSize: 40, marginBottom: 16 }}>📈</div>
+                    <div style={{ fontSize: 'clamp(26px, 6vw, 40px)', marginBottom: 16 }}>📈</div>
                     <div>Sua carteira está vazia. Adicione ativos para começar a acompanhar o rendimento em tempo real!</div>
                 </div>
             ) : (
@@ -216,7 +216,7 @@ export default function Wallet({ userEmail }) {
                             <div style={{ fontSize: 14, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>
                                 Patrimônio Atual
                             </div>
-                            <div style={{ fontSize: 32, fontWeight: 800, color: '#10b981' }}>
+                            <div style={{ fontSize: 'clamp(22px, 5vw, 32px)', fontWeight: 800, color: '#10b981' }}>
                                 {loadingPrices && Object.keys(livePrices).length === 0 ? '...' : formatCurrency(totalNetWorth)}
                             </div>
                             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>

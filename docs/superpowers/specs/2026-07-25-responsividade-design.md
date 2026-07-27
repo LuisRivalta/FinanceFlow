@@ -132,17 +132,11 @@ O corte do simulador é 900px e não 768px porque o painel de controles tem 350p
 
 A unidade `vw` é da viewport, não do container, então em telas largas o `max` é que segura o tamanho — é por isso que o terceiro argumento importa.
 
-## 5. Duas tabelas → wrapper com scroll
+## 5. Duas tabelas → nada a fazer
 
-`admin/page.jsx:96` e `charts/page.jsx:372` ganham:
+**Corrigido durante a implementação:** as duas tabelas já têm wrapper com `overflowX: 'auto'` — `admin/page.jsx:95` e `charts/page.jsx:372`. O inventário inicial listou o `<table>` sem checar a linha anterior. Nenhuma mudança necessária.
 
-```jsx
-<div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-    <table …>
-</div>
-```
-
-Tabela é a única coisa da lista que legitimamente não cabe em 360px. Rolar na horizontal dentro de um container é melhor que estourar a largura da página, que provoca scroll horizontal no documento inteiro.
+Fica registrado porque a conclusão continua valendo: tabela é a única coisa da lista que legitimamente não cabe em 360px, e rolar na horizontal dentro de um container é o comportamento correto.
 
 ## 6. Legenda dos gráficos de rosca
 
@@ -157,7 +151,20 @@ export function legendPosition(width, breakpoint = 768) {
 }
 ```
 
-Recebe a largura como argumento em vez de ler `window` por dentro — assim é puro e testável. Quem chama passa `window.innerWidth`, dentro do `useEffect` que monta o gráfico, onde `window` existe.
+Recebe a largura como argumento em vez de ler `window` por dentro — assim é puro e testável.
+
+**Corrigido durante a implementação.** O spec dizia que os call sites eram `useEffect`, onde `window` existe. Estava errado: são `useMemo`, e `useMemo` **executa no render do servidor**. Ler `window.innerWidth` direto ali quebrou o build com `ReferenceError: window is not defined` no prerender de `/`.
+
+O módulo ganhou um segundo export, um leitor seguro para SSR, e é esse que os call sites usam:
+
+```js
+export function currentLegendPosition(breakpoint = 768) {
+    if (typeof window === 'undefined') return 'right'
+    return legendPosition(window.innerWidth, breakpoint)
+}
+```
+
+No servidor devolve `'right'`, o layout de desktop, que é o menos destrutivo — o cliente recalcula na hidratação. O ambiente do vitest é node e não tem `window`, então reproduz o SSR exatamente: três testes travam esse caminho.
 
 As quatro ocorrências, verificadas uma a uma:
 
