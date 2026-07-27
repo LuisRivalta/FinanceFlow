@@ -170,13 +170,13 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
                         {/* Descrição */}
                         <div className="tx-field tx-form-full">
                             <label>Descrição</label>
-                            <input type="text" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Ex: Aluguel, Supermercado..." required />
+                            <input type="text" value={desc} onChange={e => setDesc(e.target.value)} required />
                         </div>
 
                         {/* Valor */}
                         <div className="tx-field">
                             <label>Valor (R$)</label>
-                            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" min="0.01" step="0.01" required />
+                            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} min="0.01" step="0.01" required />
                         </div>
 
                         {/* Data */}
@@ -235,7 +235,7 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
                                         {cardPurchaseType === 'installment' && (
                                             <div>
                                                 <label style={{ color: '#93c5fd' }}>Quantidade de Parcelas</label>
-                                                <input type="number" value={installmentTotal} onChange={e => setInstallmentTotal(e.target.value)} placeholder="Ex: 12" min="2" style={{ borderColor: 'rgba(59,130,246,0.3)' }} required />
+                                                <input type="number" value={installmentTotal} onChange={e => setInstallmentTotal(e.target.value)} min="2" style={{ borderColor: 'rgba(59,130,246,0.3)' }} required />
                                                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4, display: 'block' }}>O valor lá de cima (R$) deve ser o valor de CADA parcela.</span>
                                             </div>
                                         )}
@@ -247,7 +247,7 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
                         {/* Observação */}
                         <div className="tx-field tx-form-full">
                             <label>Observação (opcional)</label>
-                            <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Notas adicionais..." />
+                            <textarea value={note} onChange={e => setNote(e.target.value)} />
                         </div>
 
                         {/* Recorrência Antiga (só pra contas normais) */}
@@ -269,7 +269,7 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
                                 {isRecurring && (
                                     <div className="tx-field tx-form-full">
                                         <label>Duração (meses, deixe vazio para indefinido)</label>
-                                        <input type="number" value={recurringDuration} onChange={e => setRecurringDuration(e.target.value)} placeholder="Ex: 12 (para 1 ano)" min="1" />
+                                        <input type="number" value={recurringDuration} onChange={e => setRecurringDuration(e.target.value)} min="1" />
                                     </div>
                                 )}
                             </>

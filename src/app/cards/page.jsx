@@ -378,7 +378,7 @@ export default function CardsPage() {
                                     <h3 style={{ marginBottom: 16 }}>{editingCardId ? 'Editar Cartão' : 'Novo Cartão de Crédito'}</h3>
                                     <form onSubmit={handleAddCard} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, alignItems: 'end' }}>
                                         <div className="tx-field">
-                                            <label>Nome do Cartão (ex: Nubank)</label>
+                                            <label>Nome do Cartão</label>
                                             <input type="text" value={newCard.name} onChange={e => setNewCard({...newCard, name: e.target.value})} required />
                                         </div>
                                         <div className="tx-field">
@@ -470,12 +470,12 @@ export default function CardsPage() {
                                     {isAddingSub && (
                                         <form onSubmit={handleAddSubSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid rgba(139,92,246,0.3)' }}>
                                             <div className="tx-field">
-                                                <label>Nome da Assinatura (ex: NETFLIX)</label>
-                                                <input type="text" value={newSub.desc} onChange={e => setNewSub({...newSub, desc: e.target.value})} placeholder="Ex: NETFLIX, Spotify" required />
+                                                <label>Nome da Assinatura</label>
+                                                <input type="text" value={newSub.desc} onChange={e => setNewSub({...newSub, desc: e.target.value})} required />
                                             </div>
                                             <div className="tx-field">
                                                 <label>Valor Mensal (R$)</label>
-                                                <input type="number" step="0.01" min="0" value={newSub.amount} onChange={e => setNewSub({...newSub, amount: e.target.value})} placeholder="49.90" required />
+                                                <input type="number" step="0.01" min="0" value={newSub.amount} onChange={e => setNewSub({...newSub, amount: e.target.value})} required />
                                             </div>
                                             <div className="tx-field">
                                                 <label>Cartão de Crédito</label>
@@ -541,20 +541,20 @@ export default function CardsPage() {
                                     {isAddingInstallment && (
                                         <form onSubmit={handleAddInstallmentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid rgba(59,130,246,0.3)' }}>
                                             <div className="tx-field">
-                                                <label>Descrição da Compra (ex: Notebook)</label>
-                                                <input type="text" value={newInstallment.desc} onChange={e => setNewInstallment({...newInstallment, desc: e.target.value})} placeholder="Notebook Dell" required />
+                                                <label>Descrição da Compra</label>
+                                                <input type="text" value={newInstallment.desc} onChange={e => setNewInstallment({...newInstallment, desc: e.target.value})} required />
                                             </div>
                                             <div className="tx-field">
                                                 <label>Valor de Cada Parcela (R$)</label>
-                                                <input type="number" step="0.01" min="0" value={newInstallment.amount} onChange={e => setNewInstallment({...newInstallment, amount: e.target.value})} placeholder="250.00" required />
+                                                <input type="number" step="0.01" min="0" value={newInstallment.amount} onChange={e => setNewInstallment({...newInstallment, amount: e.target.value})} required />
                                             </div>
                                             <div className="tx-field">
                                                 <label>Total de Parcelas</label>
-                                                <input type="number" min="2" max="60" value={newInstallment.total} onChange={e => setNewInstallment({...newInstallment, total: e.target.value})} placeholder="12" required />
+                                                <input type="number" min="2" max="60" value={newInstallment.total} onChange={e => setNewInstallment({...newInstallment, total: e.target.value})} required />
                                             </div>
                                             <div className="tx-field">
                                                 <label>Parcelas Já Pagas (Antigas)</label>
-                                                <input type="number" min="0" max={newInstallment.total || 60} value={newInstallment.paidCount} onChange={e => setNewInstallment({...newInstallment, paidCount: e.target.value})} placeholder="Ex: 6 (ou 0 para compra nova)" />
+                                                <input type="number" min="0" max={newInstallment.total || 60} value={newInstallment.paidCount} onChange={e => setNewInstallment({...newInstallment, paidCount: e.target.value})} />
                                             </div>
                                             <div className="tx-field">
                                                 <label>Próxima Cobrança na Fatura</label>
@@ -652,28 +652,28 @@ export default function CardsPage() {
                                         </div>
 
                                         <div className="tx-field">
-                                            <label>Nome (ex: Financiamento Carro)</label>
-                                            <input type="text" value={newFinancing.name} onChange={e => setNewFinancing({...newFinancing, name: e.target.value})} placeholder="Ex: Corolla 2024" required />
+                                            <label>Nome</label>
+                                            <input type="text" value={newFinancing.name} onChange={e => setNewFinancing({...newFinancing, name: e.target.value})} required />
                                         </div>
 
                                         <div className="tx-field">
                                             <label>Valor da Parcela (R$)</label>
-                                            <input type="number" step="0.01" min="0" value={newFinancing.monthlyPayment} onChange={e => setNewFinancing({...newFinancing, monthlyPayment: e.target.value})} placeholder="1200.00" required />
+                                            <input type="number" step="0.01" min="0" value={newFinancing.monthlyPayment} onChange={e => setNewFinancing({...newFinancing, monthlyPayment: e.target.value})} required />
                                         </div>
 
                                         <div className="tx-field">
                                             <label>Total de Parcelas</label>
-                                            <input type="number" min="1" max="600" value={newFinancing.totalInstallments} onChange={e => setNewFinancing({...newFinancing, totalInstallments: e.target.value})} placeholder="24" required />
+                                            <input type="number" min="1" max="600" value={newFinancing.totalInstallments} onChange={e => setNewFinancing({...newFinancing, totalInstallments: e.target.value})} required />
                                         </div>
 
                                         <div className="tx-field">
                                             <label>Parcelas Já Pagas</label>
-                                            <input type="number" min="0" max={newFinancing.totalInstallments || 600} value={newFinancing.paidInstallments} onChange={e => setNewFinancing({...newFinancing, paidInstallments: e.target.value})} placeholder="Ex: 1" />
+                                            <input type="number" min="0" max={newFinancing.totalInstallments || 600} value={newFinancing.paidInstallments} onChange={e => setNewFinancing({...newFinancing, paidInstallments: e.target.value})} />
                                         </div>
 
                                         <div className="tx-field">
                                             <label>Dia do Vencimento</label>
-                                            <input type="number" min="1" max="31" value={newFinancing.dueDay} onChange={e => setNewFinancing({...newFinancing, dueDay: e.target.value})} placeholder="10" required />
+                                            <input type="number" min="1" max="31" value={newFinancing.dueDay} onChange={e => setNewFinancing({...newFinancing, dueDay: e.target.value})} required />
                                         </div>
 
                                         <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 12 }}>
