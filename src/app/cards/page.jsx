@@ -245,6 +245,18 @@ export default function CardsPage() {
     const subscriptions = useMemo(() => cardTxs.filter(t => t.isSubscription), [cardTxs])
     const installments = useMemo(() => cardTxs.filter(t => t.installmentTotal > 1), [cardTxs])
 
+    const handleRemoveInstallmentGroup = async (inst) => {
+        const ok = confirm(`Deseja apagar o parcelamento "${inst.name}" e todas as suas parcelas?`)
+        if (!ok) return
+        try {
+            for (const id of inst.txIds) {
+                await removeTx(id)
+            }
+        } catch (err) {
+            alert('Erro ao apagar parcelamento: ' + err.message)
+        }
+    }
+
     // Group installments to show progress
     const activeInstallments = useMemo(() => {
         const groups = {}
@@ -263,9 +275,11 @@ export default function CardsPage() {
                     amount: t.amount, 
                     minNum: instNum, 
                     paidCount: 0,
+                    txIds: [t.id],
                     cardId: t.creditCardId 
                 }
             } else {
+                groups[groupKey].txIds.push(t.id)
                 if (instNum < groups[groupKey].minNum) {
                     groups[groupKey].minNum = instNum
                 }
@@ -595,8 +609,17 @@ export default function CardsPage() {
                                                             <div style={{ fontWeight: 500 }}>{inst.name}</div>
                                                             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{formatCurrency(inst.amount)} por parcela</div>
                                                         </div>
-                                                        <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>
-                                                            {inst.current} de {inst.total}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                            <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>
+                                                                {inst.current} de {inst.total}
+                                                            </div>
+                                                            <button 
+                                                                onClick={() => handleRemoveInstallmentGroup(inst)} 
+                                                                style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.6, fontSize: 14 }} 
+                                                                title="Apagar Compra Parcelada"
+                                                            >
+                                                                ✖
+                                                            </button>
                                                         </div>
                                                     </div>
                                                     <div style={{ height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
