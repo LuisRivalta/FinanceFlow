@@ -86,7 +86,7 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
         const errs = []
         if (!desc || desc.trim().length < 2) errs.push('A descrição deve ter pelo menos 2 caracteres.')
         if (!amount || isNaN(amount) || Number(amount) <= 0) errs.push('Informe um valor maior que zero.')
-        if (!['income', 'expense', 'investment'].includes(type)) errs.push('Tipo inválido.')
+        if (!['income', 'expense'].includes(type)) errs.push('Tipo inválido.')
         if (!category) errs.push('Selecione uma categoria.')
         if (!account) errs.push('Selecione uma conta.')
         if ((account === 'credit' || category === 'invoice_payment') && !creditCardId) errs.push('Selecione o cartão de crédito utilizado.')
@@ -146,14 +146,14 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
 
                 {/* Type selector */}
                 <div className="tx-type-row">
-                    {['expense', 'income', 'investment'].map(t => (
+                    {['expense', 'income'].map(t => (
                         <button
                             key={t}
                             type="button"
                             className={`tx-type-btn${type === t ? ` active-${t}` : ''}`}
                             onClick={() => setType(t)}
                         >
-                            {t === 'expense' ? '📤 Gasto' : t === 'income' ? '📥 Receita' : '📈 Invest.'}
+                            {t === 'expense' ? '📤 Gasto' : '📥 Receita'}
                         </button>
                     ))}
                 </div>

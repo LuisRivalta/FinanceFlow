@@ -45,6 +45,7 @@ export default function Wallet({ userEmail }) {
     useEffect(() => {
         if (!userEmail) return;
         localStorage.setItem(`finance_assets_${userEmail}`, JSON.stringify(assets));
+        window.dispatchEvent(new Event('wallet_updated'));
     }, [assets, userEmail]);
 
     // Fetch live prices

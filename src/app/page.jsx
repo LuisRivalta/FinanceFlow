@@ -10,6 +10,7 @@ import DetailsModal from '../components/DetailsModal'
 import dynamic from 'next/dynamic'
 import { useSession } from '../hooks/useSession'
 import { useTransactions } from '../hooks/useTransactions'
+import { useWalletAssets } from '../hooks/useWalletAssets'
 import { formatCurrency, calcBalance, calcIncome, calcExpense, calcInvestment, getCategoryDetails } from '../helpers'
 import { currentLegendPosition } from '../lib/responsive'
 
@@ -46,6 +47,7 @@ export default function DashboardPage() {
     const router = useRouter()
     const session = useSession()
     const { transactions, loading, load, create, update, remove } = useTransactions(session?.email)
+    const { totalNetWorth: walletTotalNetWorth } = useWalletAssets(session?.email)
 
     const [modalOpen, setModalOpen] = useState(false)
     const [editTx, setEditTx] = useState(null)
@@ -137,7 +139,7 @@ export default function DashboardPage() {
     // Summaries
     const income = useMemo(() => calcIncome(filteredTransactions), [filteredTransactions])
     const expense = useMemo(() => calcExpense(filteredTransactions), [filteredTransactions])
-    const investment = useMemo(() => calcInvestment(filteredTransactions), [filteredTransactions])
+    const investment = useMemo(() => calcInvestment(filteredTransactions) + walletTotalNetWorth, [filteredTransactions, walletTotalNetWorth])
     const balance = useMemo(() => calcBalance(filteredTransactions), [filteredTransactions])
     
     const globalBalance = useMemo(() => {
@@ -426,7 +428,7 @@ export default function DashboardPage() {
                                 </div>
                             </div>
 
-                            <div className="card glass-panel clickable-card" onClick={() => setDetailView('investment')} style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 240, border: '1px solid rgba(234,179,8,0.3)', background: 'linear-gradient(180deg, rgba(234,179,8,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
+                            <div className="card glass-panel clickable-card" onClick={() => router.push('/investments')} style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 240, border: '1px solid rgba(234,179,8,0.3)', background: 'linear-gradient(180deg, rgba(234,179,8,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
                                 {/* Big faint background icon */}
                                 <svg style={{ position: 'absolute', top: 5, right: 85, width: 140, height: 140, opacity: 0.05, color: '#eab308', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                     <rect x="1" y="17" width="3" height="5" />
