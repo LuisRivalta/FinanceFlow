@@ -211,8 +211,8 @@ export default function Wallet({ userEmail }) {
     };
 
     return (
-        <div style={{ marginTop: 40, marginBottom: 40 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div style={{ marginTop: 20, marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <h3 className="fade-up" style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span>💼</span> Minha Carteira
                 </h3>

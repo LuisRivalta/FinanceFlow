@@ -340,19 +340,19 @@ export default function InvestmentsPage() {
             <div className="app-container">
                 <Sidebar />
                 <main className="main-content">
-                <header className="fade-up" style={{ marginBottom: 40 }}>
+                <header className="fade-up" style={{ marginBottom: 20 }}>
                     <h2 style={{ fontSize: 32, fontWeight: 700, margin: 0 }}>🏦 Meus Investimentos</h2>
-                    <p style={{ color: 'var(--text-secondary)', marginTop: 8 }}>Gerencie seu patrimônio e simule seus rendimentos.</p>
+                    <p style={{ color: 'var(--text-secondary)', marginTop: 6 }}>Gerencie seu patrimônio e simule seus rendimentos.</p>
                 </header>
 
-                <div className="fade-up delay-1" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24, marginBottom: 40 }}>
-                    <div className="card glass-panel" style={{ padding: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, rgba(234,179,8,0.1) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(234,179,8,0.3)', position: 'relative', overflow: 'hidden' }}>
+                <div className="fade-up delay-1" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24, marginBottom: 20 }}>
+                    <div className="card glass-panel" style={{ padding: '24px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'linear-gradient(135deg, rgba(234,179,8,0.1) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(234,179,8,0.3)', position: 'relative', overflow: 'hidden' }}>
                         <svg style={{ position: 'absolute', right: -20, top: -20, width: 250, height: 250, opacity: 0.05, color: '#eab308' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                         </svg>
                         <div style={{ position: 'relative', zIndex: 1 }}>
                             <div style={{ fontSize: 14, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>Total Investido</div>
-                            <div style={{ fontSize: 'clamp(28px, 7vw, 48px)', fontWeight: 800, color: '#eab308' }}>
+                            <div style={{ fontSize: 'clamp(28px, 7vw, 44px)', fontWeight: 800, color: '#eab308' }}>
                                 {txLoading ? '...' : formatCurrency(totalInvested)}
                             </div>
                         </div>
@@ -376,7 +376,7 @@ export default function InvestmentsPage() {
                 <Wallet userEmail={session?.email} />
 
                 {/* Simulador Section */}
-                <h3 className="fade-up delay-2" style={{ fontSize: 24, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <h3 className="fade-up delay-2" style={{ fontSize: 24, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span>🧮</span> Simulador de Juros Compostos
                 </h3>
                 <div className="fade-up delay-2 sim-grid">
