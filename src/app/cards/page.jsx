@@ -330,6 +330,77 @@ export default function CardsPage() {
         return activeInstallments.reduce((sum, inst) => sum + Math.max(0, inst.total - inst.current) * inst.amount, 0)
     }, [activeInstallments])
 
+    const totalFinancingMonthly = useMemo(() => {
+        return financings.reduce((sum, f) => {
+            return sum + (f.paidInstallments < f.totalInstallments ? f.monthlyPayment : 0)
+        }, 0)
+    }, [financings])
+
+    const totalFixedMonthly = useMemo(() => {
+        return totalSubscriptionAmount + totalInstallmentMonthly + totalFinancingMonthly
+    }, [totalSubscriptionAmount, totalInstallmentMonthly, totalFinancingMonthly])
+
+    const allFixedItems = useMemo(() => {
+        const list = []
+
+        // Subscriptions
+        subscriptions.forEach(sub => {
+            const cardObj = cards.find(c => String(c.id) === String(sub.creditCardId))
+            list.push({
+                id: `sub_${sub.id}`,
+                name: sub.desc,
+                type: 'subscription',
+                typeLabel: '🔁 Assinatura',
+                typeColor: '#8b5cf6',
+                origin: cardObj ? `Cartão ${cardObj.name}` : 'Cartão de Crédito',
+                progressText: 'Mensal Recorrente',
+                monthlyAmount: sub.amount,
+                remainingTotal: null,
+                isCompleted: false
+            })
+        })
+
+        // Installments
+        activeInstallments.forEach(inst => {
+            const cardObj = cards.find(c => String(c.id) === String(inst.cardId))
+            const isCompleted = inst.current >= inst.total
+            const remainingCount = Math.max(0, inst.total - inst.current)
+            list.push({
+                id: `inst_${inst.name}_${inst.cardId}`,
+                name: inst.name,
+                type: 'installment',
+                typeLabel: '⏳ Compra Parcelada',
+                typeColor: '#3b82f6',
+                origin: cardObj ? `Cartão ${cardObj.name}` : 'Cartão de Crédito',
+                progressText: `${inst.current} de ${inst.total} parcelas (${Math.round((inst.current / inst.total) * 100)}%)`,
+                monthlyAmount: inst.amount,
+                remainingTotal: remainingCount * inst.amount,
+                isCompleted
+            })
+        })
+
+        // Financings
+        financings.forEach(fin => {
+            const isCompleted = fin.paidInstallments >= fin.totalInstallments
+            const remainingCount = Math.max(0, fin.totalInstallments - fin.paidInstallments)
+            const typeNames = { car: 'Veículo', housing: 'Imóvel', loan: 'Empréstimo Bancário', other: 'Outros' }
+            list.push({
+                id: `fin_${fin.id}`,
+                name: fin.name,
+                type: 'financing',
+                typeLabel: '🚗 Financiamento',
+                typeColor: '#f59e0b',
+                origin: typeNames[fin.type] || 'Financiamento',
+                progressText: `${fin.paidInstallments} de ${fin.totalInstallments} parcelas (${Math.round((fin.paidInstallments / fin.totalInstallments) * 100)}%)`,
+                monthlyAmount: fin.monthlyPayment,
+                remainingTotal: remainingCount * fin.monthlyPayment,
+                isCompleted
+            })
+        })
+
+        return list
+    }, [subscriptions, activeInstallments, financings, cards])
+
     if (session === undefined) return null;
 
     return (
@@ -398,6 +469,25 @@ export default function CardsPage() {
                             }}
                         >
                             <span>🚗</span> Financiamentos & Empréstimos ({financings.length})
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('summary')}
+                            style={{
+                                padding: '10px 20px',
+                                borderRadius: 10,
+                                border: 'none',
+                                background: activeTab === 'summary' ? '#10b981' : 'rgba(255,255,255,0.05)',
+                                color: 'white',
+                                fontWeight: 600,
+                                fontSize: 14,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            <span>📋</span> Resumo de Contas Fixas ({allFixedItems.length})
                         </button>
                     </div>
 
@@ -835,6 +925,137 @@ export default function CardsPage() {
                                         </div>
                                     )
                                 })}
+                            </div>
+                        </>
+                    )}
+
+                    {/* TAB 3: UNIFIED FIXED EXPENSES & DEBT SUMMARY */}
+                    {activeTab === 'summary' && (
+                        <>
+                            {/* Top Summary Metric Banner */}
+                            <div className="fade-up delay-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginBottom: 24 }}>
+                                {/* Total Monthly Fixed Commitments */}
+                                <div className="card glass-panel" style={{ padding: 20, background: 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(0,0,0,0.3) 100%)', border: '1px solid rgba(16,185,129,0.4)' }}>
+                                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 6 }}>
+                                        Total Contas Fixas / Mês
+                                    </div>
+                                    <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981' }}>
+                                        {formatCurrency(totalFixedMonthly)}
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
+                                        Soma de todos os compromissos mensais
+                                    </div>
+                                </div>
+
+                                {/* Subscriptions */}
+                                <div className="card glass-panel" style={{ padding: 20, background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(0,0,0,0.2) 100%)', border: '1px solid rgba(139,92,246,0.3)' }}>
+                                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 6 }}>
+                                        Assinaturas ({subscriptions.length})
+                                    </div>
+                                    <div style={{ fontSize: 24, fontWeight: 800, color: '#a78bfa' }}>
+                                        {formatCurrency(totalSubscriptionAmount)} /mês
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
+                                        Cobranças mensais recorrentes
+                                    </div>
+                                </div>
+
+                                {/* Card Installments */}
+                                <div className="card glass-panel" style={{ padding: 20, background: 'linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(0,0,0,0.2) 100%)', border: '1px solid rgba(59,130,246,0.3)' }}>
+                                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 6 }}>
+                                        Parcelas no Cartão ({activeInstallments.length})
+                                    </div>
+                                    <div style={{ fontSize: 24, fontWeight: 800, color: '#60a5fa' }}>
+                                        {formatCurrency(totalInstallmentMonthly)} /mês
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
+                                        Saldo total: {formatCurrency(totalInstallmentRemaining)}
+                                    </div>
+                                </div>
+
+                                {/* Financings */}
+                                <div className="card glass-panel" style={{ padding: 20, background: 'linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(0,0,0,0.2) 100%)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 6 }}>
+                                        Financiamentos ({financings.length})
+                                    </div>
+                                    <div style={{ fontSize: 24, fontWeight: 800, color: '#fbbf24' }}>
+                                        {formatCurrency(totalFinancingMonthly)} /mês
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
+                                        Saldo total: {formatCurrency(totalFinancingRemainingDebt)}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Unified Table of All Fixed Commitments */}
+                            <div className="glass-panel fade-up delay-2" style={{ padding: 24 }}>
+                                <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <h3 style={{ fontSize: 20, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <span style={{ fontSize: 24 }}>📋</span> Todas as Contas Fixas & Dívidas ({allFixedItems.length})
+                                    </h3>
+                                </div>
+
+                                {allFixedItems.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.4)' }}>
+                                        <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
+                                        Nenhuma conta fixa, assinatura ou financiamento cadastrado no momento.
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                        {allFixedItems.map(item => (
+                                            <div 
+                                                key={item.id} 
+                                                style={{ 
+                                                    display: 'flex', 
+                                                    justify: 'space-between', 
+                                                    alignItems: 'center', 
+                                                    padding: 16, 
+                                                    background: 'rgba(255,255,255,0.03)', 
+                                                    borderRadius: 12, 
+                                                    border: '1px solid rgba(255,255,255,0.06)',
+                                                    flexWrap: 'wrap',
+                                                    gap: 12
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 240 }}>
+                                                    <span 
+                                                        style={{ 
+                                                            padding: '6px 12px', 
+                                                            borderRadius: 20, 
+                                                            fontSize: 12, 
+                                                            fontWeight: 700, 
+                                                            background: `${item.typeColor}20`, 
+                                                            color: item.typeColor,
+                                                            border: `1px solid ${item.typeColor}40`
+                                                        }}
+                                                    >
+                                                        {item.typeLabel}
+                                                    </span>
+                                                    <div>
+                                                        <div style={{ fontWeight: 600, fontSize: 16, color: 'white' }}>{item.name}</div>
+                                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{item.origin}</div>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', textAlign: 'right' }}>
+                                                    <div style={{ fontWeight: 500 }}>{item.progressText}</div>
+                                                    {item.remainingTotal != null && (
+                                                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+                                                            Falta pagar: {formatCurrency(item.remainingTotal)}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div style={{ textAlign: 'right', minWidth: 120 }}>
+                                                    <div style={{ fontSize: 18, fontWeight: 800, color: item.type === 'subscription' ? 'var(--danger-color)' : 'white' }}>
+                                                        {formatCurrency(item.monthlyAmount)}
+                                                    </div>
+                                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>por mês</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}
