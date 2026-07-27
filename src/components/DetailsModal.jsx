@@ -1,4 +1,5 @@
 import React from 'react'
+import { getCategoryDetails, getAccountLabel } from '../helpers'
 
 export default function DetailsModal({ isOpen, onClose, type, transactions, title, color }) {
     if (!isOpen) return null
@@ -58,23 +59,41 @@ export default function DetailsModal({ isOpen, onClose, type, transactions, titl
                                         {dateLabel}
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                        {grouped[dateStr].map(t => (
-                                            <div key={t.id} style={{
-                                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                                background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: 8,
-                                                borderLeft: `3px solid ${color}`
-                                            }}>
-                                                <div>
-                                                    <div style={{ fontWeight: 600, color: 'white', fontSize: 15 }}>{t.description}</div>
-                                                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
-                                                        {t.category} {t.account === 'credit' ? ' • Cartão de Crédito' : ' • Conta'}
+                                        {grouped[dateStr].map(t => {
+                                            const cat = getCategoryDetails(t.type, t.category)
+                                            const acc = getAccountLabel(t.account)
+                                            const description = t.desc || t.description || 'Sem descrição'
+
+                                            return (
+                                                <div key={t.id} style={{
+                                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                    background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: 10,
+                                                    borderLeft: `3px solid ${color}`
+                                                }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                        <div style={{
+                                                            width: 36, height: 36, borderRadius: 10,
+                                                            background: cat.color + '22', color: cat.color,
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            fontSize: 18, flexShrink: 0
+                                                        }}>
+                                                            {cat.icon}
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontWeight: 600, color: 'white', fontSize: 15 }}>{description}</div>
+                                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                <span>{cat.label}</span>
+                                                                <span>•</span>
+                                                                <span>{acc.icon} {acc.label}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ fontWeight: 700, fontSize: 15, color: color }}>
+                                                        {formatCurrency(t.amount)}
                                                     </div>
                                                 </div>
-                                                <div style={{ fontWeight: 700, fontSize: 15, color: color }}>
-                                                    {formatCurrency(t.amount)}
-                                                </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
                                 </div>
                             )
