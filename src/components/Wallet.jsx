@@ -205,9 +205,26 @@ export default function Wallet({ userEmail, onSimulate }) {
     const currentPreset = ASSET_TYPES.find(t => t.id === addType) || ASSET_TYPES[0];
 
     const openSimulationModal = (asset) => {
-        const currentP = livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`] || 1;
+        const currentP = livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`] || asset.purchasePrice || 1;
         setSimulatingAsset(asset);
+        setSimCurrency('BRL');
         setSimTargetPrice((currentP * 1.5).toFixed(2));
+    };
+
+    const handleToggleCurrency = (newCurrency) => {
+        if (newCurrency === simCurrency || !simulatingAsset) return;
+        const usdBrlRate = rates?.usdRate || livePrices['USDT-BRL'] || 5.65;
+        const currentTarget = parseFloat(simTargetPrice) || 0;
+
+        if (newCurrency === 'USD') {
+            const targetInUsd = currentTarget / usdBrlRate;
+            setSimCurrency('USD');
+            setSimTargetPrice(targetInUsd < 10 ? targetInUsd.toFixed(4) : targetInUsd.toFixed(2));
+        } else {
+            const targetInBrl = currentTarget * usdBrlRate;
+            setSimCurrency('BRL');
+            setSimTargetPrice(targetInBrl.toFixed(2));
+        }
     };
 
     return (
@@ -474,69 +491,185 @@ export default function Wallet({ userEmail, onSimulate }) {
             {/* Crypto / Currency Fictitious Price Simulation Modal */}
             {simulatingAsset && (
                 <div 
-                    style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
                     onClick={e => { if (e.target === e.currentTarget) setSimulatingAsset(null) }}
                 >
-                    <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 32, width: '100%', maxWidth: 460, color: 'white', boxShadow: '0 25px 60px rgba(0,0,0,0.7)' }}>
+                    <div style={{ background: '#111827', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 24, padding: 28, width: '100%', maxWidth: 500, color: 'white', boxShadow: '0 25px 60px rgba(0,0,0,0.85)', position: 'relative' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <h4 style={{ fontSize: 18, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <span>🚀</span> Simular Cotação ({simulatingAsset.name})
+                            <h4 style={{ fontSize: 20, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <span>🚀</span> Simular Cotação: <span style={{ color: '#f59e0b' }}>{simulatingAsset.name}</span>
                             </h4>
-                            <button onClick={() => setSimulatingAsset(null)} style={{ background: 'rgba(255,255,255,0.07)', border: 'none', borderRadius: 8, color: 'white', cursor: 'pointer', width: 32, height: 32, fontSize: 16 }}>✕</button>
+                            <button onClick={() => setSimulatingAsset(null)} style={{ background: 'rgba(255,255,255,0.07)', border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', width: 34, height: 34, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                         </div>
 
                         {(() => {
-                            const currentPrice = livePrices[TICKER_MAP[simulatingAsset.ticker] || `${simulatingAsset.ticker}-BRL`] || 1;
-                            const targetP = parseFloat(simTargetPrice) || 0;
-                            const currentVal = currentPrice * simulatingAsset.amount;
-                            const targetVal = targetP * simulatingAsset.amount;
-                            const profitVal = targetVal - currentVal;
-                            const profitPct = currentVal > 0 ? (profitVal / currentVal) * 100 : 0;
-                            const multiplierVal = currentPrice > 0 ? (targetP / currentPrice) : 0;
+                            const usdBrlRate = rates?.usdRate || livePrices['USDT-BRL'] || 5.65;
+                            const currentPriceBrl = livePrices[TICKER_MAP[simulatingAsset.ticker] || `${simulatingAsset.ticker}-BRL`] || simulatingAsset.purchasePrice || 1;
+                            const currentPriceUsd = currentPriceBrl / usdBrlRate;
+
+                            const baseCurrentPrice = simCurrency === 'USD' ? currentPriceUsd : currentPriceBrl;
+                            const targetUnitP = parseFloat(simTargetPrice) || 0;
+
+                            const targetValBase = targetUnitP * simulatingAsset.amount;
+
+                            const targetValBrl = simCurrency === 'USD' ? targetValBase * usdBrlRate : targetValBase;
+                            const targetValUsd = simCurrency === 'USD' ? targetValBase : targetValBase / usdBrlRate;
+
+                            const currentValBrl = currentPriceBrl * simulatingAsset.amount;
+                            const currentValUsd = currentPriceUsd * simulatingAsset.amount;
+
+                            const profitValBrl = targetValBrl - currentValBrl;
+                            const profitValUsd = targetValUsd - currentValUsd;
+                            const profitPct = currentValBrl > 0 ? (profitValBrl / currentValBrl) * 100 : 0;
+                            const multiplierVal = baseCurrentPrice > 0 ? (targetUnitP / baseCurrentPrice) : 0;
+
+                            const formatUsd = (val) => `$ ${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                            const setPresetMultiplier = (mult) => {
+                                const newTarget = baseCurrentPrice * mult;
+                                setSimTargetPrice(newTarget < 10 ? newTarget.toFixed(4) : newTarget.toFixed(2));
+                            };
 
                             return (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)' }}>
-                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Posição Atual</div>
-                                        <div style={{ fontSize: 16, fontWeight: 700, margin: '4px 0 2px' }}>
-                                            {simulatingAsset.amount} unidades de {simulatingAsset.name}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                                    {/* Position Info Card */}
+                                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 14, border: '1px solid rgba(255,255,255,0.07)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Sua Posição Atual</div>
+                                            <div style={{ fontSize: 11, background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: 12, color: 'rgba(255,255,255,0.7)' }}>
+                                                1 USD = R$ {usdBrlRate.toFixed(2)}
+                                            </div>
+                                        </div>
+                                        <div style={{ fontSize: 17, fontWeight: 700, margin: '6px 0 2px' }}>
+                                            {simulatingAsset.amount} {simulatingAsset.ticker} ({simulatingAsset.name})
                                         </div>
                                         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                                            Cotação Hoje: {formatCurrency(currentPrice)} | Saldo Hoje: <strong style={{ color: 'white' }}>{formatCurrency(currentVal)}</strong>
+                                            Cotação Atual: <strong>{formatCurrency(currentPriceBrl)}</strong> ({formatUsd(currentPriceUsd)})
                                         </div>
                                     </div>
 
+                                    {/* Currency Selector Switch */}
+                                    <div>
+                                        <label style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 8, display: 'block' }}>
+                                            Moeda da Simulação
+                                        </label>
+                                        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', padding: 4, borderRadius: 12, gap: 4 }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleToggleCurrency('BRL')}
+                                                style={{
+                                                    flex: 1,
+                                                    padding: '9px 12px',
+                                                    borderRadius: 8,
+                                                    border: 'none',
+                                                    background: simCurrency === 'BRL' ? '#10b981' : 'transparent',
+                                                    color: 'white',
+                                                    fontWeight: 700,
+                                                    fontSize: 13,
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: 6,
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                <span>🇧🇷</span> Real (R$)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleToggleCurrency('USD')}
+                                                style={{
+                                                    flex: 1,
+                                                    padding: '9px 12px',
+                                                    borderRadius: 8,
+                                                    border: 'none',
+                                                    background: simCurrency === 'USD' ? '#3b82f6' : 'transparent',
+                                                    color: 'white',
+                                                    fontWeight: 700,
+                                                    fontSize: 13,
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: 6,
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                <span>💵</span> Dólar (USD $)
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Target Price Input */}
                                     <div className="tx-field">
-                                        <label>Cotação Futura Fictícia (R$)</label>
+                                        <label>Preço Alvo por Unidade ({simCurrency === 'USD' ? 'USD $' : 'R$'})</label>
                                         <input 
                                             type="number"
                                             step="any"
                                             value={simTargetPrice}
                                             onChange={e => setSimTargetPrice(e.target.value)}
-                                            placeholder="Digite o preço estimado por unidade..."
-                                            style={{ fontSize: 16, fontWeight: 700, color: '#eab308' }}
+                                            style={{ fontSize: 18, fontWeight: 800, color: '#f59e0b', borderColor: 'rgba(245,158,11,0.4)', padding: 12 }}
                                         />
                                     </div>
 
-                                    <div style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.1) 0%, rgba(0,0,0,0.2) 100%)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 16, padding: 20 }}>
+                                    {/* Quick Multiplier Pills */}
+                                    <div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 6 }}>Projeções Rápidas</div>
+                                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                            {[
+                                                { label: '+10%', mult: 1.1 },
+                                                { label: '+25%', mult: 1.25 },
+                                                { label: '+50%', mult: 1.5 },
+                                                { label: '🚀 2x', mult: 2.0 },
+                                                { label: '🌕 5x', mult: 5.0 },
+                                                { label: '⚡ 10x', mult: 10.0 }
+                                            ].map((p, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={() => setPresetMultiplier(p.mult)}
+                                                    style={{
+                                                        padding: '6px 12px',
+                                                        borderRadius: 8,
+                                                        border: '1px solid rgba(255,255,255,0.1)',
+                                                        background: 'rgba(255,255,255,0.04)',
+                                                        color: 'white',
+                                                        fontSize: 12,
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                >
+                                                    {p.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Live Simulation Results */}
+                                    <div style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(0,0,0,0.3) 100%)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 16, padding: 20 }}>
                                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>
                                             Patrimônio Simulado
                                         </div>
-                                        <div style={{ fontSize: 28, fontWeight: 800, color: '#eab308', margin: '4px 0 8px' }}>
-                                            {formatCurrency(targetVal)}
+                                        <div style={{ fontSize: 32, fontWeight: 800, color: '#f59e0b', margin: '4px 0 2px' }}>
+                                            {simCurrency === 'USD' ? formatUsd(targetValUsd) : formatCurrency(targetValBrl)}
+                                        </div>
+                                        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 12 }}>
+                                            Equivale a: <strong style={{ color: 'white' }}>{simCurrency === 'USD' ? formatCurrency(targetValBrl) : formatUsd(targetValUsd)}</strong>
                                         </div>
 
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10, marginTop: 10 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10, marginTop: 6 }}>
                                             <span style={{ color: 'var(--text-secondary)' }}>Lucro / Valorização:</span>
-                                            <span style={{ fontWeight: 700, color: profitVal >= 0 ? '#10b981' : '#ef4444' }}>
-                                                {profitVal >= 0 ? '+' : ''}{formatCurrency(profitVal)} ({profitPct.toFixed(2)}%)
+                                            <span style={{ fontWeight: 700, color: profitValBrl >= 0 ? '#10b981' : '#ef4444' }}>
+                                                {profitValBrl >= 0 ? '+' : ''}{simCurrency === 'USD' ? formatUsd(profitValUsd) : formatCurrency(profitValBrl)} ({profitPct >= 0 ? '+' : ''}{profitPct.toFixed(2)}%)
                                             </span>
                                         </div>
 
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 6 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 8 }}>
                                             <span style={{ color: 'var(--text-secondary)' }}>Multiplicador:</span>
                                             <span style={{ fontWeight: 700, color: '#60a5fa' }}>
-                                                {multiplierVal.toFixed(2)}x
+                                                {multiplierVal.toFixed(2)}x ({(multiplierVal * 100 - 100) >= 0 ? '+' : ''}{(multiplierVal * 100 - 100).toFixed(0)}%)
                                             </span>
                                         </div>
                                     </div>
@@ -545,7 +678,7 @@ export default function Wallet({ userEmail, onSimulate }) {
                                         type="button" 
                                         onClick={() => setSimulatingAsset(null)}
                                         className="btn-primary"
-                                        style={{ width: '100%', marginTop: 8, padding: 12 }}
+                                        style={{ width: '100%', padding: 12, fontSize: 14 }}
                                     >
                                         Fechar Simulação
                                     </button>
