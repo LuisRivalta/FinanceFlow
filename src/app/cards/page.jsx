@@ -8,7 +8,7 @@ import { useSession } from '../../hooks/useSession'
 import { useCreditCards } from '../../hooks/useCards'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useFinancings } from '../../hooks/useFinancings'
-import { formatCurrency } from '../../helpers'
+import { formatCurrency, formatDate } from '../../helpers'
 
 export default function CardsPage() {
     const router = useRouter()
@@ -42,7 +42,27 @@ export default function CardsPage() {
 
     // Inline Subscription Form state
     const [isAddingSub, setIsAddingSub] = useState(false)
-    const [newSub, setNewSub] = useState({ desc: '', amount: '', cardId: '' })
+    const [newSub, setNewSub] = useState({
+        desc: '',
+        amount: '',
+        cardId: '',
+        billingPeriod: 'current',
+        date: new Date().toISOString().split('T')[0]
+    })
+
+    function handleSubPeriodChange(period) {
+        const today = new Date()
+        let dateStr = today.toISOString().split('T')[0]
+        if (period === 'next') {
+            const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate())
+            dateStr = nextMonth.toISOString().split('T')[0]
+        }
+        setNewSub(prev => ({
+            ...prev,
+            billingPeriod: period,
+            date: dateStr
+        }))
+    }
 
     // Inline Credit Card Installment Form state
     const [isAddingInstallment, setIsAddingInstallment] = useState(false)
@@ -107,12 +127,12 @@ export default function CardsPage() {
                 type: 'expense',
                 category: 'leisure',
                 account: 'credit',
-                date: new Date().toISOString().split('T')[0],
+                date: newSub.date || new Date().toISOString().split('T')[0],
                 creditCardId: String(newSub.cardId),
                 isSubscription: true
             })
             setIsAddingSub(false)
-            setNewSub({ desc: '', amount: '', cardId: '' })
+            setNewSub({ desc: '', amount: '', cardId: '', billingPeriod: 'current', date: new Date().toISOString().split('T')[0] })
         } catch (err) {
             alert('Erro ao salvar assinatura: ' + err.message)
         }
@@ -424,6 +444,17 @@ export default function CardsPage() {
                                                     ))}
                                                 </select>
                                             </div>
+                                            <div className="tx-field">
+                                                <label>Primeira Cobrança</label>
+                                                <select value={newSub.billingPeriod} onChange={e => handleSubPeriodChange(e.target.value)}>
+                                                    <option value="current">📅 Fatura Deste Mês (Atual)</option>
+                                                    <option value="next">📆 Próxima Fatura (Mês Que Vem)</option>
+                                                </select>
+                                            </div>
+                                            <div className="tx-field">
+                                                <label>Data da Cobrança</label>
+                                                <input type="date" value={newSub.date} onChange={e => setNewSub({...newSub, date: e.target.value})} required />
+                                            </div>
                                             <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: 13 }}>
                                                 Salvar Assinatura
                                             </button>
@@ -437,7 +468,9 @@ export default function CardsPage() {
                                             <div key={sub.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
                                                 <div>
                                                     <div style={{ fontWeight: 500 }}>{sub.desc}</div>
-                                                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Cartão: {cards.find(c => String(c.id) === String(sub.creditCardId))?.name || 'Não vinculado'}</div>
+                                                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                                                        Cartão: {cards.find(c => String(c.id) === String(sub.creditCardId))?.name || 'Não vinculado'} • Data: {formatDate(sub.date)}
+                                                    </div>
                                                 </div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                     <div style={{ fontWeight: 600, color: 'var(--danger-color)' }}>- {formatCurrency(sub.amount)} /mês</div>
