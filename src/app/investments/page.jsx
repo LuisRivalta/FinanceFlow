@@ -8,6 +8,7 @@ import NumberField from '../../components/NumberField'
 import { useSession } from '../../hooks/useSession'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useRates } from '../../hooks/useRates'
+import { useWalletAssets } from '../../hooks/useWalletAssets'
 import { INVESTMENT_PRODUCTS, DEFAULT_PRODUCT_ID, getProduct, deriveRate, multiplierLabel } from '../../lib/investmentProducts'
 import { formatCurrency, formatPercent, calcInvestment, CATEGORY_MAP } from '../../helpers'
 import { Chart, ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler } from 'chart.js'
@@ -19,6 +20,7 @@ export default function InvestmentsPage() {
     const session = useSession()
     const router = useRouter()
     const { transactions, loading: txLoading } = useTransactions(session?.email)
+    const { totalNetWorth: walletTotalNetWorth, calculateCurrentValue, assets: walletAssets } = useWalletAssets(session?.email)
 
     // Simulator State
     const { rates, degraded, loading: ratesLoading } = useRates()
@@ -132,7 +134,7 @@ export default function InvestmentsPage() {
     const invTransactions = useMemo(() => transactions.filter(t => t.type === 'investment'), [transactions])
     
     // Stats
-    const totalInvested = useMemo(() => calcInvestment(invTransactions), [invTransactions])
+    const totalInvested = useMemo(() => walletTotalNetWorth + calcInvestment(invTransactions), [walletTotalNetWorth, invTransactions])
     
     const catTotals = useMemo(() => {
         const totals = { stocks: 0, crypto: 0, fixed: 0, other_inv: 0 }
@@ -140,8 +142,17 @@ export default function InvestmentsPage() {
             if (totals[t.category] !== undefined) totals[t.category] += t.amount
             else totals.other_inv += t.amount
         })
+
+        walletAssets.forEach(a => {
+            const val = calculateCurrentValue(a)
+            if (a.type === 'crypto') totals.crypto += val
+            else if (a.type === 'currency') totals.other_inv += val
+            else if (a.type === 'fixed') totals.fixed += val
+            else totals.other_inv += val
+        })
+
         return totals
-    }, [invTransactions])
+    }, [invTransactions, walletAssets, calculateCurrentValue])
 
     // Simulator Calculation
     const simData = useMemo(() => {
