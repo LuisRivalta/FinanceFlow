@@ -484,85 +484,87 @@ export default function CardsPage() {
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
                                 {/* Subscriptions */}
-                                <div className="glass-panel fade-up delay-2" style={{ padding: 24 }}>
-                                    <div className="section-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <h3 style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 20, margin: 0 }}>
-                                            <span style={{ color: '#8b5cf6', fontSize: 26 }}>🔁</span> Minhas Assinaturas
-                                        </h3>
-                                        <button 
-                                            onClick={() => setIsAddingSub(!isAddingSub)}
-                                            style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                                        >
-                                            {isAddingSub ? 'Cancelar' : '+ Nova Assinatura'}
-                                        </button>
-                                    </div>
-
-                                    {/* Inline Add Subscription Form */}
-                                    {isAddingSub && (
-                                        <form onSubmit={handleAddSubSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid rgba(139,92,246,0.3)' }}>
-                                            <div className="tx-field">
-                                                <label>Nome da Assinatura</label>
-                                                <input type="text" value={newSub.desc} onChange={e => setNewSub({...newSub, desc: e.target.value})} required />
-                                            </div>
-                                            <div className="tx-field">
-                                                <label>Valor Mensal (R$)</label>
-                                                <input type="number" step="0.01" min="0" value={newSub.amount} onChange={e => setNewSub({...newSub, amount: e.target.value})} required />
-                                            </div>
-                                            <div className="tx-field">
-                                                <label>Cartão de Crédito</label>
-                                                <select value={newSub.cardId} onChange={e => setNewSub({...newSub, cardId: e.target.value})} required>
-                                                    <option value="">Selecione o cartão...</option>
-                                                    {cards.map(c => (
-                                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="tx-field">
-                                                <label>Primeira Cobrança</label>
-                                                <select value={newSub.billingPeriod} onChange={e => handleSubPeriodChange(e.target.value)}>
-                                                    <option value="current">📅 Fatura Deste Mês (Atual)</option>
-                                                    <option value="next">📆 Próxima Fatura (Mês Que Vem)</option>
-                                                </select>
-                                            </div>
-                                            <div className="tx-field">
-                                                <label>Data da Cobrança</label>
-                                                <input type="date" value={newSub.date} onChange={e => setNewSub({...newSub, date: e.target.value})} required />
-                                            </div>
-                                            <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: 13 }}>
-                                                Salvar Assinatura
+                                <div className="glass-panel fade-up delay-2" style={{ padding: 24, display: 'flex', flexDirection: 'column', height: 440, justifyContent: 'space-between' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+                                        <div className="section-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <h3 style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 20, margin: 0 }}>
+                                                <span style={{ color: '#8b5cf6', fontSize: 26 }}>🔁</span> Minhas Assinaturas
+                                            </h3>
+                                            <button 
+                                                onClick={() => setIsAddingSub(!isAddingSub)}
+                                                style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                                            >
+                                                {isAddingSub ? 'Cancelar' : '+ Nova Assinatura'}
                                             </button>
-                                        </form>
-                                    )}
+                                        </div>
 
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        {subscriptions.length === 0 ? (
-                                            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Nenhuma assinatura no cartão.</p>
-                                        ) : subscriptions.map(sub => (
-                                            <div key={sub.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
-                                                <div>
-                                                    <div style={{ fontWeight: 500 }}>{sub.desc}</div>
-                                                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-                                                        Cartão: {cards.find(c => String(c.id) === String(sub.creditCardId))?.name || 'Não vinculado'} • Data: {formatDate(sub.date)}
+                                        {/* Inline Add Subscription Form */}
+                                        {isAddingSub && (
+                                            <form onSubmit={handleAddSubSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid rgba(139,92,246,0.3)', flexShrink: 0 }}>
+                                                <div className="tx-field">
+                                                    <label>Nome da Assinatura</label>
+                                                    <input type="text" value={newSub.desc} onChange={e => setNewSub({...newSub, desc: e.target.value})} required />
+                                                </div>
+                                                <div className="tx-field">
+                                                    <label>Valor Mensal (R$)</label>
+                                                    <input type="number" step="0.01" min="0" value={newSub.amount} onChange={e => setNewSub({...newSub, amount: e.target.value})} required />
+                                                </div>
+                                                <div className="tx-field">
+                                                    <label>Cartão de Crédito</label>
+                                                    <select value={newSub.cardId} onChange={e => setNewSub({...newSub, cardId: e.target.value})} required>
+                                                        <option value="">Selecione o cartão...</option>
+                                                        {cards.map(c => (
+                                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div className="tx-field">
+                                                    <label>Primeira Cobrança</label>
+                                                    <select value={newSub.billingPeriod} onChange={e => handleSubPeriodChange(e.target.value)}>
+                                                        <option value="current">📅 Fatura Deste Mês (Atual)</option>
+                                                        <option value="next">📆 Próxima Fatura (Mês Que Vem)</option>
+                                                    </select>
+                                                </div>
+                                                <div className="tx-field">
+                                                    <label>Data da Cobrança</label>
+                                                    <input type="date" value={newSub.date} onChange={e => setNewSub({...newSub, date: e.target.value})} required />
+                                                </div>
+                                                <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: 13 }}>
+                                                    Salvar Assinatura
+                                                </button>
+                                            </form>
+                                        )}
+
+                                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 }}>
+                                            {subscriptions.length === 0 ? (
+                                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Nenhuma assinatura no cartão.</p>
+                                            ) : subscriptions.map(sub => (
+                                                <div key={sub.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+                                                    <div>
+                                                        <div style={{ fontWeight: 500 }}>{sub.desc}</div>
+                                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                                                            Cartão: {cards.find(c => String(c.id) === String(sub.creditCardId))?.name || 'Não vinculado'} • Data: {formatDate(sub.date)}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                        <div style={{ fontWeight: 600, color: 'var(--danger-color)' }}>- {formatCurrency(sub.amount)} /mês</div>
+                                                        <button onClick={() => { if(confirm(`Remover assinatura "${sub.desc}"?`)) removeTx(sub.id) }} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.6 }} title="Remover Assinatura">✖</button>
                                                     </div>
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                    <div style={{ fontWeight: 600, color: 'var(--danger-color)' }}>- {formatCurrency(sub.amount)} /mês</div>
-                                                    <button onClick={() => { if(confirm(`Remover assinatura "${sub.desc}"?`)) removeTx(sub.id) }} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.6 }} title="Remover Assinatura">✖</button>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
 
                                     {/* Total Subscriptions Summary */}
-                                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                                         <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>Total em Assinaturas</span>
                                         <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--danger-color)' }}>- {formatCurrency(totalSubscriptionAmount)} /mês</span>
                                     </div>
                                 </div>
 
                                 {/* Installments */}
-                                <div className="glass-panel fade-up delay-2" style={{ padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                    <div>
+                                <div className="glass-panel fade-up delay-2" style={{ padding: 24, display: 'flex', flexDirection: 'column', height: 440, justifyContent: 'space-between' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
                                         <div className="section-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <h3 style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 20, margin: 0 }}>
                                                 <span style={{ color: '#3b82f6', fontSize: 26 }}>⏳</span> Compras Parceladas no Cartão
@@ -577,7 +579,7 @@ export default function CardsPage() {
 
                                         {/* Inline Add Installment Purchase Form */}
                                         {isAddingInstallment && (
-                                            <form onSubmit={handleAddInstallmentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid rgba(59,130,246,0.3)' }}>
+                                            <form onSubmit={handleAddInstallmentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid rgba(59,130,246,0.3)', flexShrink: 0 }}>
                                                 <div className="tx-field">
                                                     <label>Descrição da Compra</label>
                                                     <input type="text" value={newInstallment.desc} onChange={e => setNewInstallment({...newInstallment, desc: e.target.value})} required />
@@ -616,7 +618,7 @@ export default function CardsPage() {
                                             </form>
                                         )}
 
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 }}>
                                             {activeInstallments.length === 0 ? (
                                                 <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Nenhuma compra parcelada.</p>
                                             ) : activeInstallments.map((inst, i) => {
@@ -651,7 +653,7 @@ export default function CardsPage() {
                                     </div>
 
                                     {/* Total Installments Summary */}
-                                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                                         <div>
                                             <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>Total de Parcelas (Mensal)</div>
                                             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Saldo a pagar: {formatCurrency(totalInstallmentRemaining)}</div>
