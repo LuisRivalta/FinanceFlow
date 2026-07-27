@@ -332,6 +332,21 @@ export default function InvestmentsPage() {
         })
     }, [simData, layoutReady])
 
+    const handleSimulateAsset = ({ initial, rate, presetId }) => {
+        if (initial) setSimInitial(String(initial))
+        if (rate !== undefined && rate !== null) {
+            setSimRate(Number(rate))
+        }
+        if (presetId && getProduct(presetId)) {
+            const p = getProduct(presetId)
+            setProductId(p.id)
+            if (p.defaultMultiplier !== null) setMultiplier(p.defaultMultiplier)
+        }
+        setTimeout(() => {
+            document.getElementById('simulador-section')?.scrollIntoView({ behavior: 'smooth' })
+        }, 50)
+    }
+
     if (!session) return null
 
     return (
@@ -373,10 +388,10 @@ export default function InvestmentsPage() {
                 </div>
 
                 {/* Wallet Section */}
-                <Wallet userEmail={session?.email} />
+                <Wallet userEmail={session?.email} onSimulate={handleSimulateAsset} />
 
                 {/* Simulador Section */}
-                <h3 className="fade-up delay-2" style={{ fontSize: 24, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <h3 id="simulador-section" className="fade-up delay-2" style={{ fontSize: 24, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span>🧮</span> Simulador de Juros Compostos
                 </h3>
                 <div className="fade-up delay-2 sim-grid">

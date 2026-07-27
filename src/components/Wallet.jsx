@@ -30,7 +30,7 @@ const ASSET_TYPES = [
     { id: 'fixed', label: 'Outros Renda Fixa', category: 'fixed', defaultMultiplier: null, hasCdiPercent: false }
 ];
 
-export default function Wallet({ userEmail }) {
+export default function Wallet({ userEmail, onSimulate }) {
     const router = useRouter();
     const [assets, setAssets] = useState([]);
     const [livePrices, setLivePrices] = useState({});
@@ -440,7 +440,17 @@ export default function Wallet({ userEmail }) {
                                 <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 8 }}>
                                     {asset.type === 'fixed' ? (
                                         <button 
-                                            onClick={() => router.push(`/investments?initial=${currentValue.toFixed(2)}&rate=${asset.rate}&product=${asset.presetId || 'cdb'}`)}
+                                            onClick={() => {
+                                                if (onSimulate) {
+                                                    onSimulate({
+                                                        initial: currentValue.toFixed(2),
+                                                        rate: asset.rate,
+                                                        presetId: asset.presetId || 'cdb'
+                                                    });
+                                                } else {
+                                                    router.push(`/investments?initial=${currentValue.toFixed(2)}&rate=${asset.rate}&product=${asset.presetId || 'cdb'}`);
+                                                }
+                                            }}
                                             style={{ flex: 1, padding: '8px 12px', background: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                                         >
                                             🚀 Simular no Simulador
