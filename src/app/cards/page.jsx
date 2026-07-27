@@ -22,7 +22,7 @@ export default function CardsPage() {
     }, [session, router])
 
     const { cards, load: loadCards, create: createCard, update: updateCard, remove: removeCard, loading: loadingCards } = useCreditCards(session?.email)
-    const { transactions, load: loadTxs, create: createTx } = useTransactions(session?.email)
+    const { transactions, load: loadTxs, create: createTx, remove: removeTx } = useTransactions(session?.email)
     const { financings, addFinancing, removeFinancing, payInstallment } = useFinancings(session?.email)
 
     useEffect(() => {
@@ -39,6 +39,14 @@ export default function CardsPage() {
     const [isAddingCard, setIsAddingCard] = useState(false)
     const [editingCardId, setEditingCardId] = useState(null)
     const [newCard, setNewCard] = useState({ name: '', brand: 'Mastercard', limit: '', closingDay: '', dueDay: '', color: '#8b5cf6' })
+
+    // Inline Subscription Form state
+    const [isAddingSub, setIsAddingSub] = useState(false)
+    const [newSub, setNewSub] = useState({ desc: '', amount: '', cardId: '' })
+
+    // Inline Credit Card Installment Form state
+    const [isAddingInstallment, setIsAddingInstallment] = useState(false)
+    const [newInstallment, setNewInstallment] = useState({ desc: '', amount: '', total: '', cardId: '' })
 
     // Financing Form state
     const [isAddingFinancing, setIsAddingFinancing] = useState(false)
@@ -83,6 +91,54 @@ export default function CardsPage() {
             cancelEditCard()
         } catch (err) {
             alert('Erro ao salvar cartão: ' + err.message)
+        }
+    }
+
+    async function handleAddSubSubmit(e) {
+        e.preventDefault()
+        if (!newSub.desc || !newSub.amount || !newSub.cardId) {
+            alert('Preencha todos os campos da assinatura.')
+            return
+        }
+        try {
+            await createTx({
+                desc: newSub.desc.trim(),
+                amount: parseFloat(newSub.amount),
+                type: 'expense',
+                category: 'leisure',
+                account: 'credit',
+                date: new Date().toISOString().split('T')[0],
+                creditCardId: String(newSub.cardId),
+                isSubscription: true
+            })
+            setIsAddingSub(false)
+            setNewSub({ desc: '', amount: '', cardId: '' })
+        } catch (err) {
+            alert('Erro ao salvar assinatura: ' + err.message)
+        }
+    }
+
+    async function handleAddInstallmentSubmit(e) {
+        e.preventDefault()
+        if (!newInstallment.desc || !newInstallment.amount || !newInstallment.total || !newInstallment.cardId) {
+            alert('Preencha todos os campos do parcelamento.')
+            return
+        }
+        try {
+            await createTx({
+                desc: newInstallment.desc.trim(),
+                amount: parseFloat(newInstallment.amount),
+                type: 'expense',
+                category: 'other_expense',
+                account: 'credit',
+                date: new Date().toISOString().split('T')[0],
+                creditCardId: String(newInstallment.cardId),
+                installmentTotal: parseInt(newInstallment.total)
+            })
+            setIsAddingInstallment(false)
+            setNewInstallment({ desc: '', amount: '', total: '', cardId: '' })
+        } catch (err) {
+            alert('Erro ao salvar compra parcelada: ' + err.message)
         }
     }
 
@@ -336,11 +392,44 @@ export default function CardsPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
                                 {/* Subscriptions */}
                                 <div className="glass-panel fade-up delay-2" style={{ padding: 24 }}>
-                                    <div className="section-header" style={{ marginBottom: 16 }}>
-                                        <h3 style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 20 }}>
+                                    <div className="section-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <h3 style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 20, margin: 0 }}>
                                             <span style={{ color: '#8b5cf6', fontSize: 26 }}>🔁</span> Minhas Assinaturas
                                         </h3>
+                                        <button 
+                                            onClick={() => setIsAddingSub(!isAddingSub)}
+                                            style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                                        >
+                                            {isAddingSub ? 'Cancelar' : '+ Nova Assinatura'}
+                                        </button>
                                     </div>
+
+                                    {/* Inline Add Subscription Form */}
+                                    {isAddingSub && (
+                                        <form onSubmit={handleAddSubSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid rgba(139,92,246,0.3)' }}>
+                                            <div className="tx-field">
+                                                <label>Nome da Assinatura (ex: NETFLIX)</label>
+                                                <input type="text" value={newSub.desc} onChange={e => setNewSub({...newSub, desc: e.target.value})} placeholder="Ex: NETFLIX, Spotify" required />
+                                            </div>
+                                            <div className="tx-field">
+                                                <label>Valor Mensal (R$)</label>
+                                                <input type="number" step="0.01" min="0" value={newSub.amount} onChange={e => setNewSub({...newSub, amount: e.target.value})} placeholder="49.90" required />
+                                            </div>
+                                            <div className="tx-field">
+                                                <label>Cartão de Crédito</label>
+                                                <select value={newSub.cardId} onChange={e => setNewSub({...newSub, cardId: e.target.value})} required>
+                                                    <option value="">Selecione o cartão...</option>
+                                                    {cards.map(c => (
+                                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: 13 }}>
+                                                Salvar Assinatura
+                                            </button>
+                                        </form>
+                                    )}
+
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                         {subscriptions.length === 0 ? (
                                             <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Nenhuma assinatura no cartão.</p>
@@ -348,9 +437,12 @@ export default function CardsPage() {
                                             <div key={sub.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
                                                 <div>
                                                     <div style={{ fontWeight: 500 }}>{sub.desc}</div>
-                                                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Cartão: {cards.find(c => String(c.id) === String(sub.creditCardId))?.name}</div>
+                                                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Cartão: {cards.find(c => String(c.id) === String(sub.creditCardId))?.name || 'Não vinculado'}</div>
                                                 </div>
-                                                <div style={{ fontWeight: 600, color: 'var(--danger-color)' }}>{formatCurrency(sub.amount)} /mês</div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                    <div style={{ fontWeight: 600, color: 'var(--danger-color)' }}>- {formatCurrency(sub.amount)} /mês</div>
+                                                    <button onClick={() => { if(confirm(`Remover assinatura "${sub.desc}"?`)) removeTx(sub.id) }} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.6 }} title="Remover Assinatura">✖</button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -358,11 +450,48 @@ export default function CardsPage() {
 
                                 {/* Installments */}
                                 <div className="glass-panel fade-up delay-2" style={{ padding: 24 }}>
-                                    <div className="section-header" style={{ marginBottom: 16 }}>
-                                        <h3 style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 20 }}>
+                                    <div className="section-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <h3 style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 20, margin: 0 }}>
                                             <span style={{ color: '#3b82f6', fontSize: 26 }}>⏳</span> Compras Parceladas no Cartão
                                         </h3>
+                                        <button 
+                                            onClick={() => setIsAddingInstallment(!isAddingInstallment)}
+                                            style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                                        >
+                                            {isAddingInstallment ? 'Cancelar' : '+ Nova Compra Parcelada'}
+                                        </button>
                                     </div>
+
+                                    {/* Inline Add Installment Purchase Form */}
+                                    {isAddingInstallment && (
+                                        <form onSubmit={handleAddInstallmentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid rgba(59,130,246,0.3)' }}>
+                                            <div className="tx-field">
+                                                <label>Descrição da Compra (ex: Notebook)</label>
+                                                <input type="text" value={newInstallment.desc} onChange={e => setNewInstallment({...newInstallment, desc: e.target.value})} placeholder="Notebook Dell" required />
+                                            </div>
+                                            <div className="tx-field">
+                                                <label>Valor de Cada Parcela (R$)</label>
+                                                <input type="number" step="0.01" min="0" value={newInstallment.amount} onChange={e => setNewInstallment({...newInstallment, amount: e.target.value})} placeholder="250.00" required />
+                                            </div>
+                                            <div className="tx-field">
+                                                <label>Total de Parcelas</label>
+                                                <input type="number" min="2" max="60" value={newInstallment.total} onChange={e => setNewInstallment({...newInstallment, total: e.target.value})} placeholder="10" required />
+                                            </div>
+                                            <div className="tx-field">
+                                                <label>Cartão de Crédito</label>
+                                                <select value={newInstallment.cardId} onChange={e => setNewInstallment({...newInstallment, cardId: e.target.value})} required>
+                                                    <option value="">Selecione o cartão...</option>
+                                                    {cards.map(c => (
+                                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: 13, background: '#3b82f6' }}>
+                                                Salvar Compra Parcelada
+                                            </button>
+                                        </form>
+                                    )}
+
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                         {activeInstallments.length === 0 ? (
                                             <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Nenhuma compra parcelada.</p>
