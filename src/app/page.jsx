@@ -143,7 +143,7 @@ export default function DashboardPage() {
     const globalBalance = useMemo(() => {
         return transactions.reduce((acc, t) => {
             if (t.type === 'income') return acc + t.amount
-            if (t.type === 'expense') return acc - t.amount
+            if (t.type === 'expense' && t.account !== 'credit') return acc - t.amount
             if (t.type === 'investment') return acc - t.amount
             return acc
         }, 0)
