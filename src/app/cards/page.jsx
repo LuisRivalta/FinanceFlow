@@ -243,7 +243,7 @@ export default function CardsPage() {
     // Filter transactions
     const cardTxs = useMemo(() => transactions.filter(t => t.creditCardId != null && t.creditCardId !== ''), [transactions])
     const subscriptions = useMemo(() => cardTxs.filter(t => t.isSubscription), [cardTxs])
-    const installments = useMemo(() => cardTxs.filter(t => t.installmentTotal > 1), [cardTxs])
+    const installments = useMemo(() => cardTxs.filter(t => (t.installmentTotal && t.installmentTotal > 1) || /\(\d+[\s\/de]+\d+\)/i.test(t.desc)), [cardTxs])
 
     const handleRemoveInstallmentGroup = async (inst) => {
         const ok = confirm(`Deseja apagar o parcelamento "${inst.name}" e todas as suas parcelas?`)
