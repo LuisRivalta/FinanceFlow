@@ -78,6 +78,9 @@ export function useWalletAssets(userEmail) {
     }, [fetchPrices]);
 
     const calculateCurrentValue = useCallback((asset) => {
+        if (asset.manualBalance !== undefined && asset.manualBalance !== null && asset.manualBalance !== '') {
+            return parseFloat(asset.manualBalance);
+        }
         if (asset.type === 'fixed') {
             const start = new Date(asset.date);
             const now = new Date();
@@ -87,7 +90,7 @@ export function useWalletAssets(userEmail) {
         } else {
             const targetKey = TICKER_MAP[asset.ticker?.toUpperCase()] || `${asset.ticker?.toUpperCase()}-BRL`;
             const price = livePrices[targetKey] || 0;
-            return asset.amount * price;
+            return price > 0 ? asset.amount * price : asset.amount;
         }
     }, [livePrices]);
 

@@ -27,6 +27,11 @@ export default function Wallet({ userEmail }) {
     const [addName, setAddName] = useState('');
     const [addAmount, setAddAmount] = useState('');
     const [addRate, setAddRate] = useState('');
+    const [addManualBalance, setAddManualBalance] = useState('');
+
+    // Editing manual balance inline state
+    const [editingAssetId, setEditingAssetId] = useState(null);
+    const [editBalanceVal, setEditBalanceVal] = useState('');
 
     // Load assets from localStorage on mount
     useEffect(() => {
@@ -50,7 +55,7 @@ export default function Wallet({ userEmail }) {
 
     // Fetch live prices
     const fetchPrices = async () => {
-        const fetchTargets = assets.filter(a => a.type === 'crypto' || a.type === 'currency').map(a => TICKER_MAP[a.ticker.toUpperCase()] || `${a.ticker.toUpperCase()}-BRL`);
+        const fetchTargets = assets.filter(a => a.type === 'crypto' || a.type === 'currency').map(a => TICKER_MAP[a.ticker?.toUpperCase()] || `${a.ticker?.toUpperCase()}-BRL`);
         if (fetchTargets.length === 0) return;
 
         // Deduplicate
@@ -90,7 +95,8 @@ export default function Wallet({ userEmail }) {
             id: Date.now().toString(),
             type: addType,
             amount: parseFloat(addAmount),
-            date: new Date().toISOString()
+            date: new Date().toISOString(),
+            manualBalance: addManualBalance ? parseFloat(addManualBalance) : null
         };
 
         if (addType === 'fixed') {
@@ -106,26 +112,43 @@ export default function Wallet({ userEmail }) {
         setAddName('');
         setAddAmount('');
         setAddRate('');
+        setAddManualBalance('');
     };
 
     const removeAsset = (id) => {
         setAssets(assets.filter(a => a.id !== id));
     };
 
+    const handleSaveManualBalance = (assetId, valueStr) => {
+        const val = valueStr !== '' && !isNaN(valueStr) ? parseFloat(valueStr) : null;
+        setAssets(assets.map(a => a.id === assetId ? { ...a, manualBalance: val } : a));
+        setEditingAssetId(null);
+        setEditBalanceVal('');
+    };
+
+    const handleResetToAutomatic = (assetId) => {
+        setAssets(assets.map(a => a.id === assetId ? { ...a, manualBalance: null } : a));
+        setEditingAssetId(null);
+        setEditBalanceVal('');
+    };
+
     // Calculate current values
     const calculateCurrentValue = (asset) => {
+        if (asset.manualBalance !== undefined && asset.manualBalance !== null && asset.manualBalance !== '') {
+            return parseFloat(asset.manualBalance);
+        }
         if (asset.type === 'fixed') {
             // Compound interest based on days elapsed
             const start = new Date(asset.date);
             const now = new Date();
             const daysElapsed = Math.max(0, (now - start) / (1000 * 60 * 60 * 24));
             const yearsElapsed = daysElapsed / 365;
-            return asset.amount * Math.pow(1 + (asset.rate / 100), yearsElapsed);
+            return asset.amount * Math.pow(1 + ((asset.rate || 0) / 100), yearsElapsed);
         } else {
             // Live price from API
             const targetKey = TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`;
             const price = livePrices[targetKey] || 0;
-            return asset.amount * price;
+            return price > 0 ? asset.amount * price : asset.amount;
         }
     };
 
@@ -159,13 +182,13 @@ export default function Wallet({ userEmail }) {
                         </div>
                         
                         <div className="tx-field" style={{ flex: 1, minWidth: 150 }}>
-                            <label>{addType === 'fixed' ? 'Nome (ex: Poupança)' : 'Sigla (ex: BTC, USD)'}</label>
+                            <label>{addType === 'fixed' ? 'Nome (ex: Poupança, CDB)' : 'Sigla (ex: BTC, USD)'}</label>
                             <input 
                                 required
                                 type="text" 
                                 value={addName} 
                                 onChange={e => setAddName(e.target.value)} 
-                                placeholder={addType === 'fixed' ? 'Tesouro Direto' : 'BTC'}
+                                placeholder={addType === 'fixed' ? 'Tesouro Direto / CDB' : 'BTC'}
                             />
                         </div>
 
@@ -197,6 +220,18 @@ export default function Wallet({ userEmail }) {
                             </div>
                         )}
 
+                        <div className="tx-field" style={{ flex: 1, minWidth: 150 }}>
+                            <label>Saldo Atual (R$) (opcional)</label>
+                            <input 
+                                type="number" 
+                                step="0.01"
+                                min="0"
+                                value={addManualBalance} 
+                                onChange={e => setAddManualBalance(e.target.value)} 
+                                placeholder="Deixe em branco para auto"
+                            />
+                        </div>
+
                         <button type="submit" className="btn-primary" style={{ padding: '11px 24px' }}>
                             Salvar
                         </button>
@@ -210,7 +245,7 @@ export default function Wallet({ userEmail }) {
                     <div>Sua carteira está vazia. Adicione ativos para começar a acompanhar o rendimento em tempo real!</div>
                 </div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
                     {/* Total Card */}
                     {assets.length > 0 && (
                         <div className="card glass-panel fade-up delay-1" style={{ padding: 24, background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(0,0,0,0.2) 100%)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
@@ -230,9 +265,15 @@ export default function Wallet({ userEmail }) {
                     {assets.map((asset, idx) => {
                         const currentValue = calculateCurrentValue(asset);
                         const isLive = asset.type !== 'fixed';
+                        const isManual = asset.manualBalance !== undefined && asset.manualBalance !== null && asset.manualBalance !== '';
+
+                        // Calculation of profit for fixed income or overall
+                        const initialCost = asset.type === 'fixed' ? asset.amount : 0;
+                        const profit = initialCost > 0 ? currentValue - initialCost : 0;
+                        const profitPct = initialCost > 0 ? (profit / initialCost) * 100 : 0;
                         
                         return (
-                            <div key={asset.id} className="card glass-panel fade-up clickable-card" style={{ padding: 20, animationDelay: `${(idx + 2) * 0.1}s`, position: 'relative' }}>
+                            <div key={asset.id} className="card glass-panel fade-up" style={{ padding: 20, animationDelay: `${(idx + 2) * 0.1}s`, position: 'relative' }}>
                                 <button 
                                     onClick={() => removeAsset(asset.id)}
                                     style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.5 }}
@@ -245,29 +286,90 @@ export default function Wallet({ userEmail }) {
                                     <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
                                         {asset.type === 'crypto' ? '₿' : asset.type === 'currency' ? '💵' : '🏦'}
                                     </div>
-                                    <div>
-                                        <div style={{ fontWeight: 600, fontSize: 16 }}>{asset.name}</div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{asset.name}</div>
                                         <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                                            {asset.type === 'fixed' ? `Rendendo ${asset.rate}% a.a.` : `${asset.amount} unidades`}
+                                            {asset.type === 'fixed' ? `Taxa base ${asset.rate}% a.a.` : `${asset.amount} unidades`}
                                         </div>
                                     </div>
                                 </div>
                                 
                                 <div>
-                                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>Valor Atual</div>
-                                    <div style={{ fontSize: 24, fontWeight: 700, color: 'white' }}>
-                                        {formatCurrency(currentValue)}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Valor Atual</span>
+                                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: isManual ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)', color: isManual ? '#60a5fa' : '#10b981' }}>
+                                            {isManual ? '✏️ Saldo Manual' : asset.type === 'fixed' ? '⚡ Auto Rendimento' : '📈 Cotação Ao Vivo'}
+                                        </span>
                                     </div>
-                                    
-                                    {isLive && (
-                                        <div style={{ fontSize: 12, color: '#eab308', marginTop: 8, display: 'flex', justifyContent: 'space-between' }}>
-                                            <span>Cotação:</span>
-                                            <span>
-                                                {livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`] 
-                                                    ? formatCurrency(livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`]) 
-                                                    : 'Buscando...'}
-                                            </span>
+
+                                    {editingAssetId === asset.id ? (
+                                        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            <input 
+                                                type="number"
+                                                step="0.01"
+                                                value={editBalanceVal}
+                                                onChange={e => setEditBalanceVal(e.target.value)}
+                                                placeholder="Digite o saldo atual exato..."
+                                                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #3b82f6', background: '#111827', color: 'white', fontSize: 14 }}
+                                                autoFocus
+                                            />
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => handleSaveManualBalance(asset.id, editBalanceVal)}
+                                                    style={{ flex: 1, padding: '6px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                                                >
+                                                    Salvar Saldo
+                                                </button>
+                                                {isManual && (
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => handleResetToAutomatic(asset.id)}
+                                                        style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+                                                    >
+                                                        🔄 Usar Auto
+                                                    </button>
+                                                )}
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setEditingAssetId(null)}
+                                                    style={{ padding: '6px 10px', background: 'transparent', color: 'rgba(255,255,255,0.5)', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
+                                                >
+                                                    Cancelar
+                                                </button>
+                                            </div>
                                         </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                                <div style={{ fontSize: 24, fontWeight: 700, color: 'white' }}>
+                                                    {formatCurrency(currentValue)}
+                                                </div>
+                                                <button 
+                                                    onClick={() => { setEditingAssetId(asset.id); setEditBalanceVal(currentValue.toFixed(2)); }}
+                                                    style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}
+                                                >
+                                                    ✏️ Ajustar
+                                                </button>
+                                            </div>
+
+                                            {asset.type === 'fixed' && initialCost > 0 && (
+                                                <div style={{ fontSize: 12, marginTop: 6, color: profit >= 0 ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                                                    {profit >= 0 ? '▲' : '▼'} {formatCurrency(profit)} ({profitPct.toFixed(2)}%)
+                                                </div>
+                                            )}
+
+                                            {isLive && (
+                                                <div style={{ fontSize: 12, color: '#eab308', marginTop: 8, display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>Cotação:</span>
+                                                    <span>
+                                                        {livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`] 
+                                                            ? formatCurrency(livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`]) 
+                                                            : 'Buscando...'}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>
