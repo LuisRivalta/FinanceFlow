@@ -318,6 +318,18 @@ export default function CardsPage() {
         }, 0)
     }, [financings])
 
+    const totalSubscriptionAmount = useMemo(() => {
+        return subscriptions.reduce((sum, s) => sum + s.amount, 0)
+    }, [subscriptions])
+
+    const totalInstallmentMonthly = useMemo(() => {
+        return activeInstallments.reduce((sum, inst) => sum + (inst.current < inst.total ? inst.amount : 0), 0)
+    }, [activeInstallments])
+
+    const totalInstallmentRemaining = useMemo(() => {
+        return activeInstallments.reduce((sum, inst) => sum + Math.max(0, inst.total - inst.current) * inst.amount, 0)
+    }, [activeInstallments])
+
     if (session === undefined) return null;
 
     return (
@@ -540,94 +552,111 @@ export default function CardsPage() {
                                             </div>
                                         ))}
                                     </div>
+
+                                    {/* Total Subscriptions Summary */}
+                                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>Total em Assinaturas</span>
+                                        <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--danger-color)' }}>- {formatCurrency(totalSubscriptionAmount)} /mês</span>
+                                    </div>
                                 </div>
 
                                 {/* Installments */}
-                                <div className="glass-panel fade-up delay-2" style={{ padding: 24 }}>
-                                    <div className="section-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <h3 style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 20, margin: 0 }}>
-                                            <span style={{ color: '#3b82f6', fontSize: 26 }}>⏳</span> Compras Parceladas no Cartão
-                                        </h3>
-                                        <button 
-                                            onClick={() => setIsAddingInstallment(!isAddingInstallment)}
-                                            style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                                        >
-                                            {isAddingInstallment ? 'Cancelar' : '+ Nova Compra Parcelada'}
-                                        </button>
+                                <div className="glass-panel fade-up delay-2" style={{ padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                    <div>
+                                        <div className="section-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <h3 style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 20, margin: 0 }}>
+                                                <span style={{ color: '#3b82f6', fontSize: 26 }}>⏳</span> Compras Parceladas no Cartão
+                                            </h3>
+                                            <button 
+                                                onClick={() => setIsAddingInstallment(!isAddingInstallment)}
+                                                style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                                            >
+                                                {isAddingInstallment ? 'Cancelar' : '+ Nova Compra Parcelada'}
+                                            </button>
+                                        </div>
+
+                                        {/* Inline Add Installment Purchase Form */}
+                                        {isAddingInstallment && (
+                                            <form onSubmit={handleAddInstallmentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid rgba(59,130,246,0.3)' }}>
+                                                <div className="tx-field">
+                                                    <label>Descrição da Compra</label>
+                                                    <input type="text" value={newInstallment.desc} onChange={e => setNewInstallment({...newInstallment, desc: e.target.value})} required />
+                                                </div>
+                                                <div className="tx-field">
+                                                    <label>Valor de Cada Parcela (R$)</label>
+                                                    <input type="number" step="0.01" min="0" value={newInstallment.amount} onChange={e => setNewInstallment({...newInstallment, amount: e.target.value})} required />
+                                                </div>
+                                                <div className="tx-field">
+                                                    <label>Total de Parcelas</label>
+                                                    <input type="number" min="2" max="60" value={newInstallment.total} onChange={e => setNewInstallment({...newInstallment, total: e.target.value})} required />
+                                                </div>
+                                                <div className="tx-field">
+                                                    <label>Parcelas Já Pagas (Antigas)</label>
+                                                    <input type="number" min="0" max={newInstallment.total || 60} value={newInstallment.paidCount} onChange={e => setNewInstallment({...newInstallment, paidCount: e.target.value})} />
+                                                </div>
+                                                <div className="tx-field">
+                                                    <label>Próxima Cobrança na Fatura</label>
+                                                    <select value={newInstallment.billingPeriod} onChange={e => setNewInstallment({...newInstallment, billingPeriod: e.target.value})}>
+                                                        <option value="current">📅 Fatura Deste Mês (Atual)</option>
+                                                        <option value="next">📆 Próxima Fatura (Mês Que Vem)</option>
+                                                    </select>
+                                                </div>
+                                                <div className="tx-field">
+                                                    <label>Cartão de Crédito</label>
+                                                    <select value={newInstallment.cardId} onChange={e => setNewInstallment({...newInstallment, cardId: e.target.value})} required>
+                                                        <option value="">Selecione o cartão...</option>
+                                                        {cards.map(c => (
+                                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: 13, background: '#3b82f6' }}>
+                                                    Salvar Compra Parcelada
+                                                </button>
+                                            </form>
+                                        )}
+
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                            {activeInstallments.length === 0 ? (
+                                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Nenhuma compra parcelada.</p>
+                                            ) : activeInstallments.map((inst, i) => {
+                                                const progress = Math.min((inst.current / inst.total) * 100, 100)
+                                                return (
+                                                    <div key={i} style={{ padding: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                                            <div>
+                                                                <div style={{ fontWeight: 500 }}>{inst.name}</div>
+                                                                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{formatCurrency(inst.amount)} por parcela</div>
+                                                            </div>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                                <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>
+                                                                    {inst.current} de {inst.total}
+                                                                </div>
+                                                                <button 
+                                                                    onClick={() => handleRemoveInstallmentGroup(inst)} 
+                                                                    style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.6, fontSize: 14 }} 
+                                                                    title="Apagar Compra Parcelada"
+                                                                >
+                                                                    ✖
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
+                                                            <div style={{ height: '100%', width: `${progress}%`, background: 'var(--accent-primary)', borderRadius: 3, transition: 'width 0.5s' }} />
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
                                     </div>
 
-                                    {/* Inline Add Installment Purchase Form */}
-                                    {isAddingInstallment && (
-                                        <form onSubmit={handleAddInstallmentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid rgba(59,130,246,0.3)' }}>
-                                            <div className="tx-field">
-                                                <label>Descrição da Compra</label>
-                                                <input type="text" value={newInstallment.desc} onChange={e => setNewInstallment({...newInstallment, desc: e.target.value})} required />
-                                            </div>
-                                            <div className="tx-field">
-                                                <label>Valor de Cada Parcela (R$)</label>
-                                                <input type="number" step="0.01" min="0" value={newInstallment.amount} onChange={e => setNewInstallment({...newInstallment, amount: e.target.value})} required />
-                                            </div>
-                                            <div className="tx-field">
-                                                <label>Total de Parcelas</label>
-                                                <input type="number" min="2" max="60" value={newInstallment.total} onChange={e => setNewInstallment({...newInstallment, total: e.target.value})} required />
-                                            </div>
-                                            <div className="tx-field">
-                                                <label>Parcelas Já Pagas (Antigas)</label>
-                                                <input type="number" min="0" max={newInstallment.total || 60} value={newInstallment.paidCount} onChange={e => setNewInstallment({...newInstallment, paidCount: e.target.value})} />
-                                            </div>
-                                            <div className="tx-field">
-                                                <label>Próxima Cobrança na Fatura</label>
-                                                <select value={newInstallment.billingPeriod} onChange={e => setNewInstallment({...newInstallment, billingPeriod: e.target.value})}>
-                                                    <option value="current">📅 Fatura Deste Mês (Atual)</option>
-                                                    <option value="next">📆 Próxima Fatura (Mês Que Vem)</option>
-                                                </select>
-                                            </div>
-                                            <div className="tx-field">
-                                                <label>Cartão de Crédito</label>
-                                                <select value={newInstallment.cardId} onChange={e => setNewInstallment({...newInstallment, cardId: e.target.value})} required>
-                                                    <option value="">Selecione o cartão...</option>
-                                                    {cards.map(c => (
-                                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: 13, background: '#3b82f6' }}>
-                                                Salvar Compra Parcelada
-                                            </button>
-                                        </form>
-                                    )}
-
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        {activeInstallments.length === 0 ? (
-                                            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Nenhuma compra parcelada.</p>
-                                        ) : activeInstallments.map((inst, i) => {
-                                            const progress = Math.min((inst.current / inst.total) * 100, 100)
-                                            return (
-                                                <div key={i} style={{ padding: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                                        <div>
-                                                            <div style={{ fontWeight: 500 }}>{inst.name}</div>
-                                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{formatCurrency(inst.amount)} por parcela</div>
-                                                        </div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                            <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>
-                                                                {inst.current} de {inst.total}
-                                                            </div>
-                                                            <button 
-                                                                onClick={() => handleRemoveInstallmentGroup(inst)} 
-                                                                style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.6, fontSize: 14 }} 
-                                                                title="Apagar Compra Parcelada"
-                                                            >
-                                                                ✖
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div style={{ height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
-                                                        <div style={{ height: '100%', width: `${progress}%`, background: 'var(--accent-primary)', borderRadius: 3, transition: 'width 0.5s' }} />
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
+                                    {/* Total Installments Summary */}
+                                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>Total de Parcelas (Mensal)</div>
+                                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Saldo a pagar: {formatCurrency(totalInstallmentRemaining)}</div>
+                                        </div>
+                                        <span style={{ fontSize: 16, fontWeight: 700, color: '#60a5fa' }}>{formatCurrency(totalInstallmentMonthly)} /mês</span>
                                     </div>
                                 </div>
                             </div>
