@@ -332,18 +332,29 @@ export default function InvestmentsPage() {
         })
     }, [simData, layoutReady])
 
-    const handleSimulateAsset = ({ initial, rate, presetId }) => {
-        if (initial) setSimInitial(String(initial))
-        if (rate !== undefined && rate !== null) {
-            setSimRate(Number(rate))
+    const handleSimulateAsset = ({ initial, rate, presetId, cdiPercent }) => {
+        if (initial) setSimInitial(Number(initial))
+        if (!simPeriodValue || Number(simPeriodValue) <= 0) {
+            setSimPeriodValue(2)
         }
         if (presetId && getProduct(presetId)) {
             const p = getProduct(presetId)
             setProductId(p.id)
-            if (p.defaultMultiplier !== null) setMultiplier(p.defaultMultiplier)
+            if (cdiPercent && p.multiplierKind === 'percent_of') {
+                setMultiplier(Number(cdiPercent))
+            } else if (p.defaultMultiplier !== null) {
+                setMultiplier(p.defaultMultiplier)
+            }
         }
+        if (rate !== undefined && rate !== null) {
+            setSimRate(Number(rate))
+        }
+
         setTimeout(() => {
-            document.getElementById('simulador-section')?.scrollIntoView({ behavior: 'smooth' })
+            const el = document.getElementById('simulador-section')
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
         }, 50)
     }
 

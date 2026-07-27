@@ -445,7 +445,8 @@ export default function Wallet({ userEmail, onSimulate }) {
                                                     onSimulate({
                                                         initial: currentValue.toFixed(2),
                                                         rate: asset.rate,
-                                                        presetId: asset.presetId || 'cdb'
+                                                        presetId: asset.presetId || 'cdb',
+                                                        cdiPercent: asset.cdiPercent
                                                     });
                                                 } else {
                                                     router.push(`/investments?initial=${currentValue.toFixed(2)}&rate=${asset.rate}&product=${asset.presetId || 'cdb'}`);
