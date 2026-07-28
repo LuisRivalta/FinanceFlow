@@ -625,7 +625,7 @@ export default function CardsPage() {
                                             </form>
                                         )}
 
-                                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 }}>
+                                        <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 }}>
                                             {subscriptions.length === 0 ? (
                                                 <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Nenhuma assinatura no cartão.</p>
                                             ) : subscriptions.map(sub => (
@@ -708,7 +708,7 @@ export default function CardsPage() {
                                             </form>
                                         )}
 
-                                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 }}>
+                                        <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 }}>
                                             {activeInstallments.length === 0 ? (
                                                 <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Nenhuma compra parcelada.</p>
                                             ) : activeInstallments.map((inst, i) => {
