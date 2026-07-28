@@ -63,6 +63,7 @@ export default function Wallet({ userEmail, onSimulate }) {
 
     // Crypto / Currency simulation modal state
     const [simulatingAsset, setSimulatingAsset] = useState(null);
+    const [simCurrency, setSimCurrency] = useState('BRL');
     const [simTargetPrice, setSimTargetPrice] = useState('');
 
     // Load and sync assets with Supabase Cloud DB
