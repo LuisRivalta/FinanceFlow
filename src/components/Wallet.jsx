@@ -301,23 +301,24 @@ export default function Wallet({ userEmail, onSimulate }) {
 
     // Calculate current values
     const calculateCurrentValue = (asset) => {
+        if (!asset) return 0;
         if (asset.manualBalance !== undefined && asset.manualBalance !== null && asset.manualBalance !== '') {
-            return parseFloat(asset.manualBalance);
+            return parseFloat(asset.manualBalance) || 0;
         }
         if (asset.type === 'fixed') {
-            const start = new Date(asset.date);
+            const start = new Date(asset.date || new Date());
             const now = new Date();
             const daysElapsed = Math.max(0, (now - start) / (1000 * 60 * 60 * 24));
             const yearsElapsed = daysElapsed / 365;
-            return asset.amount * Math.pow(1 + ((asset.rate || 0) / 100), yearsElapsed);
+            return (asset.amount || 0) * Math.pow(1 + ((asset.rate || 0) / 100), yearsElapsed);
         } else {
             const symbol = cleanTicker(asset.ticker);
             const price = livePrices[`${symbol}-BRL`] || 0;
-            return price > 0 ? asset.amount * price : asset.amount;
+            return price > 0 ? (asset.amount || 0) * price : (asset.amount || 0);
         }
     };
 
-    const totalNetWorth = assets.reduce((sum, asset) => sum + calculateCurrentValue(asset), 0);
+    const totalNetWorth = (assets || []).reduce((sum, asset) => sum + calculateCurrentValue(asset), 0);
     const currentPreset = ASSET_TYPES.find(t => t.id === addType) || ASSET_TYPES[0];
 
     const openSimulationModal = (asset) => {

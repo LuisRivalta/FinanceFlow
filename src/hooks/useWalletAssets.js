@@ -131,7 +131,8 @@ export function useWalletAssets(userEmail) {
         }
     }, [livePrices]);
 
-    const totalNetWorth = (assets || []).reduce((sum, asset) => sum + calculateCurrentValue(asset), 0);
+    const safeAssets = Array.isArray(assets) ? assets : [];
+    const totalNetWorth = safeAssets.reduce((sum, asset) => sum + calculateCurrentValue(asset), 0);
 
-    return { assets, setAssets, livePrices, loadingPrices, totalNetWorth, calculateCurrentValue, fetchPrices };
+    return { assets: safeAssets, setAssets, livePrices, loadingPrices, totalNetWorth, calculateCurrentValue, fetchPrices };
 }

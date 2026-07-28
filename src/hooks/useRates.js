@@ -27,8 +27,11 @@ export function useRates() {
                 // Timeout no client também: sem ele, uma resposta que nunca chega
                 // deixa `loading` em true pra sempre e a linha de status congela em
                 // "buscando taxas…" em vez de admitir a falha.
-                const res = await fetch('/api/rates', { signal: AbortSignal.timeout(8000) })
-                if (!res.ok) throw new Error(`/api/rates respondeu ${res.status}`)
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 8000);
+                const res = await fetch('/api/rates', { signal: controller.signal });
+                clearTimeout(timer);
+                if (!res.ok) throw new Error(`/api/rates respondeu ${res.status}`);
 
                 const data = await res.json()
 

@@ -131,25 +131,31 @@ export default function InvestmentsPage() {
         }
     }, [product, rates, degraded, ratesLoading])
 
-    const invTransactions = useMemo(() => transactions.filter(t => t.type === 'investment'), [transactions])
+    const invTransactions = useMemo(() => Array.isArray(transactions) ? transactions.filter(t => t && t.type === 'investment') : [], [transactions])
     
     // Stats
-    const totalInvested = useMemo(() => walletTotalNetWorth + calcInvestment(invTransactions), [walletTotalNetWorth, invTransactions])
+    const totalInvested = useMemo(() => (walletTotalNetWorth || 0) + calcInvestment(invTransactions), [walletTotalNetWorth, invTransactions])
     
     const catTotals = useMemo(() => {
         const totals = { stocks: 0, crypto: 0, fixed: 0, other_inv: 0 }
-        invTransactions.forEach(t => {
-            if (totals[t.category] !== undefined) totals[t.category] += t.amount
-            else totals.other_inv += t.amount
-        })
+        if (Array.isArray(invTransactions)) {
+            invTransactions.forEach(t => {
+                if (!t) return
+                if (totals[t.category] !== undefined) totals[t.category] += (t.amount || 0)
+                else totals.other_inv += (t.amount || 0)
+            })
+        }
 
-        walletAssets.forEach(a => {
-            const val = calculateCurrentValue(a)
-            if (a.type === 'crypto') totals.crypto += val
-            else if (a.type === 'currency') totals.other_inv += val
-            else if (a.type === 'fixed') totals.fixed += val
-            else totals.other_inv += val
-        })
+        if (Array.isArray(walletAssets)) {
+            walletAssets.forEach(a => {
+                if (!a) return
+                const val = typeof calculateCurrentValue === 'function' ? calculateCurrentValue(a) : 0
+                if (a.type === 'crypto') totals.crypto += val
+                else if (a.type === 'currency') totals.other_inv += val
+                else if (a.type === 'fixed') totals.fixed += val
+                else totals.other_inv += val
+            })
+        }
 
         return totals
     }, [invTransactions, walletAssets, calculateCurrentValue])
