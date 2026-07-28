@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { formatCurrency } from '../helpers';
 import { useRates } from '../hooks/useRates';
 import { getProduct, deriveRate } from '../lib/investmentProducts';
+import { supabase } from '../lib/supabase';
 
 // Map common user inputs to AwesomeAPI tickers
 const TICKER_MAP = {
@@ -54,25 +55,74 @@ export default function Wallet({ userEmail, onSimulate }) {
     const [simulatingAsset, setSimulatingAsset] = useState(null);
     const [simTargetPrice, setSimTargetPrice] = useState('');
 
-    // Load assets from localStorage on mount
+    // Load and sync assets with Supabase Cloud DB
     useEffect(() => {
         if (!userEmail) return;
-        const saved = localStorage.getItem(`finance_assets_${userEmail}`);
-        if (saved) {
+        const loadAssets = async () => {
             try {
-                setAssets(JSON.parse(saved));
-            } catch (e) {
-                console.error("Error loading assets", e);
+                const { data, error } = await supabase
+                    .from('transactions')
+                    .select('*')
+                    .eq('user_email', userEmail)
+                    .eq('category', 'system_asset');
+
+                let cloudAssets = [];
+                if (!error && data) {
+                    cloudAssets = data.map(row => {
+                        try {
+                            const parsed = JSON.parse(row.note);
+                            return { ...parsed, dbId: row.id };
+                        } catch (e) {
+                            return null;
+                        }
+                    }).filter(Boolean);
+                }
+
+                // Check if local storage has items to migrate to Supabase
+                const localSaved = localStorage.getItem(`finance_assets_${userEmail}`);
+                if (localSaved) {
+                    try {
+                        const localItems = JSON.parse(localSaved);
+                        if (Array.isArray(localItems) && localItems.length > 0) {
+                            for (const item of localItems) {
+                                const exists = cloudAssets.some(c => String(c.id) === String(item.id));
+                                if (!exists) {
+                                    const { data: inserted } = await supabase.from('transactions').insert({
+                                        user_email: userEmail,
+                                        description: `Investimento: ${item.name || item.ticker}`,
+                                        amount: item.amount || 0,
+                                        type: 'income',
+                                        category: 'system_asset',
+                                        date: new Date().toISOString().split('T')[0],
+                                        note: JSON.stringify(item)
+                                    }).select().single();
+
+                                    if (inserted) {
+                                        cloudAssets.push({ ...item, dbId: inserted.id });
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Error migrating local assets", e);
+                    }
+                }
+
+                setAssets(cloudAssets);
+                localStorage.setItem(`finance_assets_${userEmail}`, JSON.stringify(cloudAssets));
+            } catch (err) {
+                console.error("Erro ao carregar ativos no Supabase", err);
             }
-        }
+        };
+
+        loadAssets();
     }, [userEmail]);
 
-    // Save to localStorage when assets change
-    useEffect(() => {
-        if (!userEmail) return;
-        localStorage.setItem(`finance_assets_${userEmail}`, JSON.stringify(assets));
+    const saveAssetsToCloud = async (newList) => {
+        setAssets(newList);
+        localStorage.setItem(`finance_assets_${userEmail}`, JSON.stringify(newList));
         window.dispatchEvent(new Event('wallet_updated'));
-    }, [assets, userEmail]);
+    };
 
     // Auto populate rate when addType, addCdiPercent, or rates change
     useEffect(() => {
@@ -134,7 +184,7 @@ export default function Wallet({ userEmail, onSimulate }) {
         return () => clearInterval(interval);
     }, [assets]);
 
-    const handleAddAsset = (e) => {
+    const handleAddAsset = async (e) => {
         e.preventDefault();
         const selectedPreset = ASSET_TYPES.find(t => t.id === addType) || ASSET_TYPES[0];
         const categoryType = selectedPreset.category;
@@ -158,27 +208,74 @@ export default function Wallet({ userEmail, onSimulate }) {
             newAsset.name = addName.toUpperCase();
         }
 
-        setAssets([...assets, newAsset]);
-        setIsAdding(false);
-        setAddName('');
-        setAddAmount('');
-        setAddRate('');
-        setAddCdiPercent('100');
+        try {
+            const { data: inserted } = await supabase.from('transactions').insert({
+                user_email: userEmail,
+                description: `Investimento: ${newAsset.name}`,
+                amount: newAsset.amount,
+                type: 'income',
+                category: 'system_asset',
+                date: new Date().toISOString().split('T')[0],
+                note: JSON.stringify(newAsset)
+            }).select().single();
+
+            const withDbId = { ...newAsset, dbId: inserted?.id };
+            saveAssetsToCloud([...assets, withDbId]);
+            setIsAdding(false);
+            setAddName('');
+            setAddAmount('');
+            setAddRate('');
+            setAddCdiPercent('100');
+        } catch (err) {
+            console.error("Erro ao salvar ativo no Supabase", err);
+        }
     };
 
-    const removeAsset = (id) => {
-        setAssets(assets.filter(a => a.id !== id));
+    const removeAsset = async (id) => {
+        const target = assets.find(a => a.id === id || a.dbId === id);
+        const newList = assets.filter(a => a.id !== id && a.dbId !== id);
+        saveAssetsToCloud(newList);
+
+        if (target?.dbId) {
+            await supabase.from('transactions').delete().eq('id', target.dbId);
+        }
     };
 
-    const handleSaveManualBalance = (assetId, valueStr) => {
+    const handleSaveManualBalance = async (assetId, valueStr) => {
         const val = valueStr !== '' && !isNaN(valueStr) ? parseFloat(valueStr) : null;
-        setAssets(assets.map(a => a.id === assetId ? { ...a, manualBalance: val } : a));
+        const updatedList = assets.map(a => {
+            if (a.id === assetId || a.dbId === assetId) {
+                const updated = { ...a, manualBalance: val };
+                if (a.dbId) {
+                    supabase.from('transactions').update({
+                        note: JSON.stringify(updated)
+                    }).eq('id', a.dbId).then();
+                }
+                return updated;
+            }
+            return a;
+        });
+
+        saveAssetsToCloud(updatedList);
         setEditingAssetId(null);
         setEditBalanceVal('');
     };
 
-    const handleResetToAutomatic = (assetId) => {
-        setAssets(assets.map(a => a.id === assetId ? { ...a, manualBalance: null } : a));
+    const handleResetToAutomatic = async (assetId) => {
+        const updatedList = assets.map(a => {
+            if (a.id === assetId || a.dbId === assetId) {
+                const updated = { ...a, manualBalance: null };
+                if (a.dbId) {
+                    supabase.from('transactions').update({
+                        note: JSON.stringify(updated)
+                    }).eq('id', a.dbId).then();
+                }
+                return updated;
+            }
+            return a;
+        });
+
+        saveAssetsToCloud(updatedList);
         setEditingAssetId(null);
         setEditBalanceVal('');
     };
