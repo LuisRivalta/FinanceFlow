@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 
-const TICKER_MAP = {
-    'BTC': 'BTC-BRL',
-    'BITCOIN': 'BTC-BRL',
-    'ETH': 'ETH-BRL',
-    'ETHEREUM': 'ETH-BRL',
-    'USD': 'USD-BRL',
-    'DOLAR': 'USD-BRL',
-    'DÓLAR': 'USD-BRL',
-    'EUR': 'EUR-BRL',
-    'EURO': 'EUR-BRL'
+const cleanTicker = (ticker) => {
+    if (!ticker) return 'BTC';
+    const upper = String(ticker).toUpperCase().trim();
+    if (upper === 'BITCOIN') return 'BTC';
+    if (upper === 'ETHEREUM') return 'ETH';
+    if (upper === 'DOLAR' || upper === 'DÓLAR') return 'USD';
+    if (upper === 'EURO') return 'EUR';
+    return upper;
 };
 
 export function useWalletAssets(userEmail) {
@@ -21,18 +20,47 @@ export function useWalletAssets(userEmail) {
 
     useEffect(() => {
         if (!userEmail) return;
-        const loadAssets = () => {
-            const saved = localStorage.getItem(`finance_assets_${userEmail}`);
-            if (saved) {
-                try {
-                    setAssets(JSON.parse(saved));
-                } catch (e) {
-                    console.error("Error loading assets", e);
+        const loadAssets = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('transactions')
+                    .select('*')
+                    .eq('user_email', userEmail)
+                    .eq('category', 'system_asset');
+
+                let cloudAssets = [];
+                if (!error && data) {
+                    cloudAssets = data.map(row => {
+                        try {
+                            const parsed = JSON.parse(row.note);
+                            return { ...parsed, dbId: row.id };
+                        } catch (e) {
+                            return null;
+                        }
+                    }).filter(Boolean);
                 }
-            } else {
-                setAssets([]);
+
+                const localSaved = localStorage.getItem(`finance_assets_${userEmail}`);
+                if (localSaved) {
+                    try {
+                        const localItems = JSON.parse(localSaved);
+                        if (Array.isArray(localItems) && localItems.length > 0) {
+                            for (const item of localItems) {
+                                const exists = cloudAssets.some(c => String(c.id) === String(item.id));
+                                if (!exists) {
+                                    cloudAssets.push(item);
+                                }
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                setAssets(cloudAssets);
+            } catch (err) {
+                console.error("Error loading assets in hook", err);
             }
         };
+
         loadAssets();
 
         window.addEventListener('storage', loadAssets);
@@ -44,9 +72,17 @@ export function useWalletAssets(userEmail) {
     }, [userEmail]);
 
     const fetchPrices = useCallback(async () => {
-        const fetchTargets = assets.filter(a => a.type === 'crypto' || a.type === 'currency')
-            .map(a => TICKER_MAP[a.ticker?.toUpperCase()] || `${a.ticker?.toUpperCase()}-BRL`);
-        if (fetchTargets.length === 0) return;
+        const liveAssets = (assets || []).filter(a => a && (a.type === 'crypto' || a.type === 'currency'));
+        if (liveAssets.length === 0) return;
+
+        const fetchTargets = [];
+        liveAssets.forEach(a => {
+            const symbol = cleanTicker(a.ticker);
+            fetchTargets.push(`${symbol}-BRL`);
+            if (symbol !== 'USD' && symbol !== 'BRL') {
+                fetchTargets.push(`${symbol}-USD`);
+            }
+        });
 
         const uniqueTargets = [...new Set(fetchTargets)];
         const url = `https://economia.awesomeapi.com.br/last/${uniqueTargets.join(',')}`;
@@ -78,23 +114,24 @@ export function useWalletAssets(userEmail) {
     }, [fetchPrices]);
 
     const calculateCurrentValue = useCallback((asset) => {
+        if (!asset) return 0;
         if (asset.manualBalance !== undefined && asset.manualBalance !== null && asset.manualBalance !== '') {
-            return parseFloat(asset.manualBalance);
+            return parseFloat(asset.manualBalance) || 0;
         }
         if (asset.type === 'fixed') {
             const start = new Date(asset.date);
             const now = new Date();
             const daysElapsed = Math.max(0, (now - start) / (1000 * 60 * 60 * 24));
             const yearsElapsed = daysElapsed / 365;
-            return asset.amount * Math.pow(1 + ((asset.rate || 0) / 100), yearsElapsed);
+            return (asset.amount || 0) * Math.pow(1 + ((asset.rate || 0) / 100), yearsElapsed);
         } else {
-            const targetKey = TICKER_MAP[asset.ticker?.toUpperCase()] || `${asset.ticker?.toUpperCase()}-BRL`;
-            const price = livePrices[targetKey] || 0;
-            return price > 0 ? asset.amount * price : asset.amount;
+            const symbol = cleanTicker(asset.ticker);
+            const price = livePrices[`${symbol}-BRL`] || 0;
+            return price > 0 ? (asset.amount || 0) * price : (asset.amount || 0);
         }
     }, [livePrices]);
 
-    const totalNetWorth = assets.reduce((sum, asset) => sum + calculateCurrentValue(asset), 0);
+    const totalNetWorth = (assets || []).reduce((sum, asset) => sum + calculateCurrentValue(asset), 0);
 
     return { assets, setAssets, livePrices, loadingPrices, totalNetWorth, calculateCurrentValue, fetchPrices };
 }

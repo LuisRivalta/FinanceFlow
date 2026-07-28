@@ -343,30 +343,35 @@ export default function InvestmentsPage() {
         })
     }, [simData, layoutReady])
 
-    const handleSimulateAsset = ({ initial, rate, presetId, cdiPercent }) => {
-        if (initial) setSimInitial(Number(initial))
-        if (!simPeriodValue || Number(simPeriodValue) <= 0) {
-            setSimPeriodValue(2)
+    const handleSimulateAsset = (params) => {
+        if (!params) return;
+        const { initial, rate, presetId, cdiPercent } = params;
+
+        if (initial !== undefined && initial !== null && !isNaN(initial)) {
+            setSimInitial(Number(initial));
+        }
+        if (!simPeriodValue || Number(simPeriodValue) <= 0 || isNaN(simPeriodValue)) {
+            setSimPeriodValue(2);
         }
         if (presetId && getProduct(presetId)) {
-            const p = getProduct(presetId)
-            setProductId(p.id)
-            if (cdiPercent && p.multiplierKind === 'percent_of') {
-                setMultiplier(Number(cdiPercent))
+            const p = getProduct(presetId);
+            setProductId(p.id);
+            if (cdiPercent && p.multiplierKind === 'percent_of' && !isNaN(cdiPercent)) {
+                setMultiplier(Number(cdiPercent));
             } else if (p.defaultMultiplier !== null) {
-                setMultiplier(p.defaultMultiplier)
+                setMultiplier(p.defaultMultiplier);
             }
         }
-        if (rate !== undefined && rate !== null) {
-            setSimRate(Number(rate))
+        if (rate !== undefined && rate !== null && !isNaN(rate)) {
+            setSimRate(Number(rate));
         }
 
         setTimeout(() => {
-            const el = document.getElementById('simulador-section')
+            const el = document.getElementById('simulador-section');
             if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
-        }, 50)
+        }, 50);
     }
 
     if (!session) return null
