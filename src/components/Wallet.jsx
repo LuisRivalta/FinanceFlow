@@ -418,7 +418,7 @@ export default function Wallet({ userEmail, onSimulate }) {
                     <div>Sua carteira está vazia. Adicione ativos para começar a acompanhar o rendimento em tempo real!</div>
                 </div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
                     {/* Total Card */}
                     {assets.length > 0 && (
                         <div className="card glass-panel fade-up delay-1" style={{ padding: 24, background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(0,0,0,0.2) 100%)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
@@ -446,7 +446,7 @@ export default function Wallet({ userEmail, onSimulate }) {
                         const profitPct = initialCost > 0 ? (profit / initialCost) * 100 : 0;
                         
                         return (
-                            <div key={asset.id} className="card glass-panel fade-up" style={{ padding: 20, animationDelay: `${(idx + 2) * 0.1}s`, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                            <div key={asset.id} className="card glass-panel fade-up" style={{ padding: 22, animationDelay: `${(idx + 2) * 0.1}s`, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                                 <button 
                                     onClick={() => removeAsset(asset.id)}
                                     style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.5 }}
@@ -535,16 +535,30 @@ export default function Wallet({ userEmail, onSimulate }) {
                                                     </div>
                                                 )}
 
-                                                {isLive && (
-                                                    <div style={{ fontSize: 12, color: '#eab308', marginTop: 8, display: 'flex', justifyContent: 'space-between' }}>
-                                                        <span>Cotação Hoje:</span>
-                                                        <span>
-                                                            {livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`] 
-                                                                ? formatCurrency(livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`]) 
-                                                                : 'Buscando...'}
-                                                        </span>
-                                                    </div>
-                                                )}
+                                                {isLive && (() => {
+                                                    const targetKey = TICKER_MAP[asset.ticker?.toUpperCase()] || `${asset.ticker?.toUpperCase()}-BRL`;
+                                                    const priceBrl = livePrices[targetKey];
+                                                    const usdBrlRate = rates?.usdRate || livePrices['USDT-BRL'] || 5.65;
+                                                    const priceUsd = priceBrl ? (priceBrl / usdBrlRate) : null;
+                                                    const formatUsdStr = (val) => `$ ${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                                                    return (
+                                                        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4, background: 'rgba(255,255,255,0.025)', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                            <div style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <span style={{ color: 'var(--text-secondary)' }}>Cotação Hoje (R$):</span>
+                                                                <span style={{ fontWeight: 700, color: '#eab308' }}>
+                                                                    {priceBrl ? formatCurrency(priceBrl) : 'Buscando...'}
+                                                                </span>
+                                                            </div>
+                                                            <div style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <span style={{ color: 'var(--text-secondary)' }}>Cotação Hoje (USD $):</span>
+                                                                <span style={{ fontWeight: 700, color: '#60a5fa' }}>
+                                                                    {priceUsd ? formatUsdStr(priceUsd) : 'Buscando...'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </>
                                         )}
                                     </div>
