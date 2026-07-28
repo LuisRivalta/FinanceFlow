@@ -364,11 +364,6 @@ export default function Wallet({ userEmail, onSimulate }) {
             setSimTargetPrice(targetInBrl.toFixed(2));
         }
     };
-            const targetInBrl = currentTarget * usdBrlRate;
-            setSimCurrency('BRL');
-            setSimTargetPrice(targetInBrl.toFixed(2));
-        }
-    };
 
     return (
         <div style={{ marginTop: 20, marginBottom: 24 }}>
