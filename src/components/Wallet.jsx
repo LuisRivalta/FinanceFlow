@@ -20,6 +20,16 @@ const TICKER_MAP = {
     'EURO': 'EUR-BRL'
 };
 
+const cleanTicker = (ticker) => {
+    if (!ticker) return 'BTC';
+    const upper = String(ticker).toUpperCase().trim();
+    if (upper === 'BITCOIN') return 'BTC';
+    if (upper === 'ETHEREUM') return 'ETH';
+    if (upper === 'DOLAR' || upper === 'DÓLAR') return 'USD';
+    if (upper === 'EURO') return 'EUR';
+    return upper;
+};
+
 const ASSET_TYPES = [
     { id: 'cdb', label: 'CDB / RDB / CDI', category: 'fixed', defaultMultiplier: 100, hasCdiPercent: true },
     { id: 'lci_lca', label: 'LCI / LCA (Isento IR)', category: 'fixed', defaultMultiplier: 95, hasCdiPercent: true },
@@ -150,10 +160,19 @@ export default function Wallet({ userEmail, onSimulate }) {
         else if (newT === 'cdb') setAddCdiPercent('100');
     };
 
-    // Fetch live prices for crypto / currency
+    // Fetch live prices for crypto / currency directly in BRL and USD from API
     const fetchPrices = async () => {
-        const fetchTargets = assets.filter(a => a.type === 'crypto' || a.type === 'currency').map(a => TICKER_MAP[a.ticker?.toUpperCase()] || `${a.ticker?.toUpperCase()}-BRL`);
-        if (fetchTargets.length === 0) return;
+        const liveAssets = assets.filter(a => a.type === 'crypto' || a.type === 'currency');
+        if (liveAssets.length === 0) return;
+
+        const fetchTargets = [];
+        liveAssets.forEach(a => {
+            const symbol = cleanTicker(a.ticker);
+            fetchTargets.push(`${symbol}-BRL`);
+            if (symbol !== 'USD' && symbol !== 'BRL') {
+                fetchTargets.push(`${symbol}-USD`);
+            }
+        });
 
         const uniqueTargets = [...new Set(fetchTargets)];
         const url = `https://economia.awesomeapi.com.br/last/${uniqueTargets.join(',')}`;
@@ -204,8 +223,8 @@ export default function Wallet({ userEmail, onSimulate }) {
                 newAsset.cdiPercent = parseFloat(addCdiPercent) || 100;
             }
         } else {
-            newAsset.ticker = addName.toUpperCase();
-            newAsset.name = addName.toUpperCase();
+            newAsset.ticker = cleanTicker(addName);
+            newAsset.name = cleanTicker(addName);
         }
 
         try {
@@ -292,8 +311,8 @@ export default function Wallet({ userEmail, onSimulate }) {
             const yearsElapsed = daysElapsed / 365;
             return asset.amount * Math.pow(1 + ((asset.rate || 0) / 100), yearsElapsed);
         } else {
-            const targetKey = TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`;
-            const price = livePrices[targetKey] || 0;
+            const symbol = cleanTicker(asset.ticker);
+            const price = livePrices[`${symbol}-BRL`] || 0;
             return price > 0 ? asset.amount * price : asset.amount;
         }
     };
@@ -302,7 +321,8 @@ export default function Wallet({ userEmail, onSimulate }) {
     const currentPreset = ASSET_TYPES.find(t => t.id === addType) || ASSET_TYPES[0];
 
     const openSimulationModal = (asset) => {
-        const currentP = livePrices[TICKER_MAP[asset.ticker] || `${asset.ticker}-BRL`] || asset.purchasePrice || 1;
+        const symbol = cleanTicker(asset.ticker);
+        const currentP = livePrices[`${symbol}-BRL`] || asset.purchasePrice || 1;
         setSimulatingAsset(asset);
         setSimCurrency('BRL');
         setSimTargetPrice((currentP * 1.5).toFixed(2));
@@ -310,14 +330,40 @@ export default function Wallet({ userEmail, onSimulate }) {
 
     const handleToggleCurrency = (newCurrency) => {
         if (newCurrency === simCurrency || !simulatingAsset) return;
+        const symbol = cleanTicker(simulatingAsset.ticker);
         const usdBrlRate = rates?.usdRate || livePrices['USDT-BRL'] || 5.65;
         const currentTarget = parseFloat(simTargetPrice) || 0;
 
         if (newCurrency === 'USD') {
-            const targetInUsd = currentTarget / usdBrlRate;
+            const directUsdPrice = livePrices[`${symbol}-USD`];
+            const currentBrlPrice = livePrices[`${symbol}-BRL`] || 1;
+            
+            let targetInUsd;
+            if (directUsdPrice && currentBrlPrice > 0) {
+                const ratio = currentTarget / currentBrlPrice;
+                targetInUsd = directUsdPrice * ratio;
+            } else {
+                targetInUsd = currentTarget / usdBrlRate;
+            }
+
             setSimCurrency('USD');
             setSimTargetPrice(targetInUsd < 10 ? targetInUsd.toFixed(4) : targetInUsd.toFixed(2));
         } else {
+            const directUsdPrice = livePrices[`${symbol}-USD`];
+            const currentBrlPrice = livePrices[`${symbol}-BRL`] || 1;
+            
+            let targetInBrl;
+            if (directUsdPrice && currentBrlPrice > 0 && directUsdPrice > 0) {
+                const ratio = currentTarget / directUsdPrice;
+                targetInBrl = currentBrlPrice * ratio;
+            } else {
+                targetInBrl = currentTarget * usdBrlRate;
+            }
+
+            setSimCurrency('BRL');
+            setSimTargetPrice(targetInBrl.toFixed(2));
+        }
+    };
             const targetInBrl = currentTarget * usdBrlRate;
             setSimCurrency('BRL');
             setSimTargetPrice(targetInBrl.toFixed(2));
@@ -614,9 +660,10 @@ export default function Wallet({ userEmail, onSimulate }) {
                         </div>
 
                         {(() => {
+                            const symbol = cleanTicker(simulatingAsset.ticker);
                             const usdBrlRate = rates?.usdRate || livePrices['USDT-BRL'] || 5.65;
-                            const currentPriceBrl = livePrices[TICKER_MAP[simulatingAsset.ticker] || `${simulatingAsset.ticker}-BRL`] || simulatingAsset.purchasePrice || 1;
-                            const currentPriceUsd = currentPriceBrl / usdBrlRate;
+                            const currentPriceBrl = livePrices[`${symbol}-BRL`] || simulatingAsset.purchasePrice || 1;
+                            const currentPriceUsd = livePrices[`${symbol}-USD`] || (currentPriceBrl / usdBrlRate);
 
                             const baseCurrentPrice = simCurrency === 'USD' ? currentPriceUsd : currentPriceBrl;
                             const targetUnitP = parseFloat(simTargetPrice) || 0;
