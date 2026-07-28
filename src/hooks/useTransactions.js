@@ -19,7 +19,10 @@ export function useTransactions(userEmail) {
                 .order('date', { ascending: false })
 
             if (!error && data) {
-                setTransactions(data.map(mapFromDB))
+                const userOnlyTxs = data
+                    .map(mapFromDB)
+                    .filter(t => t.category !== 'system_asset' && t.category !== 'system_financing' && t.type !== 'system');
+                setTransactions(userOnlyTxs);
             }
         } finally {
             setLoading(false)

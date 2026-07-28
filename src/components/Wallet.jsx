@@ -233,7 +233,7 @@ export default function Wallet({ userEmail, onSimulate }) {
                 user_email: userEmail,
                 description: `Investimento: ${newAsset.name}`,
                 amount: newAsset.amount,
-                type: 'income',
+                type: 'system',
                 category: 'system_asset',
                 date: new Date().toISOString().split('T')[0],
                 note: JSON.stringify(newAsset)
@@ -253,6 +253,11 @@ export default function Wallet({ userEmail, onSimulate }) {
 
     const removeAsset = async (id) => {
         const target = assets.find(a => a.id === id || a.dbId === id);
+        if (!target) return;
+        
+        const nameStr = target.name || target.ticker || 'este ativo';
+        if (!confirm(`Deseja realmente excluir o investimento "${nameStr}" da sua carteira?`)) return;
+
         const newList = assets.filter(a => a.id !== id && a.dbId !== id);
         saveAssetsToCloud(newList);
 

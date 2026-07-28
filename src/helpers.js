@@ -62,16 +62,17 @@ export function formatCurrencyWithSign(amount, type) {
 }
 
 export function calcBalance(txList) {
-    return txList.reduce((acc, t) => {
-        if (t.type === 'income') return acc + t.amount
+    return (txList || []).reduce((acc, t) => {
+        if (!t || t.category === 'system_asset' || t.category === 'system_financing' || t.type === 'system' || t.type === 'investment') return acc;
+        if (t.type === 'income') return acc + t.amount;
         // Despesas de cartão de crédito não afetam o saldo da conta corrente (só o pagamento da fatura)
-        if (t.type === 'expense' && t.account !== 'credit') return acc - t.amount
-        return acc
-    }, 0)
+        if (t.type === 'expense' && t.account !== 'credit') return acc - t.amount;
+        return acc;
+    }, 0);
 }
 
 export function calcIncome(txList) {
-    return txList.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+    return (txList || []).filter(t => t && t.type === 'income' && t.type !== 'investment' && t.type !== 'system' && t.category !== 'system_asset' && t.category !== 'system_financing').reduce((s, t) => s + t.amount, 0);
 }
 
 export function calcExpense(txList) {
