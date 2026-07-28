@@ -577,10 +577,10 @@ export default function Wallet({ userEmail, onSimulate }) {
                                                 )}
 
                                                 {isLive && (() => {
-                                                    const targetKey = TICKER_MAP[asset.ticker?.toUpperCase()] || `${asset.ticker?.toUpperCase()}-BRL`;
-                                                    const priceBrl = livePrices[targetKey];
+                                                    const symbol = cleanTicker(asset.ticker);
+                                                    const priceBrl = livePrices[`${symbol}-BRL`];
                                                     const usdBrlRate = rates?.usdRate || livePrices['USDT-BRL'] || 5.65;
-                                                    const priceUsd = priceBrl ? (priceBrl / usdBrlRate) : null;
+                                                    const priceUsd = livePrices[`${symbol}-USD`] || (priceBrl ? priceBrl / usdBrlRate : null);
                                                     const formatUsdStr = (val) => `$ ${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
                                                     return (
