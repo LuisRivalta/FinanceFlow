@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react'
-import { formatCurrency } from '../helpers'
+import { formatCurrency, formatDate } from '../helpers'
 import { usagePercent } from '../lib/cardMetrics'
 
 const MAX_TILT_DEG = 5
 
 function Dots() {
-    // Decorativas: não representam dado nenhum, só dão a silhueta de cartão.
     return (
         <div className="cc-dots" aria-hidden="true">
             {[0, 1].map(group => (
@@ -19,11 +18,17 @@ function Dots() {
     )
 }
 
-export default function CreditCardItem({ card, invoiceAmount, onEdit, onRemove, onPayInvoice }) {
+function formatInvoiceKey(key) {
+    if (!key) return ''
+    const [y, m] = key.split('-')
+    const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1)
+    return date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+}
+
+export default function CreditCardItem({ card, invoiceAmount, invoicesBreakdown = [], onEdit, onRemove, onPayInvoice }) {
     const faceRef = useRef(null)
     const [reducedMotion, setReducedMotion] = useState(false)
 
-    // matchMedia não existe no servidor, então a leitura fica no effect.
     useEffect(() => {
         const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
         setReducedMotion(mq.matches)
@@ -33,8 +38,6 @@ export default function CreditCardItem({ card, invoiceAmount, onEdit, onRemove, 
         return () => mq.removeEventListener('change', onChange)
     }, [])
 
-    // O parallax escreve direto em custom properties, sem passar por estado: um
-    // setState por mousemove re-renderizaria o card a cada pixel.
     const handleMove = e => {
         const el = faceRef.current
         if (!el || reducedMotion) return
@@ -47,8 +50,6 @@ export default function CreditCardItem({ card, invoiceAmount, onEdit, onRemove, 
 
         el.style.setProperty('--cc-ry', `${nx * MAX_TILT_DEG}deg`)
         el.style.setProperty('--cc-rx', `${-ny * MAX_TILT_DEG}deg`)
-        // Camadas contra-deslocam em relação à inclinação: é o que faz o conteúdo
-        // parecer estar sob um vidro, em vez de só a face girar.
         el.style.setProperty('--cc-px', String(-nx))
         el.style.setProperty('--cc-py', String(-ny))
         el.style.setProperty('--cc-mx', `${relX * 100}%`)
@@ -60,7 +61,6 @@ export default function CreditCardItem({ card, invoiceAmount, onEdit, onRemove, 
         const el = faceRef.current
         if (!el) return
 
-        // Volta ao repouso com a transição longa do CSS.
         el.dataset.tilting = 'false'
         el.style.setProperty('--cc-rx', '0deg')
         el.style.setProperty('--cc-ry', '0deg')
@@ -68,9 +68,10 @@ export default function CreditCardItem({ card, invoiceAmount, onEdit, onRemove, 
         el.style.setProperty('--cc-py', '0')
     }
 
-    const invoice = Math.max(0, invoiceAmount)
-    const pct = usagePercent(invoice, card.credit_limit)
-    const hasInvoice = invoice > 0
+    const openInvoices = invoicesBreakdown.filter(inv => inv.remaining > 0)
+    const totalOpenAmount = openInvoices.reduce((sum, inv) => sum + inv.remaining, 0)
+    const displayAmount = openInvoices.length > 0 ? totalOpenAmount : Math.max(0, invoiceAmount)
+    const pct = usagePercent(displayAmount, card.credit_limit)
 
     return (
         <div className="cc-item">
@@ -92,14 +93,14 @@ export default function CreditCardItem({ card, invoiceAmount, onEdit, onRemove, 
                 </div>
 
                 <div className="cc-row cc-depth-mid" style={{ display: 'block' }}>
-                    <div className="cc-label">Fatura atual</div>
-                    <div className="cc-amount">{formatCurrency(invoice)}</div>
+                    <div className="cc-label">Saldo devedor total</div>
+                    <div className="cc-amount">{formatCurrency(displayAmount)}</div>
                 </div>
 
                 <div className="cc-row cc-depth-near" style={{ alignItems: 'flex-end' }}>
                     <div style={{ minWidth: 0 }}>
                         <div className="cc-name">{card.name}</div>
-                        <div className="cc-due">vence dia {card.due_day}</div>
+                        <div className="cc-due">vence dia {card.due_day} • fecha dia {card.closing_day || 25}</div>
                     </div>
                     <Dots />
                 </div>
@@ -115,21 +116,60 @@ export default function CreditCardItem({ card, invoiceAmount, onEdit, onRemove, 
                 </div>
             </div>
 
-            <button
-                className="btn-primary"
-                style={{
-                    width: '100%',
-                    padding: '10px 0',
-                    fontSize: 13,
-                    background: hasInvoice ? card.color : 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.16)',
-                    cursor: hasInvoice ? 'pointer' : 'default',
-                }}
-                onClick={() => onPayInvoice(card, invoice)}
-                disabled={!hasInvoice}
-            >
-                {hasInvoice ? '🧾 Pagar fatura' : '✨ Fatura paga'}
-            </button>
+            {/* List of open invoices per cycle */}
+            {openInvoices.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        Faturas em Aberto por Mês
+                    </div>
+                    {openInvoices.map(inv => (
+                        <div key={inv.key} style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span>Fatura {formatInvoiceKey(inv.key)}</span>
+                                </div>
+                                <div style={{ fontSize: 11, color: inv.status === 'overdue' ? '#ef4444' : inv.status === 'pending' ? '#f59e0b' : 'rgba(255,255,255,0.6)', marginTop: 2 }}>
+                                    {inv.status === 'overdue' ? '⚠️ Vencida em ' : '🗓️ Vence em '}{formatDate(inv.dueDate)}
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>
+                                    {formatCurrency(inv.remaining)}
+                                </div>
+                                <button
+                                    className="btn-primary"
+                                    style={{
+                                        padding: '5px 12px',
+                                        fontSize: 12,
+                                        borderRadius: 6,
+                                        background: card.color,
+                                        cursor: 'pointer',
+                                        border: 'none'
+                                    }}
+                                    onClick={() => onPayInvoice(card, inv.remaining, inv.key)}
+                                >
+                                    🧾 Pagar
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <button
+                    className="btn-primary"
+                    style={{
+                        width: '100%',
+                        padding: '10px 0',
+                        fontSize: 13,
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.16)',
+                        cursor: 'default',
+                    }}
+                    disabled={true}
+                >
+                    ✨ Faturas pagas
+                </button>
+            )}
         </div>
     )
 }

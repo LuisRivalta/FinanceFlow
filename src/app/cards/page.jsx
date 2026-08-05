@@ -9,7 +9,7 @@ import { useCreditCards } from '../../hooks/useCards'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useFinancings } from '../../hooks/useFinancings'
 import { formatCurrency, formatDate } from '../../helpers'
-import { calcCardInvoice } from '../../lib/cardMetrics'
+import { calcCardInvoice, getCardInvoiceBreakdown } from '../../lib/cardMetrics'
 
 export default function CardsPage() {
     const router = useRouter()
@@ -200,18 +200,25 @@ export default function CardsPage() {
         })
     }
 
-    async function handlePayInvoice(card, invoiceAmount) {
+    async function handlePayInvoice(card, invoiceAmount, invoiceKey = null) {
         if (invoiceAmount <= 0) {
             alert('A fatura deste mês já está zerada ou paga.')
             return
         }
+
+        let descLabel = `Pagamento Fatura - ${card.name}`
+        if (invoiceKey) {
+            const [y, m] = invoiceKey.split('-')
+            const monthLabel = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+            descLabel = `Pagamento Fatura (${monthLabel}) - ${card.name}`
+        }
         
-        const ok = confirm(`Deseja pagar a fatura de ${formatCurrency(invoiceAmount)} do cartão ${card.name}?\nIsso debitará o valor da sua Conta Corrente.`)
+        const ok = confirm(`Deseja pagar o valor de ${formatCurrency(invoiceAmount)} referente à fatura do cartão ${card.name}?\nIsso debitará o valor da sua Conta Corrente.`)
         if (!ok) return
 
         try {
             await createTx({
-                desc: `Pagamento Fatura - ${card.name}`,
+                desc: descLabel,
                 amount: invoiceAmount,
                 type: 'expense',
                 category: 'invoice_payment',
@@ -545,13 +552,15 @@ export default function CardsPage() {
                                     </div>
                                 )}
                                 {cards.map(card => {
-                                    const invoiceAmount = calcCardInvoice(cardTxs, card.id, new Date())
+                                    const invoicesBreakdown = getCardInvoiceBreakdown(cardTxs, card, new Date())
+                                    const invoiceAmount = invoicesBreakdown.reduce((sum, inv) => sum + inv.remaining, 0)
 
                                     return (
                                         <CreditCardItem
                                             key={card.id}
                                             card={card}
                                             invoiceAmount={invoiceAmount}
+                                            invoicesBreakdown={invoicesBreakdown}
                                             onEdit={handleEditCardClick}
                                             onRemove={removeCard}
                                             onPayInvoice={handlePayInvoice}

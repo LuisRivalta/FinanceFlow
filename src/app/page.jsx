@@ -151,24 +151,48 @@ export default function DashboardPage() {
         }, 0)
     }, [transactions])
     
-    const totalInvoices = useMemo(() => {
+    const invoiceMetrics = useMemo(() => {
         const y = currentDate.getFullYear()
         const m = currentDate.getMonth()
         const endOfMonth = new Date(y, m + 1, 0, 23, 59, 59)
-        const raw = transactions.reduce((acc, t) => {
+
+        let selectedMonthInvoice = 0
+        let priorInvoiceExpenses = 0
+        let totalPayments = 0
+
+        transactions.forEach(t => {
             const d = new Date(t.date + 'T00:00:00')
             if (d <= endOfMonth) {
-                if (t.account === 'credit' && t.type === 'expense') {
-                    return acc + t.amount
-                }
                 if (t.category === 'invoice_payment') {
-                    return acc - t.amount
+                    totalPayments += t.amount
+                } else if (t.account === 'credit' && t.type === 'expense') {
+                    if (d.getFullYear() === y && d.getMonth() === m) {
+                        selectedMonthInvoice += t.amount
+                    } else {
+                        priorInvoiceExpenses += t.amount
+                    }
                 }
             }
-            return acc
-        }, 0)
-        return Math.max(0, raw)
+        })
+
+        let remPayments = totalPayments
+        const paidPrior = Math.min(priorInvoiceExpenses, remPayments)
+        const priorPendingInvoices = Math.max(0, priorInvoiceExpenses - paidPrior)
+        remPayments -= paidPrior
+
+        const paidCurrent = Math.min(selectedMonthInvoice, remPayments)
+        const currentPendingInvoice = Math.max(0, selectedMonthInvoice - paidCurrent)
+
+        const totalInvoices = priorPendingInvoices + currentPendingInvoice
+
+        return {
+            selectedMonthInvoice: currentPendingInvoice,
+            priorPendingInvoices,
+            totalInvoices
+        }
     }, [transactions, currentDate])
+
+    const { selectedMonthInvoice, priorPendingInvoices, totalInvoices } = invoiceMetrics
 
     const freeBalance = globalBalance - Math.max(0, totalInvoices)
 
@@ -508,11 +532,17 @@ export default function DashboardPage() {
                                 </svg>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                                     <div>
-                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Faturas em Aberto</div>
-                                        <div style={{ fontSize: 28, fontWeight: 800, color: '#8b5cf6', margin: '2px 0 6px' }}>{formatCurrency(Math.max(0, totalInvoices))}</div>
-                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 8 }}>
-                                            Este mês
-                                        </div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Fatura do Mês</div>
+                                        <div style={{ fontSize: 28, fontWeight: 800, color: '#8b5cf6', margin: '2px 0 4px' }}>{formatCurrency(selectedMonthInvoice)}</div>
+                                        {priorPendingInvoices > 0 ? (
+                                            <div style={{ fontSize: 12, color: '#f59e0b', marginTop: 4, fontWeight: 600 }}>
+                                                + {formatCurrency(priorPendingInvoices)} (anterior pendente)
+                                            </div>
+                                        ) : (
+                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>
+                                                Faturas anteriores em dia
+                                            </div>
+                                        )}
                                     </div>
                                     <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

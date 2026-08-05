@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { usagePercent, calcCardInvoice } from './cardMetrics'
+import { usagePercent, calcCardInvoice, getInvoiceKey, getInvoiceDueDate, getCardInvoiceBreakdown } from './cardMetrics'
 
 describe('usagePercent', () => {
     it('calcula o percentual do limite usado', () => {
@@ -40,6 +40,65 @@ describe('usagePercent', () => {
     })
 })
 
+describe('getInvoiceKey & getInvoiceDueDate', () => {
+    it('calcula a chave do mês com base no dia de fechamento', () => {
+        // Fechamento dia 25
+        expect(getInvoiceKey('2026-07-20', 25)).toBe('2026-07')
+        expect(getInvoiceKey('2026-07-28', 25)).toBe('2026-08')
+    })
+
+    it('calcula o vencimento da fatura corretamente', () => {
+        // Fechamento dia 25, Vencimento dia 10 (mês seguinte)
+        expect(getInvoiceDueDate('2026-07', 25, 10)).toBe('2026-08-10')
+    })
+})
+
+describe('getCardInvoiceBreakdown', () => {
+    it('separa as faturas de meses diferentes em objetos distintos', () => {
+        const card = { id: 'c1', closing_day: 25, due_day: 10 }
+        const txs = [
+            { creditCardId: 'c1', type: 'expense', amount: 500, date: '2026-07-15' }, // Fatura 2026-07 (vence 10/08)
+            { creditCardId: 'c1', type: 'expense', amount: 300, date: '2026-08-02' }  // Fatura 2026-08 (vence 10/09)
+        ]
+
+        const breakdown = getCardInvoiceBreakdown(txs, card, new Date('2026-08-05'))
+
+        expect(breakdown).toHaveLength(2)
+
+        // Fatura de Julho (2026-07)
+        expect(breakdown[0].key).toBe('2026-07')
+        expect(breakdown[0].totalExpenses).toBe(500)
+        expect(breakdown[0].remaining).toBe(500)
+        expect(breakdown[0].status).toBe('pending') // a vencer dia 10/08
+
+        // Fatura de Agosto (2026-08)
+        expect(breakdown[1].key).toBe('2026-08')
+        expect(breakdown[1].totalExpenses).toBe(300)
+        expect(breakdown[1].remaining).toBe(300)
+        expect(breakdown[1].status).toBe('pending') // a vencer dia 10/09
+    })
+
+    it('aloca pagamentos prioritariamente para a fatura mais antiga', () => {
+        const card = { id: 'c1', closing_day: 25, due_day: 10 }
+        const txs = [
+            { creditCardId: 'c1', type: 'expense', amount: 500, date: '2026-07-15' },
+            { creditCardId: 'c1', type: 'expense', amount: 300, date: '2026-08-02' },
+            { creditCardId: 'c1', type: 'expense', category: 'invoice_payment', amount: 500, date: '2026-08-06' }
+        ]
+
+        const breakdown = getCardInvoiceBreakdown(txs, card, new Date('2026-08-07'))
+
+        // Julho 2026 totalmente quitada (500 - 500 = 0)
+        expect(breakdown[0].key).toBe('2026-07')
+        expect(breakdown[0].remaining).toBe(0)
+        expect(breakdown[0].status).toBe('paid')
+
+        // Agosto 2026 continua em aberto (300)
+        expect(breakdown[1].key).toBe('2026-08')
+        expect(breakdown[1].remaining).toBe(300)
+    })
+})
+
 describe('calcCardInvoice', () => {
     it('calcula o valor da fatura somando despesas do cartão e subtraindo pagamentos', () => {
         const txs = [
@@ -47,10 +106,7 @@ describe('calcCardInvoice', () => {
             { creditCardId: 'c1', type: 'expense', amount: 200, date: '2026-08-02' },
             { creditCardId: 'c1', type: 'expense', category: 'invoice_payment', amount: 500, date: '2026-08-05' }
         ]
-        // Em Julho/2026: apenas a despesa de 500 (em aberto)
         expect(calcCardInvoice(txs, 'c1', new Date('2026-07-15'))).toBe(500)
-
-        // Em Agosto/2026: 500 + 200 - 500 = 200
         expect(calcCardInvoice(txs, 'c1', new Date('2026-08-10'))).toBe(200)
     })
 
@@ -58,7 +114,6 @@ describe('calcCardInvoice', () => {
         const txs = [
             { creditCardId: 'card_123', type: 'expense', amount: 350, date: '2026-07-20' }
         ]
-        // Ao mudar para o mês seguinte (Agosto), a fatura de Julho não paga continua devida (R$ 350)
         expect(calcCardInvoice(txs, 'card_123', new Date('2026-08-05'))).toBe(350)
     })
 
