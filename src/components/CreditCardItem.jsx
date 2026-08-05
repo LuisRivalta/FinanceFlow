@@ -68,9 +68,12 @@ export default function CreditCardItem({ card, invoiceAmount, invoicesBreakdown 
         el.style.setProperty('--cc-py', '0')
     }
 
+    const now = new Date()
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
     const openInvoices = invoicesBreakdown.filter(inv => inv.remaining > 0)
-    const totalOpenAmount = openInvoices.reduce((sum, inv) => sum + inv.remaining, 0)
-    const displayAmount = openInvoices.length > 0 ? totalOpenAmount : Math.max(0, invoiceAmount)
+    const currentInvoice = openInvoices.find(inv => inv.key === currentMonthKey) || openInvoices[0]
+    const displayAmount = currentInvoice ? currentInvoice.remaining : (openInvoices.length > 0 ? openInvoices[0].remaining : Math.max(0, invoiceAmount))
     const pct = usagePercent(displayAmount, card.credit_limit)
 
     return (
@@ -93,7 +96,7 @@ export default function CreditCardItem({ card, invoiceAmount, invoicesBreakdown 
                 </div>
 
                 <div className="cc-row cc-depth-mid" style={{ display: 'block' }}>
-                    <div className="cc-label">Saldo devedor total</div>
+                    <div className="cc-label">Fatura Atual {currentInvoice ? `(${formatInvoiceKey(currentInvoice.key)})` : ''}</div>
                     <div className="cc-amount">{formatCurrency(displayAmount)}</div>
                 </div>
 

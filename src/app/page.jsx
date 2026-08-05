@@ -10,8 +10,10 @@ import DetailsModal from '../components/DetailsModal'
 import dynamic from 'next/dynamic'
 import { useSession } from '../hooks/useSession'
 import { useTransactions } from '../hooks/useTransactions'
+import { useCreditCards } from '../hooks/useCards'
 import { useWalletAssets } from '../hooks/useWalletAssets'
 import { formatCurrency, calcBalance, calcIncome, calcExpense, calcInvestment, getCategoryDetails } from '../helpers'
+import { getCardInvoiceBreakdown } from '../lib/cardMetrics'
 import { currentLegendPosition } from '../lib/responsive'
 
 const Coin3D = dynamic(() => import('../components/3d/Coin3D'), { ssr: false })
@@ -46,6 +48,7 @@ function useChart(canvasRef, config, deps) {
 export default function DashboardPage() {
     const router = useRouter()
     const session = useSession()
+    const { cards } = useCreditCards(session?.email)
     const { transactions, loading, load, create, update, remove } = useTransactions(session?.email)
     const { totalNetWorth: walletTotalNetWorth } = useWalletAssets(session?.email)
 
@@ -154,43 +157,62 @@ export default function DashboardPage() {
     const invoiceMetrics = useMemo(() => {
         const y = currentDate.getFullYear()
         const m = currentDate.getMonth()
-        const endOfMonth = new Date(y, m + 1, 0, 23, 59, 59)
+        const selectedKey = `${y}-${String(m + 1).padStart(2, '0')}`
 
         let selectedMonthInvoice = 0
-        let priorInvoiceExpenses = 0
-        let totalPayments = 0
+        let priorPendingInvoices = 0
 
-        transactions.forEach(t => {
-            const d = new Date(t.date + 'T00:00:00')
-            if (d <= endOfMonth) {
-                if (t.category === 'invoice_payment') {
-                    totalPayments += t.amount
-                } else if (t.account === 'credit' && t.type === 'expense') {
-                    if (d.getFullYear() === y && d.getMonth() === m) {
-                        selectedMonthInvoice += t.amount
-                    } else {
-                        priorInvoiceExpenses += t.amount
+        if (cards && cards.length > 0) {
+            cards.forEach(card => {
+                const breakdown = getCardInvoiceBreakdown(transactions, card, currentDate)
+                breakdown.forEach(inv => {
+                    if (inv.remaining > 0) {
+                        if (inv.key === selectedKey) {
+                            selectedMonthInvoice += inv.remaining
+                        } else if (inv.key < selectedKey) {
+                            priorPendingInvoices += inv.remaining
+                        }
+                    }
+                })
+            })
+        } else {
+            const endOfMonth = new Date(y, m + 1, 0, 23, 59, 59)
+            let rawSelected = 0
+            let rawPrior = 0
+            let totalPayments = 0
+
+            transactions.forEach(t => {
+                const d = new Date(t.date + 'T00:00:00')
+                if (d <= endOfMonth) {
+                    if (t.category === 'invoice_payment') {
+                        totalPayments += t.amount
+                    } else if (t.account === 'credit' && t.type === 'expense') {
+                        if (d.getFullYear() === y && d.getMonth() === m) {
+                            rawSelected += t.amount
+                        } else {
+                            rawPrior += t.amount
+                        }
                     }
                 }
-            }
-        })
+            })
 
-        let remPayments = totalPayments
-        const paidPrior = Math.min(priorInvoiceExpenses, remPayments)
-        const priorPendingInvoices = Math.max(0, priorInvoiceExpenses - paidPrior)
-        remPayments -= paidPrior
+            let remPayments = totalPayments
+            const paidPrior = Math.min(rawPrior, remPayments)
+            priorPendingInvoices = Math.max(0, rawPrior - paidPrior)
+            remPayments -= paidPrior
 
-        const paidCurrent = Math.min(selectedMonthInvoice, remPayments)
-        const currentPendingInvoice = Math.max(0, selectedMonthInvoice - paidCurrent)
+            const paidCurrent = Math.min(rawSelected, remPayments)
+            selectedMonthInvoice = Math.max(0, rawSelected - paidCurrent)
+        }
 
-        const totalInvoices = priorPendingInvoices + currentPendingInvoice
+        const totalInvoices = selectedMonthInvoice + priorPendingInvoices
 
         return {
-            selectedMonthInvoice: currentPendingInvoice,
+            selectedMonthInvoice,
             priorPendingInvoices,
             totalInvoices
         }
-    }, [transactions, currentDate])
+    }, [transactions, cards, currentDate])
 
     const { selectedMonthInvoice, priorPendingInvoices, totalInvoices } = invoiceMetrics
 
