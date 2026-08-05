@@ -9,6 +9,7 @@ import { useCreditCards } from '../../hooks/useCards'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useFinancings } from '../../hooks/useFinancings'
 import { formatCurrency, formatDate } from '../../helpers'
+import { calcCardInvoice } from '../../lib/cardMetrics'
 
 export default function CardsPage() {
     const router = useRouter()
@@ -544,20 +545,7 @@ export default function CardsPage() {
                                     </div>
                                 )}
                                 {cards.map(card => {
-                                    const now = new Date()
-                                    const currentYear = now.getFullYear()
-                                    const currentMonth = now.getMonth()
-
-                                    const invoiceAmount = cardTxs
-                                        .filter(t => {
-                                            if (!t.creditCardId || String(t.creditCardId) !== String(card.id)) return false
-                                            const d = new Date(t.date + 'T00:00:00')
-                                            return d.getFullYear() === currentYear && d.getMonth() === currentMonth
-                                        })
-                                        .reduce((acc, t) => {
-                                            if (t.category === 'invoice_payment') return acc - t.amount
-                                            return acc + t.amount
-                                        }, 0)
+                                    const invoiceAmount = calcCardInvoice(cardTxs, card.id, new Date())
 
                                     return (
                                         <CreditCardItem

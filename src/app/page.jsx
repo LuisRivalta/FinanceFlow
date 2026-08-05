@@ -118,14 +118,14 @@ export default function DashboardPage() {
             title = 'Movimentações do Período'
             color = '#3b82f6'
         } else if (detailView === 'invoices') {
-            const now = new Date()
-            const y = now.getFullYear()
-            const m = now.getMonth()
+            const y = currentDate.getFullYear()
+            const m = currentDate.getMonth()
+            const endOfMonth = new Date(y, m + 1, 0, 23, 59, 59)
             list = transactions.filter(t => {
                 const d = new Date(t.date + 'T00:00:00')
-                return t.account === 'credit' && t.type === 'expense' && d.getFullYear() === y && d.getMonth() === m
+                return (t.account === 'credit' || t.category === 'invoice_payment') && d <= endOfMonth
             })
-            title = 'Faturas Deste Mês'
+            title = 'Faturas do Período'
             color = '#8b5cf6'
         }
 
@@ -134,7 +134,7 @@ export default function DashboardPage() {
             title,
             color
         }
-    }, [detailView, filteredTransactions, transactions])
+    }, [detailView, filteredTransactions, transactions, currentDate])
 
     // Summaries
     const income = useMemo(() => calcIncome(filteredTransactions), [filteredTransactions])
@@ -154,9 +154,10 @@ export default function DashboardPage() {
     const totalInvoices = useMemo(() => {
         const y = currentDate.getFullYear()
         const m = currentDate.getMonth()
-        return transactions.reduce((acc, t) => {
+        const endOfMonth = new Date(y, m + 1, 0, 23, 59, 59)
+        const raw = transactions.reduce((acc, t) => {
             const d = new Date(t.date + 'T00:00:00')
-            if (d.getFullYear() === y && d.getMonth() === m) {
+            if (d <= endOfMonth) {
                 if (t.account === 'credit' && t.type === 'expense') {
                     return acc + t.amount
                 }
@@ -166,6 +167,7 @@ export default function DashboardPage() {
             }
             return acc
         }, 0)
+        return Math.max(0, raw)
     }, [transactions, currentDate])
 
     const freeBalance = globalBalance - Math.max(0, totalInvoices)
