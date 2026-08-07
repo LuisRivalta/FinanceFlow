@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatCurrency } from '../helpers';
+import { formatCurrency, ACCOUNTS, getAccountLabel } from '../helpers';
 import { useRates } from '../hooks/useRates';
 import { getProduct, deriveRate } from '../lib/investmentProducts';
 import { supabase } from '../lib/supabase';
@@ -41,7 +41,7 @@ const ASSET_TYPES = [
     { id: 'fixed', label: 'Outros Renda Fixa', category: 'fixed', defaultMultiplier: null, hasCdiPercent: false }
 ];
 
-export default function Wallet({ userEmail, onSimulate }) {
+export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
     const router = useRouter();
     const [assets, setAssets] = useState([]);
     const [livePrices, setLivePrices] = useState({});
@@ -65,6 +65,125 @@ export default function Wallet({ userEmail, onSimulate }) {
     const [simulatingAsset, setSimulatingAsset] = useState(null);
     const [simCurrency, setSimCurrency] = useState('BRL');
     const [simTargetPrice, setSimTargetPrice] = useState('');
+
+    // Withdrawal modal state
+    const [withdrawingAsset, setWithdrawingAsset] = useState(null);
+    const [withdrawAmountVal, setWithdrawAmountVal] = useState('');
+    const [withdrawMode, setWithdrawMode] = useState('brl');
+    const [withdrawAccount, setWithdrawAccount] = useState('checking');
+    const [isSubmittingWithdraw, setIsSubmittingWithdraw] = useState(false);
+    const [withdrawErr, setWithdrawErr] = useState('');
+
+    const openWithdrawModal = (asset) => {
+        setWithdrawingAsset(asset);
+        setWithdrawAmountVal('');
+        setWithdrawMode(asset.type === 'crypto' || asset.type === 'currency' ? 'units' : 'brl');
+        setWithdrawAccount('checking');
+        setWithdrawErr('');
+    };
+
+    const handleConfirmWithdraw = async (e) => {
+        e.preventDefault();
+        if (!withdrawingAsset) return;
+
+        const currentVal = calculateCurrentValue(withdrawingAsset);
+        let unitsToDeduct = 0;
+        let brlToCredit = 0;
+
+        if (withdrawingAsset.type === 'crypto' || withdrawingAsset.type === 'currency') {
+            const symbol = cleanTicker(withdrawingAsset.ticker);
+            const priceBrl = livePrices[`${symbol}-BRL`] || (currentVal > 0 && withdrawingAsset.amount > 0 ? currentVal / withdrawingAsset.amount : 0);
+
+            if (withdrawMode === 'units') {
+                unitsToDeduct = parseFloat(withdrawAmountVal) || 0;
+                brlToCredit = priceBrl > 0 ? unitsToDeduct * priceBrl : 0;
+            } else {
+                brlToCredit = parseFloat(withdrawAmountVal) || 0;
+                unitsToDeduct = priceBrl > 0 ? brlToCredit / priceBrl : 0;
+            }
+        } else {
+            brlToCredit = parseFloat(withdrawAmountVal) || 0;
+            unitsToDeduct = null;
+        }
+
+        if (brlToCredit <= 0) {
+            setWithdrawErr("Informe um valor ou quantidade maior que zero.");
+            return;
+        }
+
+        if (brlToCredit > currentVal + 0.01) {
+            setWithdrawErr(`O valor a sacar (${formatCurrency(brlToCredit)}) é superior ao valor atual do ativo (${formatCurrency(currentVal)}).`);
+            return;
+        }
+
+        try {
+            setIsSubmittingWithdraw(true);
+            setWithdrawErr('');
+
+            let updatedAsset;
+            if (withdrawingAsset.type === 'crypto' || withdrawingAsset.type === 'currency') {
+                const finalUnits = Math.max(0, Math.round(((withdrawingAsset.amount || 0) - unitsToDeduct) * 1e8) / 1e8);
+                const finalManual = (withdrawingAsset.manualBalance !== undefined && withdrawingAsset.manualBalance !== null)
+                    ? Math.max(0, Math.round((withdrawingAsset.manualBalance - brlToCredit) * 100) / 100)
+                    : null;
+
+                updatedAsset = {
+                    ...withdrawingAsset,
+                    amount: finalUnits,
+                    manualBalance: finalManual
+                };
+            } else {
+                const finalAmount = Math.max(0, Math.round(((withdrawingAsset.amount || 0) - brlToCredit) * 100) / 100);
+                const finalManual = (withdrawingAsset.manualBalance !== undefined && withdrawingAsset.manualBalance !== null)
+                    ? Math.max(0, Math.round((withdrawingAsset.manualBalance - brlToCredit) * 100) / 100)
+                    : null;
+
+                updatedAsset = {
+                    ...withdrawingAsset,
+                    amount: finalAmount,
+                    manualBalance: finalManual
+                };
+            }
+
+            const newList = assets.map(a => 
+                (a.id === withdrawingAsset.id || (a.dbId && a.dbId === withdrawingAsset.dbId)) ? updatedAsset : a
+            );
+            saveAssetsToCloud(newList);
+
+            if (withdrawingAsset.dbId) {
+                await supabase.from('transactions').update({
+                    note: JSON.stringify(updatedAsset)
+                }).eq('id', withdrawingAsset.dbId);
+            }
+
+            const accObj = ACCOUNTS.find(a => a.id === withdrawAccount) || { label: 'Conta Corrente' };
+            const descStr = `Saque: ${withdrawingAsset.name || withdrawingAsset.ticker}`;
+            const noteStr = unitsToDeduct 
+                ? `Resgate de ${unitsToDeduct.toFixed(6)} ${withdrawingAsset.ticker || ''} (${formatCurrency(brlToCredit)}) para ${accObj.label}`
+                : `Resgate de ${formatCurrency(brlToCredit)} do investimento para ${accObj.label}`;
+
+            await supabase.from('transactions').insert({
+                user_email: userEmail,
+                description: descStr,
+                amount: brlToCredit,
+                type: 'income',
+                category: 'other_income',
+                account: withdrawAccount,
+                date: new Date().toISOString().split('T')[0],
+                note: noteStr
+            });
+
+            window.dispatchEvent(new Event('wallet_updated'));
+            window.dispatchEvent(new Event('transaction_created'));
+
+            setWithdrawingAsset(null);
+        } catch (err) {
+            console.error("Erro ao efetuar saque:", err);
+            setWithdrawErr("Ocorreu um erro ao processar o saque. Tente novamente.");
+        } finally {
+            setIsSubmittingWithdraw(false);
+        }
+    };
 
     // Load and sync assets with Supabase Cloud DB
     useEffect(() => {
@@ -612,8 +731,20 @@ export default function Wallet({ userEmail, onSimulate }) {
                                     </div>
                                 </div>
 
-                                {/* Simulation Button */}
+                                {/* Action Buttons: Sacar & Simular */}
                                 <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 8 }}>
+                                    <button 
+                                        onClick={() => {
+                                            if (onSelectWithdraw) {
+                                                onSelectWithdraw(asset);
+                                            } else {
+                                                openWithdrawModal(asset);
+                                            }
+                                        }}
+                                        style={{ flex: 1, padding: '8px 12px', background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                                    >
+                                        💸 Sacar / Resgatar
+                                    </button>
                                     {asset.type === 'fixed' ? (
                                         <button 
                                             onClick={() => {
@@ -630,14 +761,14 @@ export default function Wallet({ userEmail, onSimulate }) {
                                             }}
                                             style={{ flex: 1, padding: '8px 12px', background: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                                         >
-                                            🚀 Simular no Simulador
+                                            🚀 Simular
                                         </button>
                                     ) : (
                                         <button 
                                             onClick={() => openSimulationModal(asset)}
                                             style={{ flex: 1, padding: '8px 12px', background: 'rgba(234,179,8,0.12)', color: '#eab308', border: '1px solid rgba(234,179,8,0.25)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                                         >
-                                            🚀 Simular Cotação Futura
+                                            🚀 Simular
                                         </button>
                                     )}
                                 </div>
@@ -845,6 +976,207 @@ export default function Wallet({ userEmail, onSimulate }) {
                                 </div>
                             )
                         })()}
+                    </div>
+                </div>
+            )}
+
+            {/* Withdrawal Modal */}
+            {withdrawingAsset && (
+                <div 
+                    style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+                    onClick={e => { if (e.target === e.currentTarget) setWithdrawingAsset(null) }}
+                >
+                    <div style={{ background: '#111827', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 24, padding: 28, width: '100%', maxWidth: 500, color: 'white', boxShadow: '0 25px 60px rgba(0,0,0,0.85)', position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <h4 style={{ fontSize: 20, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <span>💸</span> Sacar / Resgatar: <span style={{ color: '#10b981' }}>{withdrawingAsset.name}</span>
+                            </h4>
+                            <button onClick={() => setWithdrawingAsset(null)} style={{ background: 'rgba(255,255,255,0.07)', border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', width: 34, height: 34, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                        </div>
+
+                        <form onSubmit={handleConfirmWithdraw} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                            {(() => {
+                                const currentVal = calculateCurrentValue(withdrawingAsset);
+                                const isCryptoOrCurr = withdrawingAsset.type === 'crypto' || withdrawingAsset.type === 'currency';
+                                const symbol = cleanTicker(withdrawingAsset.ticker);
+                                const priceBrl = livePrices[`${symbol}-BRL`] || (currentVal > 0 && withdrawingAsset.amount > 0 ? currentVal / withdrawingAsset.amount : 0);
+
+                                let brlCalculated = 0;
+                                let unitsCalculated = 0;
+                                const typedNum = parseFloat(withdrawAmountVal) || 0;
+
+                                if (isCryptoOrCurr) {
+                                    if (withdrawMode === 'units') {
+                                        unitsCalculated = typedNum;
+                                        brlCalculated = typedNum * priceBrl;
+                                    } else {
+                                        brlCalculated = typedNum;
+                                        unitsCalculated = priceBrl > 0 ? typedNum / priceBrl : 0;
+                                    }
+                                } else {
+                                    brlCalculated = typedNum;
+                                    unitsCalculated = null;
+                                }
+
+                                const remainingVal = Math.max(0, currentVal - brlCalculated);
+
+                                return (
+                                    <>
+                                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 14, border: '1px solid rgba(255,255,255,0.07)' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-secondary)' }}>
+                                                <span>Saldo Atual do Ativo:</span>
+                                                <strong style={{ color: '#10b981', fontSize: 15 }}>{formatCurrency(currentVal)}</strong>
+                                            </div>
+                                            {isCryptoOrCurr && (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>
+                                                    <span>Quantidade Disponível:</span>
+                                                    <strong>{withdrawingAsset.amount} {withdrawingAsset.ticker}</strong>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Destination Account */}
+                                        <div className="tx-field">
+                                            <label>Conta de Destino (para onde vai o dinheiro)</label>
+                                            <select 
+                                                value={withdrawAccount} 
+                                                onChange={e => setWithdrawAccount(e.target.value)}
+                                                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, background: '#1f2937', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
+                                            >
+                                                {ACCOUNTS.filter(a => a.id !== 'credit' && a.id !== 'investment').map(acc => (
+                                                    <option key={acc.id} value={acc.id}>
+                                                        {acc.icon} {acc.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Mode Selector for Crypto / Currency */}
+                                        {isCryptoOrCurr && (
+                                            <div>
+                                                <label style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 8, display: 'block' }}>
+                                                    Modo do Saque
+                                                </label>
+                                                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', padding: 4, borderRadius: 12, gap: 4 }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setWithdrawMode('units'); setWithdrawAmountVal(''); }}
+                                                        style={{
+                                                            flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none',
+                                                            background: withdrawMode === 'units' ? '#10b981' : 'transparent',
+                                                            color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        Em Unidades ({withdrawingAsset.ticker})
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setWithdrawMode('brl'); setWithdrawAmountVal(''); }}
+                                                        style={{
+                                                            flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none',
+                                                            background: withdrawMode === 'brl' ? '#10b981' : 'transparent',
+                                                            color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        Em Reais (R$)
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Value / Amount Input */}
+                                        <div className="tx-field">
+                                            <label>
+                                                {isCryptoOrCurr 
+                                                    ? (withdrawMode === 'units' ? `Quantidade de ${withdrawingAsset.ticker} a sacar` : 'Valor em Reais (R$) a sacar') 
+                                                    : 'Valor a sacar (R$)'}
+                                            </label>
+                                            <input 
+                                                required
+                                                type="number"
+                                                step="any"
+                                                min="0"
+                                                value={withdrawAmountVal}
+                                                onChange={e => setWithdrawAmountVal(e.target.value)}
+                                                placeholder={isCryptoOrCurr && withdrawMode === 'units' ? 'Ex: 0.05' : 'Ex: 50.00'}
+                                                style={{ fontSize: 18, fontWeight: 800, color: '#10b981', borderColor: 'rgba(16,185,129,0.4)', padding: 12 }}
+                                            />
+                                        </div>
+
+                                        {/* Quick percentage pills */}
+                                        <div style={{ display: 'flex', gap: 6 }}>
+                                            {[
+                                                { label: '25%', pct: 0.25 },
+                                                { label: '50%', pct: 0.5 },
+                                                { label: '75%', pct: 0.75 },
+                                                { label: '100% (Tudo)', pct: 1.0 }
+                                            ].map((p, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (isCryptoOrCurr && withdrawMode === 'units') {
+                                                            setWithdrawAmountVal(((withdrawingAsset.amount || 0) * p.pct).toString());
+                                                        } else {
+                                                            setWithdrawAmountVal((currentVal * p.pct).toFixed(2));
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)',
+                                                        background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    {p.label}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* Live Calculation Box */}
+                                        {brlCalculated > 0 && (
+                                            <div style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(0,0,0,0.3) 100%)', border: '1px solid rgba(16,185,129,0.4)', borderRadius: 16, padding: 16 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Crédito na Conta:</span>
+                                                    <strong style={{ color: '#10b981', fontSize: 16 }}>+ {formatCurrency(brlCalculated)}</strong>
+                                                </div>
+                                                {unitsCalculated > 0 && isCryptoOrCurr && (
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>
+                                                        <span>Unidades Debitadas:</span>
+                                                        <span>- {unitsCalculated.toFixed(6)} {withdrawingAsset.ticker}</span>
+                                                    </div>
+                                                )}
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'rgba(255,255,255,0.6)', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 6 }}>
+                                                    <span>Novo Saldo do Investimento:</span>
+                                                    <span>{formatCurrency(remainingVal)}</span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {withdrawErr && (
+                                            <div style={{ color: '#ef4444', fontSize: 13, background: 'rgba(239,68,68,0.1)', padding: 10, borderRadius: 8, border: '1px solid rgba(239,68,68,0.3)' }}>
+                                                {withdrawErr}
+                                            </div>
+                                        )}
+
+                                        <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setWithdrawingAsset(null)}
+                                                style={{ flex: 1, padding: 12, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 10, color: 'white', fontWeight: 600, cursor: 'pointer' }}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button 
+                                                type="submit" 
+                                                disabled={isSubmittingWithdraw}
+                                                style={{ flex: 2, padding: 12, background: '#10b981', border: 'none', borderRadius: 10, color: 'white', fontWeight: 700, cursor: 'pointer', fontSize: 15 }}
+                                            >
+                                                {isSubmittingWithdraw ? 'Processando...' : 'Confirmar Saque'}
+                                            </button>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </form>
                     </div>
                 </div>
             )}

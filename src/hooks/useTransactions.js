@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { mapFromDB } from '../helpers'
 
@@ -28,6 +28,18 @@ export function useTransactions(userEmail) {
             setLoading(false)
         }
     }, [userEmail])
+
+    useEffect(() => {
+        if (!userEmail) return
+        load()
+        const handleRefresh = () => load()
+        window.addEventListener('transaction_created', handleRefresh)
+        window.addEventListener('wallet_updated', handleRefresh)
+        return () => {
+            window.removeEventListener('transaction_created', handleRefresh)
+            window.removeEventListener('wallet_updated', handleRefresh)
+        }
+    }, [userEmail, load])
 
     const create = useCallback(async (payload) => {
         let rows = []

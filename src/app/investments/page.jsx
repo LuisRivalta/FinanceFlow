@@ -10,7 +10,8 @@ import { useTransactions } from '../../hooks/useTransactions'
 import { useRates } from '../../hooks/useRates'
 import { useWalletAssets } from '../../hooks/useWalletAssets'
 import { INVESTMENT_PRODUCTS, DEFAULT_PRODUCT_ID, getProduct, deriveRate, multiplierLabel } from '../../lib/investmentProducts'
-import { formatCurrency, formatPercent, calcInvestment, CATEGORY_MAP } from '../../helpers'
+import { supabase } from '../../lib/supabase'
+import { formatCurrency, formatPercent, calcInvestment, CATEGORY_MAP, ACCOUNTS } from '../../helpers'
 import { Chart, ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler } from 'chart.js'
 
 
@@ -20,7 +21,181 @@ export default function InvestmentsPage() {
     const session = useSession()
     const router = useRouter()
     const { transactions, loading: txLoading } = useTransactions(session?.email)
-    const { totalNetWorth: walletTotalNetWorth, calculateCurrentValue, assets: walletAssets } = useWalletAssets(session?.email)
+    const { totalNetWorth: walletTotalNetWorth, calculateCurrentValue, assets: walletAssets, livePrices } = useWalletAssets(session?.email)
+
+    // Saque / Resgate State
+    const [saqueAssetId, setSaqueAssetId] = useState('')
+    const [saqueVal, setSaqueVal] = useState('')
+    const [saqueMode, setSaqueMode] = useState('brl') // 'brl' or 'units'
+    const [saqueAccount, setSaqueAccount] = useState('checking')
+    const [saqueDate, setSaqueDate] = useState(() => new Date().toISOString().split('T')[0])
+    const [isSubmittingSaque, setIsSubmittingSaque] = useState(false)
+    const [saqueMessage, setSaqueMessage] = useState(null)
+
+    const selectedSaqueAsset = useMemo(() => {
+        if (!Array.isArray(walletAssets) || walletAssets.length === 0) return null
+        if (saqueAssetId) {
+            const found = walletAssets.find(a => String(a.id) === String(saqueAssetId) || String(a.dbId) === String(saqueAssetId))
+            if (found) return found
+        }
+        return walletAssets[0]
+    }, [walletAssets, saqueAssetId])
+
+    const handleSelectWithdrawAsset = (asset) => {
+        if (!asset) return
+        setSaqueAssetId(asset.id || asset.dbId)
+        setSaqueMode(asset.type === 'crypto' || asset.type === 'currency' ? 'units' : 'brl')
+        setSaqueVal('')
+        setSaqueMessage(null)
+        setTimeout(() => {
+            const el = document.getElementById('saque-section')
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
+        }, 50)
+    }
+
+    const saqueCalc = useMemo(() => {
+        if (!selectedSaqueAsset) return null
+
+        const currentVal = typeof calculateCurrentValue === 'function' ? calculateCurrentValue(selectedSaqueAsset) : 0
+        const isCryptoOrCurr = selectedSaqueAsset.type === 'crypto' || selectedSaqueAsset.type === 'currency'
+
+        const cleanT = (ticker) => {
+            if (!ticker) return 'BTC'
+            const upper = String(ticker).toUpperCase().trim()
+            if (upper === 'BITCOIN') return 'BTC'
+            if (upper === 'ETHEREUM') return 'ETH'
+            if (upper === 'DOLAR' || upper === 'DÓLAR') return 'USD'
+            if (upper === 'EURO') return 'EUR'
+            return upper
+        }
+
+        const symbol = cleanT(selectedSaqueAsset.ticker)
+        const priceBrl = livePrices?.[`${symbol}-BRL`] || (currentVal > 0 && selectedSaqueAsset.amount > 0 ? currentVal / selectedSaqueAsset.amount : 0)
+
+        const typedNum = parseFloat(saqueVal) || 0
+        let brlToWithdraw = 0
+        let unitsToWithdraw = 0
+
+        if (isCryptoOrCurr) {
+            if (saqueMode === 'units') {
+                unitsToWithdraw = typedNum
+                brlToWithdraw = typedNum * priceBrl
+            } else {
+                brlToWithdraw = typedNum
+                unitsToWithdraw = priceBrl > 0 ? typedNum / priceBrl : 0
+            }
+        } else {
+            brlToWithdraw = typedNum
+            unitsToWithdraw = null
+        }
+
+        const remainingVal = Math.max(0, currentVal - brlToWithdraw)
+        const remainingUnits = isCryptoOrCurr ? Math.max(0, (selectedSaqueAsset.amount || 0) - unitsToWithdraw) : null
+
+        return {
+            currentVal,
+            isCryptoOrCurr,
+            priceBrl,
+            brlToWithdraw,
+            unitsToWithdraw,
+            remainingVal,
+            remainingUnits
+        }
+    }, [selectedSaqueAsset, saqueVal, saqueMode, calculateCurrentValue, livePrices])
+
+    const handleExecuteSaque = async (e) => {
+        e.preventDefault()
+        if (!selectedSaqueAsset || !saqueCalc) return
+
+        if (saqueCalc.brlToWithdraw <= 0) {
+            setSaqueMessage({ type: 'error', text: 'Informe uma quantia ou valor válido para o saque.' })
+            return
+        }
+
+        if (saqueCalc.brlToWithdraw > saqueCalc.currentVal + 0.01) {
+            setSaqueMessage({
+                type: 'error',
+                text: `O valor do saque (${formatCurrency(saqueCalc.brlToWithdraw)}) excede o saldo atual do investimento (${formatCurrency(saqueCalc.currentVal)}).`
+            })
+            return
+        }
+
+        try {
+            setIsSubmittingSaque(true)
+            setSaqueMessage(null)
+
+            let updatedAsset
+            if (saqueCalc.isCryptoOrCurr) {
+                const finalUnits = Math.max(0, Math.round(((selectedSaqueAsset.amount || 0) - saqueCalc.unitsToWithdraw) * 1e8) / 1e8)
+                const finalManual = (selectedSaqueAsset.manualBalance !== undefined && selectedSaqueAsset.manualBalance !== null)
+                    ? Math.max(0, Math.round((selectedSaqueAsset.manualBalance - saqueCalc.brlToWithdraw) * 100) / 100)
+                    : null
+
+                updatedAsset = {
+                    ...selectedSaqueAsset,
+                    amount: finalUnits,
+                    manualBalance: finalManual
+                }
+            } else {
+                const finalAmount = Math.max(0, Math.round(((selectedSaqueAsset.amount || 0) - saqueCalc.brlToWithdraw) * 100) / 100)
+                const finalManual = (selectedSaqueAsset.manualBalance !== undefined && selectedSaqueAsset.manualBalance !== null)
+                    ? Math.max(0, Math.round((selectedSaqueAsset.manualBalance - saqueCalc.brlToWithdraw) * 100) / 100)
+                    : null
+
+                updatedAsset = {
+                    ...selectedSaqueAsset,
+                    amount: finalAmount,
+                    manualBalance: finalManual
+                }
+            }
+
+            const currentList = Array.isArray(walletAssets) ? walletAssets : []
+            const newList = currentList.map(a => 
+                (a.id === selectedSaqueAsset.id || (a.dbId && a.dbId === selectedSaqueAsset.dbId)) ? updatedAsset : a
+            )
+
+            localStorage.setItem(`finance_assets_${session.email}`, JSON.stringify(newList))
+
+            if (selectedSaqueAsset.dbId) {
+                await supabase.from('transactions').update({
+                    note: JSON.stringify(updatedAsset)
+                }).eq('id', selectedSaqueAsset.dbId)
+            }
+
+            const targetAccObj = ACCOUNTS.find(a => a.id === saqueAccount) || { label: 'Conta Corrente' }
+            const descStr = `Saque: ${selectedSaqueAsset.name || selectedSaqueAsset.ticker}`
+            const noteStr = saqueCalc.unitsToWithdraw 
+                ? `Resgate de ${saqueCalc.unitsToWithdraw.toFixed(6)} ${selectedSaqueAsset.ticker || ''} (${formatCurrency(saqueCalc.brlToWithdraw)}) para ${targetAccObj.label}`
+                : `Resgate de ${formatCurrency(saqueCalc.brlToWithdraw)} do ativo ${selectedSaqueAsset.name} para ${targetAccObj.label}`
+
+            await supabase.from('transactions').insert({
+                user_email: session.email,
+                description: descStr,
+                amount: saqueCalc.brlToWithdraw,
+                type: 'income',
+                category: 'other_income',
+                account: saqueAccount,
+                date: saqueDate || new Date().toISOString().split('T')[0],
+                note: noteStr
+            })
+
+            window.dispatchEvent(new Event('wallet_updated'))
+            window.dispatchEvent(new Event('transaction_created'))
+
+            setSaqueMessage({
+                type: 'success',
+                text: `🎉 Saque de ${formatCurrency(saqueCalc.brlToWithdraw)} realizado com sucesso! O valor foi transferido do investimento para a sua ${targetAccObj.label}.`
+            })
+            setSaqueVal('')
+        } catch (err) {
+            console.error("Erro ao efetuar saque no formulário principal:", err)
+            setSaqueMessage({ type: 'error', text: 'Ocorreu um erro ao processar a operação de saque. Tente novamente.' })
+        } finally {
+            setIsSubmittingSaque(false)
+        }
+    }
 
     // Simulator State
     const { rates, degraded, loading: ratesLoading } = useRates()
@@ -421,7 +596,231 @@ export default function InvestmentsPage() {
                 </div>
 
                 {/* Wallet Section */}
-                <Wallet userEmail={session?.email} onSimulate={handleSimulateAsset} />
+                <Wallet userEmail={session?.email} onSimulate={handleSimulateAsset} onSelectWithdraw={handleSelectWithdrawAsset} />
+
+                {/* Área de Saque Section */}
+                <div id="saque-section" className="fade-up delay-2" style={{ marginBottom: 36 }}>
+                    <h3 style={{ fontSize: 24, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span>💸</span> Área de Saque & Resgate de Investimentos
+                    </h3>
+
+                    {(!walletAssets || walletAssets.length === 0) ? (
+                        <div className="card glass-panel" style={{ padding: 28, textAlign: 'center', color: 'var(--text-secondary)' }}>
+                            Você ainda não possui investimentos em sua carteira para realizar saques. Adicione um ativo na seção "Minha Carteira" acima!
+                        </div>
+                    ) : (
+                        <div className="card glass-panel" style={{ padding: 28, border: '1px solid rgba(16,185,129,0.3)', background: 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(0,0,0,0.2) 100%)' }}>
+                            <form onSubmit={handleExecuteSaque} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
+                                {/* Form Controls */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                                    {/* Asset Selector */}
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14, fontWeight: 600 }}>
+                                            Investimento de Origem
+                                        </label>
+                                        <div className="tx-field" style={{ margin: 0 }}>
+                                            <select 
+                                                value={selectedSaqueAsset ? (selectedSaqueAsset.id || selectedSaqueAsset.dbId) : ''}
+                                                onChange={e => {
+                                                    setSaqueAssetId(e.target.value);
+                                                    setSaqueVal('');
+                                                    setSaqueMessage(null);
+                                                }}
+                                            >
+                                                {walletAssets.map(a => {
+                                                    const val = calculateCurrentValue(a);
+                                                    return (
+                                                        <option key={a.id || a.dbId} value={a.id || a.dbId}>
+                                                            {a.type === 'crypto' ? '₿' : a.type === 'currency' ? '💵' : '🏦'} {a.name || a.ticker} ({formatCurrency(val)})
+                                                        </option>
+                                                    );
+                                                })}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Target Account Selector */}
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14, fontWeight: 600 }}>
+                                            Conta de Destino (para onde vai o saldo)
+                                        </label>
+                                        <div className="tx-field" style={{ margin: 0 }}>
+                                            <select value={saqueAccount} onChange={e => setSaqueAccount(e.target.value)}>
+                                                {ACCOUNTS.filter(a => a.id !== 'credit' && a.id !== 'investment').map(acc => (
+                                                    <option key={acc.id} value={acc.id}>
+                                                        {acc.icon} {acc.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Crypto/Currency Mode Toggle */}
+                                    {saqueCalc?.isCryptoOrCurr && (
+                                        <div>
+                                            <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                                Modo do Saque
+                                            </label>
+                                            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', padding: 4, borderRadius: 12, gap: 4 }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setSaqueMode('units'); setSaqueVal(''); }}
+                                                    style={{
+                                                        flex: 1, padding: '9px 12px', borderRadius: 8, border: 'none',
+                                                        background: saqueMode === 'units' ? '#10b981' : 'transparent',
+                                                        color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    Unidades ({selectedSaqueAsset?.ticker})
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setSaqueMode('brl'); setSaqueVal(''); }}
+                                                    style={{
+                                                        flex: 1, padding: '9px 12px', borderRadius: 8, border: 'none',
+                                                        background: saqueMode === 'brl' ? '#10b981' : 'transparent',
+                                                        color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    Valor em Reais (R$)
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Amount Input */}
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14, fontWeight: 600 }}>
+                                            {saqueCalc?.isCryptoOrCurr 
+                                                ? (saqueMode === 'units' ? `Quantidade de ${selectedSaqueAsset?.ticker} a sacar` : 'Valor em Reais (R$) a sacar')
+                                                : 'Valor em Reais (R$) a sacar'}
+                                        </label>
+                                        <NumberField
+                                            value={saqueVal}
+                                            onChange={setSaqueVal}
+                                            min={0}
+                                            max={1000000000}
+                                            decimals={saqueCalc?.isCryptoOrCurr && saqueMode === 'units' ? 8 : 2}
+                                            icon="💸"
+                                            ariaLabel="Valor a sacar"
+                                        />
+                                    </div>
+
+                                    {/* Percentage Pills */}
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        {[
+                                            { label: '25%', pct: 0.25 },
+                                            { label: '50%', pct: 0.5 },
+                                            { label: '75%', pct: 0.75 },
+                                            { label: '100% (Tudo)', pct: 1.0 }
+                                        ].map((p, idx) => (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                onClick={() => {
+                                                    if (!saqueCalc) return;
+                                                    if (saqueCalc.isCryptoOrCurr && saqueMode === 'units') {
+                                                        setSaqueVal(((selectedSaqueAsset.amount || 0) * p.pct).toString());
+                                                    } else {
+                                                        setSaqueVal((saqueCalc.currentVal * p.pct).toFixed(2));
+                                                    }
+                                                }}
+                                                style={{
+                                                    flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)',
+                                                    background: 'rgba(255,255,255,0.05)', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer'
+                                                }}
+                                            >
+                                                {p.label}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Date */}
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 14, fontWeight: 600 }}>
+                                            Data do Saque
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={saqueDate}
+                                            onChange={e => setSaqueDate(e.target.value)}
+                                            style={{ width: '100%', padding: '12px 14px', borderRadius: 12, background: '#111827', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Live Preview Card & Submit */}
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: 24, borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)' }}>
+                                    <div>
+                                        <div style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                                            Resumo da Operação
+                                        </div>
+
+                                        {selectedSaqueAsset && saqueCalc && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Saldo Atual do Investimento:</span>
+                                                    <strong style={{ color: 'white' }}>{formatCurrency(saqueCalc.currentVal)}</strong>
+                                                </div>
+
+                                                {saqueCalc.isCryptoOrCurr && (
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+                                                        <span>Cotação de Referência:</span>
+                                                        <span>1 {selectedSaqueAsset.ticker} = {formatCurrency(saqueCalc.priceBrl)}</span>
+                                                    </div>
+                                                )}
+
+                                                <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12 }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700 }}>
+                                                        <span style={{ color: '#ef4444' }}>Dedução no Investimento:</span>
+                                                        <span style={{ color: '#ef4444' }}>- {formatCurrency(saqueCalc.brlToWithdraw)}</span>
+                                                    </div>
+                                                    {saqueCalc.unitsToWithdraw > 0 && saqueCalc.isCryptoOrCurr && (
+                                                        <div style={{ fontSize: 12, color: 'rgba(239,68,68,0.8)', textAlign: 'right', marginTop: 2 }}>
+                                                            ({saqueCalc.unitsToWithdraw.toFixed(6)} {selectedSaqueAsset.ticker})
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 800 }}>
+                                                    <span style={{ color: '#10b981' }}>Crédito na Conta Saldo:</span>
+                                                    <span style={{ color: '#10b981' }}>+ {formatCurrency(saqueCalc.brlToWithdraw)}</span>
+                                                </div>
+
+                                                <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Novo Saldo do Investimento:</span>
+                                                    <strong style={{ color: '#60a5fa' }}>{formatCurrency(saqueCalc.remainingVal)}</strong>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div style={{ marginTop: 24 }}>
+                                        {saqueMessage && (
+                                            <div style={{
+                                                padding: 12, borderRadius: 10, marginBottom: 14, fontSize: 13, fontWeight: 600,
+                                                background: saqueMessage.type === 'success' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                                                color: saqueMessage.type === 'success' ? '#10b981' : '#ef4444',
+                                                border: saqueMessage.type === 'success' ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(239,68,68,0.3)'
+                                            }}>
+                                                {saqueMessage.text}
+                                            </div>
+                                        )}
+
+                                        <button
+                                            type="submit"
+                                            disabled={isSubmittingSaque || !saqueCalc || saqueCalc.brlToWithdraw <= 0}
+                                            className="btn-primary"
+                                            style={{ width: '100%', padding: '14px', fontSize: 16, background: '#10b981', borderColor: '#10b981', boxShadow: '0 4px 20px rgba(16,185,129,0.4)' }}
+                                        >
+                                            {isSubmittingSaque ? 'Processando Saque...' : '💸 Confirmar Saque e Creditar na Conta'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+                </div>
 
                 {/* Simulador Section */}
                 <h3 id="simulador-section" className="fade-up delay-2" style={{ fontSize: 24, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
