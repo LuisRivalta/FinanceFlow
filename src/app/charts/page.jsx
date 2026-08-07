@@ -310,7 +310,7 @@ export default function ChartsPage() {
                             </div>
 
                             {/* Charts Grid */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
                                 {/* 1. Balance */}
                                 <ChartCard title="🚀 Evolução do Patrimônio" subtitle="Saldo acumulado ao longo do tempo" full>
                                     <div style={{ position: 'relative', height: 320, width: '100%' }}>
