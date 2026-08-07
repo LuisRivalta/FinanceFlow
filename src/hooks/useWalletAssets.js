@@ -73,14 +73,16 @@ export function useWalletAssets(userEmail) {
 
     const fetchPrices = useCallback(async () => {
         const liveAssets = (assets || []).filter(a => a && (a.type === 'crypto' || a.type === 'currency'));
-        if (liveAssets.length === 0) return;
-
-        const fetchTargets = [];
+        
+        // Always include BTC-BRL, ETH-BRL, USD-BRL in fetch targets
+        const fetchTargets = ['BTC-BRL', 'ETH-BRL', 'USD-BRL', 'USDT-BRL'];
         liveAssets.forEach(a => {
             const symbol = cleanTicker(a.ticker);
-            fetchTargets.push(`${symbol}-BRL`);
-            if (symbol !== 'USD' && symbol !== 'BRL') {
-                fetchTargets.push(`${symbol}-USD`);
+            if (symbol) {
+                fetchTargets.push(`${symbol}-BRL`);
+                if (symbol !== 'USD' && symbol !== 'BRL') {
+                    fetchTargets.push(`${symbol}-USD`);
+                }
             }
         });
 
@@ -89,17 +91,42 @@ export function useWalletAssets(userEmail) {
 
         try {
             setLoadingPrices(true);
-            const res = await fetch(url);
-            const data = await res.json();
-
             const newPrices = {};
-            uniqueTargets.forEach(target => {
-                const key = target.replace('-', '');
-                if (data[key]) {
-                    newPrices[target] = parseFloat(data[key].ask);
+
+            // 1. Fetch from AwesomeAPI
+            try {
+                const res = await fetch(url);
+                if (res.ok) {
+                    const data = await res.json();
+                    uniqueTargets.forEach(target => {
+                        const key = target.replace('-', '');
+                        if (data && data[key] && data[key].ask) {
+                            newPrices[target] = parseFloat(data[key].ask);
+                        }
+                    });
                 }
-            });
-            setLivePrices(newPrices);
+            } catch (e) {
+                console.error("AwesomeAPI fetch error", e);
+            }
+
+            // 2. Fetch live BTC-BRL price from Binance for real-time market accuracy
+            try {
+                const btcRes = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCBRL');
+                if (btcRes.ok) {
+                    const btcData = await btcRes.json();
+                    if (btcData && btcData.price) {
+                        const btcPrice = parseFloat(btcData.price);
+                        if (Number.isFinite(btcPrice) && btcPrice > 0) {
+                            newPrices['BTC-BRL'] = btcPrice;
+                            newPrices['BITCOIN-BRL'] = btcPrice;
+                        }
+                    }
+                }
+            } catch (e) {
+                // Binance fallback silent fail
+            }
+
+            setLivePrices(prev => ({ ...prev, ...newPrices }));
         } catch (error) {
             console.error("Failed to fetch live prices", error);
         } finally {
@@ -109,7 +136,7 @@ export function useWalletAssets(userEmail) {
 
     useEffect(() => {
         fetchPrices();
-        const interval = setInterval(fetchPrices, 60000);
+        const interval = setInterval(fetchPrices, 15000);
         return () => clearInterval(interval);
     }, [fetchPrices]);
 
@@ -119,14 +146,14 @@ export function useWalletAssets(userEmail) {
             return parseFloat(asset.manualBalance) || 0;
         }
         if (asset.type === 'fixed') {
-            const start = new Date(asset.date);
+            const start = new Date(asset.date || new Date());
             const now = new Date();
             const daysElapsed = Math.max(0, (now - start) / (1000 * 60 * 60 * 24));
             const yearsElapsed = daysElapsed / 365;
             return (asset.amount || 0) * Math.pow(1 + ((asset.rate || 0) / 100), yearsElapsed);
         } else {
             const symbol = cleanTicker(asset.ticker);
-            const price = livePrices[`${symbol}-BRL`] || 0;
+            const price = livePrices[`${symbol}-BRL`] || (asset.type === 'crypto' ? livePrices['BTC-BRL'] : 0);
             return price > 0 ? (asset.amount || 0) * price : (asset.amount || 0);
         }
     }, [livePrices]);

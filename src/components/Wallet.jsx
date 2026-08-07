@@ -283,14 +283,15 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
     // Fetch live prices for crypto / currency directly in BRL and USD from API
     const fetchPrices = async () => {
         const liveAssets = assets.filter(a => a.type === 'crypto' || a.type === 'currency');
-        if (liveAssets.length === 0) return;
 
-        const fetchTargets = [];
+        const fetchTargets = ['BTC-BRL', 'ETH-BRL', 'USD-BRL', 'USDT-BRL'];
         liveAssets.forEach(a => {
             const symbol = cleanTicker(a.ticker);
-            fetchTargets.push(`${symbol}-BRL`);
-            if (symbol !== 'USD' && symbol !== 'BRL') {
-                fetchTargets.push(`${symbol}-USD`);
+            if (symbol) {
+                fetchTargets.push(`${symbol}-BRL`);
+                if (symbol !== 'USD' && symbol !== 'BRL') {
+                    fetchTargets.push(`${symbol}-USD`);
+                }
             }
         });
 
@@ -299,17 +300,41 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
         
         try {
             setLoadingPrices(true);
-            const res = await fetch(url);
-            const data = await res.json();
-            
             const newPrices = {};
-            uniqueTargets.forEach(target => {
-                const key = target.replace('-', '');
-                if (data[key]) {
-                    newPrices[target] = parseFloat(data[key].ask);
+            
+            try {
+                const res = await fetch(url);
+                if (res.ok) {
+                    const data = await res.json();
+                    uniqueTargets.forEach(target => {
+                        const key = target.replace('-', '');
+                        if (data && data[key] && data[key].ask) {
+                            newPrices[target] = parseFloat(data[key].ask);
+                        }
+                    });
                 }
-            });
-            setLivePrices(newPrices);
+            } catch (e) {
+                console.error("AwesomeAPI fetch error", e);
+            }
+
+            // Real-time Binance API ticker for BTC-BRL fallback
+            try {
+                const btcRes = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCBRL');
+                if (btcRes.ok) {
+                    const btcData = await btcRes.json();
+                    if (btcData && btcData.price) {
+                        const btcPrice = parseFloat(btcData.price);
+                        if (Number.isFinite(btcPrice) && btcPrice > 0) {
+                            newPrices['BTC-BRL'] = btcPrice;
+                            newPrices['BITCOIN-BRL'] = btcPrice;
+                        }
+                    }
+                }
+            } catch (e) {
+                // Ignore silent
+            }
+
+            setLivePrices(prev => ({ ...prev, ...newPrices }));
         } catch (error) {
             console.error("Failed to fetch live prices", error);
         } finally {
@@ -319,7 +344,7 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
 
     useEffect(() => {
         fetchPrices();
-        const interval = setInterval(fetchPrices, 60000);
+        const interval = setInterval(fetchPrices, 15000);
         return () => clearInterval(interval);
     }, [assets]);
 
@@ -438,7 +463,7 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
             return (asset.amount || 0) * Math.pow(1 + ((asset.rate || 0) / 100), yearsElapsed);
         } else {
             const symbol = cleanTicker(asset.ticker);
-            const price = livePrices[`${symbol}-BRL`] || 0;
+            const price = livePrices[`${symbol}-BRL`] || (asset.type === 'crypto' ? livePrices['BTC-BRL'] : 0);
             return price > 0 ? (asset.amount || 0) * price : (asset.amount || 0);
         }
     };
