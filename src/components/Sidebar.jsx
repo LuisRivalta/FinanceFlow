@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useSession, clearSession } from '../hooks/useSession'
-import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useSession } from '../hooks/useSession';
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 function LogoIcon() {
     return (
@@ -13,87 +13,98 @@ function LogoIcon() {
                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
         </div>
-    )
+    );
 }
 
 export default function Sidebar() {
     const pathName = usePathname();
-    const session = useSession()
-    const router = useRouter()
-    const [userName, setUserName] = useState('Usuário')
-    const [avatarSrc, setAvatarSrc] = useState(null)
-    const [initials, setInitials] = useState('--')
+    const session = useSession();
+    const router = useRouter();
+
+    const [userName, setUserName] = useState('Usuário');
+    const [avatarSrc, setAvatarSrc] = useState(null);
+    const [initials, setInitials] = useState('--');
+
+    // Sidebar collapsed (desktop) & mobile open states
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
 
     useEffect(() => {
-        const prefs = JSON.parse(localStorage.getItem('finance_settings') || '{}')
-        const name = prefs.name || session?.name || 'Usuário'
-        setUserName(name)
-        setInitials(name.substring(0, 2).toUpperCase())
+        const savedCollapsed = localStorage.getItem('finance_sidebar_collapsed') === 'true';
+        setIsCollapsed(savedCollapsed);
+        if (savedCollapsed) {
+            document.body.classList.add('sidebar-collapsed');
+        } else {
+            document.body.classList.remove('sidebar-collapsed');
+        }
+    }, []);
 
-        // Load avatar per-user: local cache first, then sync from Supabase
-        const userEmail = session?.email
-        const cacheKey = userEmail ? `finance_avatar_${userEmail}` : null
-        const cachedPhoto = cacheKey ? localStorage.getItem(cacheKey) : null
-        if (cachedPhoto) setAvatarSrc(cachedPhoto)
+    useEffect(() => {
+        const prefs = JSON.parse(localStorage.getItem('finance_settings') || '{}');
+        const name = prefs.name || session?.name || 'Usuário';
+        setUserName(name);
+        setInitials(name.substring(0, 2).toUpperCase());
+
+        const userEmail = session?.email;
+        const cacheKey = userEmail ? `finance_avatar_${userEmail}` : null;
+        const cachedPhoto = cacheKey ? localStorage.getItem(cacheKey) : null;
+        if (cachedPhoto) setAvatarSrc(cachedPhoto);
 
         if (userEmail) {
             supabase.from('users').select('avatar_url').eq('email', userEmail).maybeSingle()
                 .then(({ data }) => {
                     if (data?.avatar_url) {
-                        setAvatarSrc(data.avatar_url)
-                        if (cacheKey) localStorage.setItem(cacheKey, data.avatar_url)
+                        setAvatarSrc(data.avatar_url);
+                        if (cacheKey) localStorage.setItem(cacheKey, data.avatar_url);
                     }
                 })
-                .catch(() => { /* use cached */ })
+                .catch(() => {});
         }
-    }, [session])
+    }, [session]);
 
-    function handleLogout() {
-        clearSession()
-        router.push('/login')
-    }
+    // Close mobile menu when page changes
+    useEffect(() => {
+        setIsMobileOpen(false);
+    }, [pathName]);
+
+    const toggleCollapse = () => {
+        const next = !isCollapsed;
+        setIsCollapsed(next);
+        localStorage.setItem('finance_sidebar_collapsed', String(next));
+        if (next) {
+            document.body.classList.add('sidebar-collapsed');
+        } else {
+            document.body.classList.remove('sidebar-collapsed');
+        }
+    };
 
     const roleLabel = session?.role === 'admin'
-        ? <span>👑 <strong>Administrador</strong></span>
-        : 'Premium'
+        ? <span>👑 <strong>Admin</strong></span>
+        : 'Premium';
 
     return (
-        <header className="sidebar glass-panel">
-            <div className="logo">
-                <LogoIcon />
-                <h1>Blumii</h1>
-            </div>
-
-            <nav className="nav-menu">
-                <Link href="/" className={`nav-item ${pathName === '/' ? 'active' : ''}`}>
-                    <span className="icon">📊</span> Visão Geral
-                </Link>
-                <Link href="/charts" className={`nav-item ${pathName === '/charts' ? 'active' : ''}`}>
-                    <span className="icon">📈</span> Dashboard
-                </Link>
-                <Link href="/roadmap" className={`nav-item ${pathName === '/roadmap' ? 'active' : ''}`}>
-                    <span className="icon">🗺️</span> Roteiro
-                </Link>
-                <Link href="/investments" className={`nav-item ${pathName === '/investments' ? 'active' : ''}`}>
-                    <span className="icon">🏦</span> Investimentos
-                </Link>
-                <Link href="/cards" className={`nav-item ${pathName === '/cards' ? 'active' : ''}`}>
-                    <span className="icon">💳</span> Crédito & Dívidas
-                </Link>
-                <Link href="/profile" className={`nav-item ${pathName === '/profile' ? 'active' : ''}`}>
-                    <span className="icon">👤</span> Perfil
-                </Link>
-                {session?.role === 'admin' && (
-                    <Link href="/admin" className={`nav-item ${pathName === '/admin' ? 'active' : ''}`}>
-                        <span className="icon">🛡️</span> Admin
-                    </Link>
-                )}
-            </nav>
-
-            <div className="user-profile" style={{ position: 'relative', flexDirection: 'column', alignItems: 'stretch', gap: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, position: 'relative' }}>
+        <>
+            {/* Mobile Sticky Top Header */}
+            <header className="mobile-header">
+                <button
+                    type="button"
+                    className="mobile-hamburger-btn"
+                    onClick={() => setIsMobileOpen(!isMobileOpen)}
+                    aria-label="Abrir menu"
+                >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <div className="mobile-logo">
+                    <LogoIcon />
+                    <span className="mobile-logo-text">Blumii</span>
+                </div>
+                <Link href="/profile" className="mobile-avatar-link">
                     <div
-                        className="avatar"
+                        className="avatar avatar-sm"
                         style={avatarSrc ? {
                             backgroundImage: `url('${avatarSrc}')`,
                             backgroundSize: 'cover',
@@ -102,21 +113,110 @@ export default function Sidebar() {
                     >
                         {!avatarSrc && initials}
                     </div>
-                    <div className="user-info">
-                        <span className="user-name">{userName}</span>
-                        <span className="user-role">{roleLabel}</span>
-                    </div>
+                </Link>
+            </header>
+
+            {/* Mobile Backdrop Overlay */}
+            {isMobileOpen && (
+                <div
+                    className="sidebar-overlay"
+                    onClick={() => setIsMobileOpen(false)}
+                />
+            )}
+
+            {/* Main Sidebar (Desktop Collapsible & Mobile Slide-over Drawer) */}
+            <header className={`sidebar glass-panel ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}>
+                {/* Logo & Retract Toggle Button */}
+                <div className="logo">
+                    <LogoIcon />
+                    <h1 className="logo-text">Blumii</h1>
+
+                    {/* Toggle Button for Desktop */}
+                    <button
+                        type="button"
+                        className="sidebar-collapse-btn"
+                        onClick={toggleCollapse}
+                        title={isCollapsed ? "Expandir menu" : "Recolher menu"}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}>
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+
+                    {/* Close Button for Mobile Drawer */}
+                    <button
+                        type="button"
+                        className="sidebar-mobile-close"
+                        onClick={() => setIsMobileOpen(false)}
+                        aria-label="Fechar menu"
+                    >
+                        ✕
+                    </button>
                 </div>
 
-                <Link
-                    href="/profile"
-                    style={{ textDecoration: 'none', padding: 10, fontSize: 14, borderRadius: 10, background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', textAlign: 'center', border: '1px solid var(--panel-border)', transition: 'all 0.2s ease' }}
-                    onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                >
-                    👤 Meu Perfil
-                </Link>
-            </div>
-        </header>
-    )
+                {/* Navigation Links */}
+                <nav className="nav-menu">
+                    <Link href="/" className={`nav-item ${pathName === '/' ? 'active' : ''}`} title="Visão Geral">
+                        <span className="icon">📊</span>
+                        <span className="nav-text">Visão Geral</span>
+                    </Link>
+                    <Link href="/charts" className={`nav-item ${pathName === '/charts' ? 'active' : ''}`} title="Dashboard">
+                        <span className="icon">📈</span>
+                        <span className="nav-text">Dashboard</span>
+                    </Link>
+                    <Link href="/roadmap" className={`nav-item ${pathName === '/roadmap' ? 'active' : ''}`} title="Roteiro">
+                        <span className="icon">🗺️</span>
+                        <span className="nav-text">Roteiro</span>
+                    </Link>
+                    <Link href="/investments" className={`nav-item ${pathName === '/investments' ? 'active' : ''}`} title="Investimentos">
+                        <span className="icon">🏦</span>
+                        <span className="nav-text">Investimentos</span>
+                    </Link>
+                    <Link href="/cards" className={`nav-item ${pathName === '/cards' ? 'active' : ''}`} title="Crédito & Dívidas">
+                        <span className="icon">💳</span>
+                        <span className="nav-text">Crédito & Dívidas</span>
+                    </Link>
+                    <Link href="/profile" className={`nav-item ${pathName === '/profile' ? 'active' : ''}`} title="Perfil">
+                        <span className="icon">👤</span>
+                        <span className="nav-text">Perfil</span>
+                    </Link>
+                    {session?.role === 'admin' && (
+                        <Link href="/admin" className={`nav-item ${pathName === '/admin' ? 'active' : ''}`} title="Admin">
+                            <span className="icon">🛡️</span>
+                            <span className="nav-text">Admin</span>
+                        </Link>
+                    )}
+                </nav>
+
+                {/* User Profile Section */}
+                <div className="user-profile">
+                    <div className="user-profile-row">
+                        <div
+                            className="avatar"
+                            style={avatarSrc ? {
+                                backgroundImage: `url('${avatarSrc}')`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center'
+                            } : {}}
+                        >
+                            {!avatarSrc && initials}
+                        </div>
+                        <div className="user-info">
+                            <span className="user-name">{userName}</span>
+                            <span className="user-role">{roleLabel}</span>
+                        </div>
+                    </div>
+
+                    <Link
+                        href="/profile"
+                        className="profile-shortcut-btn"
+                        title="Meu Perfil"
+                    >
+                        <span>👤</span>
+                        <span className="profile-btn-text">Meu Perfil</span>
+                    </Link>
+                </div>
+            </header>
+        </>
+    );
 }
