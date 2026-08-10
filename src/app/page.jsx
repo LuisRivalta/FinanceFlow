@@ -13,7 +13,7 @@ import { useTransactions } from '../hooks/useTransactions'
 import { useCreditCards } from '../hooks/useCards'
 import { useWalletAssets } from '../hooks/useWalletAssets'
 import { formatCurrency, calcBalance, calcIncome, calcExpense, calcInvestment, getCategoryDetails } from '../helpers'
-import { getCardInvoiceBreakdown } from '../lib/cardMetrics'
+import { getCardInvoiceBreakdown, getInvoiceKey } from '../lib/cardMetrics'
 import { currentLegendPosition } from '../lib/responsive'
 
 const Coin3D = dynamic(() => import('../components/3d/Coin3D'), { ssr: false })
@@ -123,12 +123,25 @@ export default function DashboardPage() {
         } else if (detailView === 'invoices') {
             const y = currentDate.getFullYear()
             const m = currentDate.getMonth()
-            const endOfMonth = new Date(y, m + 1, 0, 23, 59, 59)
+            const selectedKey = `${y}-${String(m + 1).padStart(2, '0')}`
             list = transactions.filter(t => {
-                const d = new Date(t.date + 'T00:00:00')
-                return (t.account === 'credit' || t.category === 'invoice_payment') && d <= endOfMonth
+                if (t.category === 'invoice_payment') {
+                    const d = new Date(t.date + 'T00:00:00')
+                    return d.getFullYear() === y && d.getMonth() === m
+                }
+                if (t.account === 'credit') {
+                    const card = cards?.find(c => String(c.id) === String(t.creditCardId))
+                    if (card) {
+                        return getInvoiceKey(t.date, card.closing_day) === selectedKey
+                    }
+                    const d = new Date(t.date + 'T00:00:00')
+                    return d.getFullYear() === y && d.getMonth() === m
+                }
+                return false
             })
-            title = 'Faturas do Período'
+            const rawMonth = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+            const displayMonth = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1)
+            title = `Fatura do Mês (${displayMonth})`
             color = '#8b5cf6'
         }
 
@@ -397,21 +410,41 @@ export default function DashboardPage() {
                                     {(() => {
                                         const rawMonth = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
                                         const displayMonth = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1)
+                                        const now = new Date()
+                                        const isCurrentMonth = currentDate.getFullYear() === now.getFullYear() && currentDate.getMonth() === now.getMonth()
                                         return (
-                                            <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }}>
-                                                <button 
-                                                    onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-                                                    style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', padding: '8px 12px', cursor: 'pointer', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
-                                                    &lt;
-                                                </button>
-                                                <div style={{ padding: '0 16px', fontWeight: 600, color: 'white', minWidth: 140, textAlign: 'center', fontSize: 14 }}>
-                                                    {displayMonth}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }}>
+                                                    <button 
+                                                        onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+                                                        style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', padding: '8px 12px', cursor: 'pointer', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
+                                                        &lt;
+                                                    </button>
+                                                    <div style={{ padding: '0 16px', fontWeight: 600, color: 'white', minWidth: 140, textAlign: 'center', fontSize: 14 }}>
+                                                        {displayMonth}
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+                                                        style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', padding: '8px 12px', cursor: 'pointer', borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+                                                        &gt;
+                                                    </button>
                                                 </div>
-                                                <button 
-                                                    onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-                                                    style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', padding: '8px 12px', cursor: 'pointer', borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
-                                                    &gt;
-                                                </button>
+                                                {!isCurrentMonth && (
+                                                    <button
+                                                        onClick={() => setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1))}
+                                                        style={{
+                                                            background: 'rgba(59, 130, 246, 0.15)',
+                                                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                                                            color: '#60a5fa',
+                                                            borderRadius: 12,
+                                                            padding: '6px 12px',
+                                                            fontSize: 12,
+                                                            fontWeight: 600,
+                                                            cursor: 'pointer'
+                                                        }}>
+                                                        Mês Atual
+                                                    </button>
+                                                )}
                                             </div>
                                         )
                                     })()}
