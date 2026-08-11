@@ -142,21 +142,13 @@ body.sidebar-collapsed .app-container {
     border-left: none;
     border-top: none;
     border-bottom: none;
-    overflow-y: auto;
-    overflow-x: visible;
-    /* Sem barra de rolagem visível. O overflow continua auto de propósito: os
-       espaçamentos abaixo foram compactados para o menu caber em 100vh, mas em
-       telas muito baixas a rolagem por roda/teclado ainda funciona, em vez de
-       cortar itens de navegação. */
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    /* Sem overflow aqui. O botão de recolher fica 26px FORA da borda direita
+       (.sidebar-collapse-btn), e qualquer overflow diferente de visible o
+       recortaria. Não dá para escapar com overflow-x: visible: quando um eixo
+       é auto/scroll, a spec força o outro a auto — era o que cortava o botão.
+       A rolagem, quando necessária, mora no .nav-menu, que não contém o botão. */
+    overflow: visible;
     transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s ease, transform 0.3s ease;
-}
-
-.sidebar::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
 }
 
 .sidebar.collapsed {
@@ -252,6 +244,20 @@ body.sidebar-collapsed .app-container {
     flex-direction: column;
     gap: 6px;
     flex: 1;
+    /* A rolagem de reserva vive aqui, não na .sidebar, para não recortar o
+       botão de recolher. Barra oculta; os espaçamentos foram compactados para
+       caber sem rolar, isto é só a saída para telas muito baixas.
+       min-height: 0 é necessário para um filho flex poder encolher. */
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.nav-menu::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 .nav-item {
