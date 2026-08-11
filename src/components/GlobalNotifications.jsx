@@ -20,8 +20,9 @@ export default function GlobalNotifications() {
     const { cards } = useCreditCards(email);
     const { transactions, create: createTx } = useTransactions(email);
 
-    // Sem sessão não há o que notificar (ex: tela de login)
-    if (!email) return null;
+    // O sino é sempre renderizado: a Sidebar só existe em páginas autenticadas,
+    // e sumir silenciosamente enquanto a sessão resolve deixa a navbar
+    // inconsistente. Sem e-mail os hooks simplesmente não consultam nada.
 
     const handleMarkReceived = (id, ym) => {
         const item = receivables.find(r => r.id === id || r.dbId === id);

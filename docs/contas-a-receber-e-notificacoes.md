@@ -183,24 +183,28 @@ O sino fica disponível em **todas as páginas autenticadas**. Nenhuma página o
 
 ```
 Sidebar.jsx
-  └── <div class="global-notifications">
+  ├── desktop: <div class="notif-slot-sidebar">  (acima dos links)
+  └── mobile:  <div class="mobile-header-right"> (ao lado do avatar)
         └── GlobalNotifications   ← busca os próprios dados (session + 4 hooks)
               └── NotificationCenter
 ```
 
-`GlobalNotifications` é montado na `Sidebar` porque ela já aparece nas 8 páginas autenticadas e **não** no `/login` — o escopo desejado sai de graça. Ainda assim o componente retorna `null` sem sessão, por segurança.
+`GlobalNotifications` é montado na `Sidebar` porque ela já aparece nas 8 páginas autenticadas e **não** no `/login` — o escopo desejado sai de graça.
 
 O sino mostra alertas de **receber e pagar juntos**, de propósito: é um centro de avisos, não um recorte da página em que você está. Isso é independente do escopo dos calendários.
 
-### Detalhes de posicionamento que não são arbitrários
+### Posicionamento: o sino fica no fluxo, não flutuando
 
-Três restrições reais moldaram o CSS (`globals.css`, seção "Sino de notificações global"):
+O botão é **um item da navbar como qualquer outro** — sem `position: fixed` próprio. Se a navbar aparece, o sino aparece. Uma primeira versão o deixava flutuando no canto inferior direito e ele não apareceu em produção; o modo flutuante foi abandonado por não ser verificável nem previsível.
 
-1. **Fica fora de `<header class="sidebar">`.** No mobile a sidebar recebe `transform: translateX(-100%)`. Um filho `position: fixed` dentro de um ancestral transformado passa a se posicionar por esse ancestral, não pela viewport — o sino sairia da tela junto com o drawer.
-2. **No desktop flutua no canto inferior direito**, não no topo. As páginas já colocam botões de ação no topo direito (ex: "+ Nova Conta a Receber"), **fora** do `.top-header`, num wrapper irmão — um sino no topo cobriria esses botões, e reservar espaço exigiria mexer em cada página.
-3. **O painel usa `position: fixed`**, não `absolute`. O botão vive dentro de containers com `overflow` e empilhamento próprios; um dropdown ancorado nele seria recortado.
+Duas regras que sustentam isso:
 
-No mobile o sino encaixa na barra fixa do topo (`.mobile-header`), à esquerda do avatar, com `z-index` acima dela, e o texto "Alertas" some — sobra só o ícone.
+1. **Qual slot é montado é decidido em JS** (`matchMedia('(max-width: 768px)')` na `Sidebar`), não com `display: none` nos dois. Assim existe uma instância só — sem estado de "lidas" duplicado — e ela nunca fica dentro da sidebar do mobile, que recebe `transform: translateX(-100%)`. Um `position: fixed` dentro de ancestral transformado se posiciona por ele, não pela viewport, e o painel sairia da tela junto com o drawer.
+2. **O painel é o único elemento fixo**, ancorado na viewport (topo direito no desktop, faixa cheia no mobile). Ancorado no botão, seria recortado pelo `overflow-y: auto` da sidebar. Ele tem backdrop: clique fora fecha, e cobrir botões da página enquanto está aberto é comportamento esperado de overlay.
+
+O sino é renderizado mesmo sem `session.email` resolvido — os hooks simplesmente não consultam nada. Sumir enquanto a sessão carrega deixaria a navbar inconsistente e torna o componente difícil de diagnosticar.
+
+Com a sidebar recolhida, o rótulo "Alertas" some e sobra o ícone, acompanhando os `.nav-text`. No mobile, idem.
 
 ### Custo conhecido
 

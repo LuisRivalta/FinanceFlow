@@ -30,6 +30,20 @@ export default function Sidebar() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
 
+    // Decide em qual slot o sino é montado. Precisa ser JS e não display:none
+    // porque no mobile a sidebar recebe translateX(-100%), e o painel
+    // position:fixed de um sino montado dentro dela se posicionaria por ela,
+    // não pela viewport.
+    const [isMobileView, setIsMobileView] = useState(false);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 768px)');
+        const apply = () => setIsMobileView(mq.matches);
+        apply();
+        mq.addEventListener('change', apply);
+        return () => mq.removeEventListener('change', apply);
+    }, []);
+
     useEffect(() => {
         const savedCollapsed = localStorage.getItem('finance_sidebar_collapsed') === 'true';
         setIsCollapsed(savedCollapsed);
@@ -85,12 +99,6 @@ export default function Sidebar() {
 
     return (
         <>
-            {/* Sino global — instância única, reposicionada por CSS: canto
-                superior direito no desktop, dentro da barra fixa no mobile */}
-            <div className="global-notifications">
-                <GlobalNotifications />
-            </div>
-
             {/* Mobile Sticky Top Header */}
             <header className="mobile-header">
                 <button
@@ -109,18 +117,23 @@ export default function Sidebar() {
                     <LogoIcon />
                     <span className="mobile-logo-text">Blumii</span>
                 </div>
-                <Link href="/profile" className="mobile-avatar-link">
-                    <div
-                        className="avatar avatar-sm"
-                        style={avatarSrc ? {
-                            backgroundImage: `url('${avatarSrc}')`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center'
-                        } : {}}
-                    >
-                        {!avatarSrc && initials}
-                    </div>
-                </Link>
+                <div className="mobile-header-right">
+                    {/* Sino global no mobile — ao lado do avatar */}
+                    {isMobileView && <GlobalNotifications />}
+
+                    <Link href="/profile" className="mobile-avatar-link">
+                        <div
+                            className="avatar avatar-sm"
+                            style={avatarSrc ? {
+                                backgroundImage: `url('${avatarSrc}')`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center'
+                            } : {}}
+                        >
+                            {!avatarSrc && initials}
+                        </div>
+                    </Link>
+                </div>
             </header>
 
             {/* Mobile Backdrop Overlay */}
@@ -160,6 +173,13 @@ export default function Sidebar() {
                         ✕
                     </button>
                 </div>
+
+                {/* Sino global no desktop — primeiro item da navbar */}
+                {!isMobileView && (
+                    <div className="notif-slot-sidebar">
+                        <GlobalNotifications />
+                    </div>
+                )}
 
                 {/* Navigation Links */}
                 <nav className="nav-menu">
