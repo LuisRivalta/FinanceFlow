@@ -130,7 +130,7 @@ body.sidebar-collapsed .app-container {
 /* Sidebar */
 .sidebar {
     width: 220px;
-    padding: 28px 16px;
+    padding: 20px 14px;
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -144,19 +144,31 @@ body.sidebar-collapsed .app-container {
     border-bottom: none;
     overflow-y: auto;
     overflow-x: visible;
+    /* Sem barra de rolagem visível. O overflow continua auto de propósito: os
+       espaçamentos abaixo foram compactados para o menu caber em 100vh, mas em
+       telas muito baixas a rolagem por roda/teclado ainda funciona, em vez de
+       cortar itens de navegação. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s ease, transform 0.3s ease;
+}
+
+.sidebar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 .sidebar.collapsed {
     width: 72px;
-    padding: 28px 10px;
+    padding: 20px 10px;
 }
 
 .logo {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 36px;
+    margin-bottom: 22px;
     position: relative;
     width: 100%;
 }
@@ -238,15 +250,15 @@ body.sidebar-collapsed .app-container {
 .nav-menu {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 6px;
     flex: 1;
 }
 
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 14px 20px;
+    gap: 14px;
+    padding: 11px 16px;
     color: var(--text-secondary);
     text-decoration: none;
     font-weight: 500;
@@ -270,7 +282,7 @@ body.sidebar-collapsed .app-container {
 
 .sidebar.collapsed .nav-item {
     justify-content: center;
-    padding: 14px 0;
+    padding: 11px 0;
     gap: 0;
 }
 
@@ -278,15 +290,19 @@ body.sidebar-collapsed .app-container {
     display: none;
 }
 
+/* Recolhida, o ícone é o único alvo de clique, então ganha alguns pixels.
+   Dimensionado por width/height porque SVG não responde a font-size. */
 .sidebar.collapsed .nav-item .icon {
-    font-size: 20px;
+    width: 22px;
+    height: 22px;
 }
 
 .user-profile {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding-top: 20px;
+    gap: 10px;
+    padding-top: 16px;
+    margin-top: auto;
     border-top: 1px solid var(--panel-border);
 }
 
