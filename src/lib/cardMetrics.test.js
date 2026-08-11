@@ -97,6 +97,26 @@ describe('getCardInvoiceBreakdown', () => {
         expect(breakdown[1].key).toBe('2026-08')
         expect(breakdown[1].remaining).toBe(300)
     })
+
+    // Somar centavos em float deixa resíduo (3259.13 + 34.19 + ... - 3577.12 = 4.5e-13),
+    // e a fatura quitada ficava marcada como pendente para sempre no painel.
+    it('trata como paga a fatura quitada com centavos, sem resíduo de float', () => {
+        const card = { id: 'c1', closing_day: 4, due_day: 10 }
+        const txs = [
+            { creditCardId: 'c1', type: 'expense', amount: 3259.13, date: '2026-07-27' },
+            { creditCardId: 'c1', type: 'expense', amount: 34.19, date: '2026-08-01' },
+            { creditCardId: 'c1', type: 'expense', amount: 169, date: '2026-08-01' },
+            { creditCardId: 'c1', type: 'expense', amount: 74.80, date: '2026-08-02' },
+            { creditCardId: 'c1', type: 'expense', amount: 40, date: '2026-08-03' },
+            { creditCardId: 'c1', type: 'expense', category: 'invoice_payment', amount: 3577.12, date: '2026-08-05' }
+        ]
+
+        const breakdown = getCardInvoiceBreakdown(txs, card, new Date('2026-08-11'))
+        const agosto = breakdown.find(inv => inv.key === '2026-08')
+
+        expect(agosto.remaining).toBe(0)
+        expect(agosto.status).toBe('paid')
+    })
 })
 
 describe('calcCardInvoice', () => {

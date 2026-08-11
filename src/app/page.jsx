@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, ArrowUp, ArrowDown, TrendingUp, Inbox, X } from 'lucide-react'
+import { Plus, ArrowUp, ArrowDown, TrendingUp, Inbox, X, CreditCard, Check } from 'lucide-react'
 import { Chart, ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler } from 'chart.js'
 import Sidebar from '../components/Sidebar'
 import TxCard from '../components/TxCard'
@@ -13,7 +13,7 @@ import { useSession } from '../hooks/useSession'
 import { useTransactions } from '../hooks/useTransactions'
 import { useCreditCards } from '../hooks/useCards'
 import { useWalletAssets } from '../hooks/useWalletAssets'
-import { formatCurrency, calcBalance, calcIncome, calcExpense, calcInvestment, getCategoryDetails } from '../helpers'
+import { formatCurrency, calcBalance, calcIncome, calcExpense, calcInvestment, getCategoryDetails, isSpending } from '../helpers'
 import { getCardInvoiceBreakdown, getInvoiceKey } from '../lib/cardMetrics'
 import { currentLegendPosition } from '../lib/responsive'
 
@@ -110,9 +110,13 @@ export default function DashboardPage() {
             title = 'Detalhes de Receitas'
             color = '#10b981'
         } else if (detailView === 'expense') {
-            list = filteredTransactions.filter(t => t.type === 'expense' && t.category !== 'invoice_payment')
-            title = 'Detalhes de Despesas'
+            list = filteredTransactions.filter(t => isSpending(t) && t.account !== 'credit')
+            title = 'Despesas no Débito, Pix e Dinheiro'
             color = '#ef4444'
+        } else if (detailView === 'credit') {
+            list = filteredTransactions.filter(t => isSpending(t) && t.account === 'credit')
+            title = 'Compras no Cartão de Crédito'
+            color = '#8b5cf6'
         } else if (detailView === 'investment') {
             list = filteredTransactions.filter(t => t.type === 'investment')
             title = 'Detalhes de Investimentos'
@@ -154,7 +158,25 @@ export default function DashboardPage() {
     }, [detailView, filteredTransactions, transactions, currentDate])
 
     // Summaries
+    //
+    // O gasto do mês é lido em duas frentes que nunca se sobrepõem:
+    //   directExpenses — sai da conta na hora (pix, débito, dinheiro)
+    //   creditPurchases — compras no cartão, que só saem da conta na fatura
+    // O pagamento de fatura fica de fora dos dois: ele quita compras que já
+    // foram contadas em creditPurchases.
+    const directExpenses = useMemo(
+        () => filteredTransactions.filter(t => isSpending(t) && t.account !== 'credit'),
+        [filteredTransactions]
+    )
+    const creditPurchases = useMemo(
+        () => filteredTransactions.filter(t => isSpending(t) && t.account === 'credit'),
+        [filteredTransactions]
+    )
+
     const income = useMemo(() => calcIncome(filteredTransactions), [filteredTransactions])
+    const directExpense = useMemo(() => directExpenses.reduce((s, t) => s + t.amount, 0), [directExpenses])
+    const creditExpense = useMemo(() => creditPurchases.reduce((s, t) => s + t.amount, 0), [creditPurchases])
+    // Total do mês (as duas frentes somadas) — usado no termômetro e na rosca de categorias
     const expense = useMemo(() => calcExpense(filteredTransactions), [filteredTransactions])
     const investment = useMemo(() => calcInvestment(filteredTransactions) + walletTotalNetWorth, [filteredTransactions, walletTotalNetWorth])
     const balance = useMemo(() => calcBalance(filteredTransactions), [filteredTransactions])
@@ -175,11 +197,20 @@ export default function DashboardPage() {
 
         let selectedMonthInvoice = 0
         let priorPendingInvoices = 0
+        // Fatura fechada no mês: total, quanto já foi quitado e o que resta.
+        // Guardar o total (e não só o saldo em aberto) é o que permite mostrar
+        // uma fatura paga no painel em vez de ela simplesmente sumir.
+        let selectedInvoiceTotal = 0
+        let selectedInvoicePaid = 0
 
         if (cards && cards.length > 0) {
             cards.forEach(card => {
                 const breakdown = getCardInvoiceBreakdown(transactions, card, currentDate)
                 breakdown.forEach(inv => {
+                    if (inv.key === selectedKey) {
+                        selectedInvoiceTotal += inv.totalExpenses
+                        selectedInvoicePaid += inv.paidAmount
+                    }
                     if (inv.remaining > 0) {
                         if (inv.key === selectedKey) {
                             selectedMonthInvoice += inv.remaining
@@ -217,6 +248,8 @@ export default function DashboardPage() {
 
             const paidCurrent = Math.min(rawSelected, remPayments)
             selectedMonthInvoice = Math.max(0, rawSelected - paidCurrent)
+            selectedInvoiceTotal = rawSelected
+            selectedInvoicePaid = paidCurrent
         }
 
         const totalInvoices = selectedMonthInvoice + priorPendingInvoices
@@ -224,11 +257,37 @@ export default function DashboardPage() {
         return {
             selectedMonthInvoice,
             priorPendingInvoices,
-            totalInvoices
+            totalInvoices,
+            selectedInvoiceTotal,
+            selectedInvoicePaid
         }
     }, [transactions, cards, currentDate])
 
-    const { selectedMonthInvoice, priorPendingInvoices, totalInvoices } = invoiceMetrics
+    const { selectedMonthInvoice, priorPendingInvoices, totalInvoices, selectedInvoiceTotal, selectedInvoicePaid } = invoiceMetrics
+    const isInvoiceSettled = selectedInvoiceTotal > 0 && selectedMonthInvoice <= 0
+
+    // Em que fatura caem as compras feitas no mês exibido (o ciclo fecha antes
+    // do fim do mês, então uma compra de agosto costuma vencer em setembro)
+    const creditInvoiceHint = useMemo(() => {
+        if (!creditPurchases.length || !cards?.length) return null
+        const keys = new Set()
+        creditPurchases.forEach(t => {
+            const card = cards.find(c => String(c.id) === String(t.creditCardId))
+            const key = getInvoiceKey(t.date, card?.closing_day)
+            if (key) keys.add(key)
+        })
+        const sorted = [...keys].sort()
+        if (!sorted.length) return null
+
+        const label = (key) => {
+            const [ky, km] = key.split('-')
+            const raw = new Date(Number(ky), Number(km) - 1).toLocaleDateString('pt-BR', { month: 'long' })
+            return raw.charAt(0).toUpperCase() + raw.slice(1)
+        }
+        return sorted.length === 1
+            ? `Fecha na fatura de ${label(sorted[0])}`
+            : `Fecha nas faturas de ${sorted.map(label).join(' e ')}`
+    }, [creditPurchases, cards])
 
     const freeBalance = globalBalance - Math.max(0, totalInvoices)
 
@@ -275,19 +334,20 @@ export default function DashboardPage() {
     // Chart refs
     const incRef = useRef(null)
     const expRef = useRef(null)
+    const credRef = useRef(null)
     const invRef = useRef(null)
     const balRef = useRef(null)
     const pieRef = useRef(null)
 
     // Data generation for sparklines (Weekly buckets within the selected month)
     const monthsData = useMemo(() => {
-        if (!filteredTransactions) return { inc: { data: [] }, exp: { data: [] }, inv: { data: [] }, bal: { data: [] } }
+        if (!filteredTransactions) return { inc: { data: [] }, exp: { data: [] }, cred: { data: [] }, inv: { data: [] }, bal: { data: [] } }
 
         const year = currentDate.getFullYear()
         const month = currentDate.getMonth()
         // Create 4 weekly buckets
         const weekLabels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4']
-        const wInc = [0, 0, 0, 0], wExp = [0, 0, 0, 0], wInv = [0, 0, 0, 0], wBal = [0, 0, 0, 0]
+        const wInc = [0, 0, 0, 0], wExp = [0, 0, 0, 0], wCred = [0, 0, 0, 0], wInv = [0, 0, 0, 0], wBal = [0, 0, 0, 0]
 
         filteredTransactions.forEach(t => {
             const d = new Date(t.date + 'T00:00:00')
@@ -295,8 +355,12 @@ export default function DashboardPage() {
                 const day = d.getDate()
                 const wi = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3
                 if (t.type === 'income') wInc[wi] += t.amount
-                else if (t.type === 'expense') wExp[wi] += t.amount
                 else if (t.type === 'investment') wInv[wi] += t.amount
+                else if (isSpending(t)) {
+                    // Cada linha vai para uma frente só, igual aos cards
+                    if (t.account === 'credit') wCred[wi] += t.amount
+                    else wExp[wi] += t.amount
+                }
             }
         })
 
@@ -310,10 +374,21 @@ export default function DashboardPage() {
             return acc
         }, 0)
 
-        wBal[0] = prevBalance + wInc[0] - wExp[0] - wInv[0]
-        wBal[1] = wBal[0] + wInc[1] - wExp[1] - wInv[1]
-        wBal[2] = wBal[1] + wInc[2] - wExp[2] - wInv[2]
-        wBal[3] = wBal[2] + wInc[3] - wExp[3] - wInv[3]
+        // O saldo acompanha o caixa: compra no cartão não sai da conta, o
+        // pagamento da fatura sim — por isso ele não usa wExp.
+        const wCash = [0, 0, 0, 0]
+        filteredTransactions.forEach(t => {
+            const d = new Date(t.date + 'T00:00:00')
+            if (d.getFullYear() === year && d.getMonth() === month && t.type === 'expense' && t.account !== 'credit') {
+                const day = d.getDate()
+                wCash[day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3] += t.amount
+            }
+        })
+
+        wBal[0] = prevBalance + wInc[0] - wCash[0] - wInv[0]
+        wBal[1] = wBal[0] + wInc[1] - wCash[1] - wInv[1]
+        wBal[2] = wBal[1] + wInc[2] - wCash[2] - wInv[2]
+        wBal[3] = wBal[2] + wInc[3] - wCash[3] - wInv[3]
 
         const buildWeekMetric = (arr) => ({
             labels: weekLabels, data: arr,
@@ -324,6 +399,7 @@ export default function DashboardPage() {
         return {
             inc: buildWeekMetric(wInc),
             exp: buildWeekMetric(wExp),
+            cred: buildWeekMetric(wCred),
             inv: buildWeekMetric(wInv),
             bal: buildWeekMetric(wBal)
         }
@@ -340,16 +416,18 @@ export default function DashboardPage() {
 
     const incConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.inc.labels, datasets: [{ data: monthsData.inc.data, borderColor: '#10b981', backgroundColor: '#10b98122', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
     const expConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.exp.labels, datasets: [{ data: monthsData.exp.data, borderColor: '#ef4444', backgroundColor: '#ef444422', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
+    const credConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.cred.labels, datasets: [{ data: monthsData.cred.data, borderColor: '#8b5cf6', backgroundColor: '#8b5cf622', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
     const invConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.inv.labels, datasets: [{ data: monthsData.inv.data, borderColor: '#eab308', backgroundColor: '#eab30822', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
     const balConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.bal.labels, datasets: [{ data: monthsData.bal.data, borderColor: '#3b82f6', backgroundColor: '#3b82f622', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
 
     useChart(incRef, incConfig, [incConfig])
     useChart(expRef, expConfig, [expConfig])
+    useChart(credRef, credConfig, [credConfig])
     useChart(invRef, invConfig, [invConfig])
     useChart(balRef, balConfig, [balConfig])
 
     const pieConfig = useMemo(() => {
-        const expenses = filteredTransactions.filter(t => t.type === 'expense' && t.category !== 'invoice_payment')
+        const expenses = filteredTransactions.filter(isSpending)
         const catTotals = {}
         let totalExp = 0
         expenses.forEach(t => {
@@ -389,7 +467,7 @@ export default function DashboardPage() {
                 }
             }
         }
-    }, [transactions])
+    }, [filteredTransactions])
     useChart(pieRef, pieConfig, [pieConfig])
 
     if (session === undefined) return null;
@@ -492,11 +570,11 @@ export default function DashboardPage() {
                                 </svg>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                                     <div>
-                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Despesas Gerais</div>
-                                        <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', margin: '2px 0 6px' }}>{formatCurrency(expense)}</div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Despesas no Débito</div>
+                                        <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', margin: '2px 0 6px' }}>{formatCurrency(directExpense)}</div>
                                         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', display: 'flex', flexDirection: 'column' }}>
-                                            <span>Pior mês: {monthsData.exp.bestMonth}</span>
-                                            <span style={{ color: '#ef4444', fontWeight: 600 }}>{formatCurrency(monthsData.exp.bestVal)}</span>
+                                            <span>Pix, débito e dinheiro</span>
+                                            <span style={{ color: '#ef4444', fontWeight: 600 }}>{directExpenses.length} lançamento(s)</span>
                                         </div>
                                     </div>
                                     <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
@@ -507,6 +585,30 @@ export default function DashboardPage() {
                                 </div>
                                 <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative', zIndex: 1 }}>
                                     <canvas ref={expRef} />
+                                </div>
+                            </div>
+
+                            {/* Gastos no crédito — compras feitas no mês, independentes de quando a fatura vence */}
+                            <div className="card glass-panel clickable-card" onClick={() => setDetailView('credit')} style={{ padding: '20px 24px', paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 12, height: 240, border: '1px solid rgba(139,92,246,0.3)', background: 'linear-gradient(180deg, rgba(139,92,246,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
+                                <svg style={{ position: 'absolute', top: 10, right: 85, width: 150, height: 150, opacity: 0.03, color: '#8b5cf6', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                                    <line x1="1" y1="10" x2="23" y2="10" />
+                                </svg>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
+                                    <div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Gastos no Crédito</div>
+                                        <div style={{ fontSize: 24, fontWeight: 800, color: '#8b5cf6', margin: '2px 0 6px' }}>{formatCurrency(creditExpense)}</div>
+                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', display: 'flex', flexDirection: 'column' }}>
+                                            <span>{creditPurchases.length} compra(s) no cartão</span>
+                                            <span style={{ color: '#a78bfa', fontWeight: 600 }}>{creditInvoiceHint || 'Nenhuma compra neste mês'}</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
+                                        <CreditCard size={24} strokeWidth={2} />
+                                    </div>
+                                </div>
+                                <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative', zIndex: 1 }}>
+                                    <canvas ref={credRef} />
                                 </div>
                             </div>
 
@@ -589,13 +691,31 @@ export default function DashboardPage() {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                                     <div>
                                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Fatura do Mês</div>
-                                        <div style={{ fontSize: 28, fontWeight: 800, color: '#8b5cf6', margin: '2px 0 4px' }}>{formatCurrency(selectedMonthInvoice)}</div>
+                                        {/* Mostra sempre o total fechado no ciclo — uma fatura quitada continua
+                                            visível, marcada como paga, em vez de virar R$ 0,00 */}
+                                        <div style={{ fontSize: 28, fontWeight: 800, color: isInvoiceSettled ? '#10b981' : '#8b5cf6', margin: '2px 0 4px' }}>
+                                            {formatCurrency(selectedInvoiceTotal)}
+                                        </div>
+                                        {selectedInvoiceTotal === 0 ? (
+                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>
+                                                Nenhuma fatura fechada neste mês
+                                            </div>
+                                        ) : isInvoiceSettled ? (
+                                            <div style={{ fontSize: 12, color: '#10b981', marginTop: 4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <Check size={13} strokeWidth={2.5} /> Paga
+                                            </div>
+                                        ) : (
+                                            <div style={{ fontSize: 12, color: '#f59e0b', marginTop: 4, fontWeight: 600 }}>
+                                                Em aberto: {formatCurrency(selectedMonthInvoice)}
+                                                {selectedInvoicePaid > 0 && ` (${formatCurrency(selectedInvoicePaid)} já pago)`}
+                                            </div>
+                                        )}
                                         {priorPendingInvoices > 0 ? (
                                             <div style={{ fontSize: 12, color: '#f59e0b', marginTop: 4, fontWeight: 600 }}>
                                                 + {formatCurrency(priorPendingInvoices)} (anterior pendente)
                                             </div>
                                         ) : (
-                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>
+                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
                                                 Faturas anteriores em dia
                                             </div>
                                         )}
@@ -661,6 +781,10 @@ export default function DashboardPage() {
                                             <span>R$ 0</span>
                                             <span>{formatCurrency(income)} (Receita)</span>
                                         </div>
+                                        <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
+                                            Gasto total do mês: <strong style={{ color: 'white' }}>{formatCurrency(expense)}</strong>
+                                            {' — '}débito {formatCurrency(directExpense)} + crédito {formatCurrency(creditExpense)}
+                                        </div>
                                     </div>
                                 )
                             })()}
@@ -672,7 +796,7 @@ export default function DashboardPage() {
                             <div className="card glass-panel" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 300 }}>
                                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'linear-gradient(135deg, #ef4444, #f87171)', flexShrink: 0 }} />
-                                    Despesas por Categoria
+                                    Despesas por Categoria <span style={{ textTransform: 'none', fontWeight: 500, color: 'rgba(255,255,255,0.35)' }}>(débito + crédito)</span>
                                 </div>
                                 <div style={{ flex: 1, minHeight: 0, width: '100%', marginTop: 12, position: 'relative' }}>
                                     <canvas ref={pieRef} />

@@ -99,7 +99,9 @@ export function getCardInvoiceBreakdown(transactions, card, refDate = new Date()
         const inv = invoiceMap[key]
         const paid = Math.min(inv.totalExpenses, remainingPayments)
         inv.paidAmount = paid
-        inv.remaining = Math.max(0, inv.totalExpenses - paid)
+        // Arredonda em centavos: somar float deixa resíduo (1e-13) e uma fatura
+        // quitada apareceria como "em aberto" para sempre.
+        inv.remaining = Math.max(0, Math.round((inv.totalExpenses - paid) * 100) / 100)
         remainingPayments -= paid
     })
 
