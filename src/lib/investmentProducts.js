@@ -12,7 +12,7 @@ export const INVESTMENT_PRODUCTS = [
     {
         id: 'poupanca',
         label: 'Poupança',
-        icon: '🐷',
+        iconName: 'PiggyBank',
         index: 'poupanca',
         indexLabel: 'Poupança',
         multiplierKind: 'none',
@@ -23,7 +23,7 @@ export const INVESTMENT_PRODUCTS = [
     {
         id: 'cdb',
         label: 'CDB / RDB',
-        icon: '🏦',
+        iconName: 'Landmark',
         index: 'cdi',
         indexLabel: 'CDI',
         multiplierKind: 'percent_of',
@@ -34,7 +34,7 @@ export const INVESTMENT_PRODUCTS = [
     {
         id: 'lci_lca',
         label: 'LCI / LCA',
-        icon: '🏗️',
+        iconName: 'HardHat',
         index: 'cdi',
         indexLabel: 'CDI',
         multiplierKind: 'percent_of',
@@ -45,7 +45,7 @@ export const INVESTMENT_PRODUCTS = [
     {
         id: 'tesouro_selic',
         label: 'Tesouro Selic',
-        icon: '🏛️',
+        iconName: 'Building2',
         index: 'selic',
         indexLabel: 'Selic',
         multiplierKind: 'spread',
@@ -56,7 +56,7 @@ export const INVESTMENT_PRODUCTS = [
     {
         id: 'tesouro_ipca',
         label: 'Tesouro IPCA+',
-        icon: '📊',
+        iconName: 'BarChart3',
         index: 'ipca12',
         indexLabel: 'IPCA',
         multiplierKind: 'spread',
@@ -67,7 +67,7 @@ export const INVESTMENT_PRODUCTS = [
     {
         id: 'tesouro_pre',
         label: 'Tesouro Prefixado',
-        icon: '📌',
+        iconName: 'Pin',
         index: 'selic',
         indexLabel: 'Selic',
         multiplierKind: 'spread',
@@ -78,7 +78,7 @@ export const INVESTMENT_PRODUCTS = [
     {
         id: 'fundo_di',
         label: 'Fundo DI',
-        icon: '📦',
+        iconName: 'Package',
         index: 'cdi',
         indexLabel: 'CDI',
         multiplierKind: 'percent_of',
@@ -89,7 +89,7 @@ export const INVESTMENT_PRODUCTS = [
     {
         id: 'custom',
         label: 'Personalizado',
-        icon: '✏️',
+        iconName: 'Pencil',
         index: null,
         indexLabel: null,
         multiplierKind: 'none',

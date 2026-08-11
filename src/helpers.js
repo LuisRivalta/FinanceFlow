@@ -1,47 +1,47 @@
 // Constantes de categorias
 export const CATEGORY_MAP = {
     expense: [
-        { id: 'food', label: 'Alimentação', icon: '🍔', color: '#f59e0b' },
-        { id: 'transport', label: 'Transporte', icon: '🚗', color: '#3b82f6' },
-        { id: 'housing', label: 'Moradia', icon: '🏠', color: '#8b5cf6' },
-        { id: 'health', label: 'Saúde', icon: '💊', color: '#ef4444' },
-        { id: 'leisure', label: 'Lazer', icon: '🎭', color: '#ec4899' },
-        { id: 'education', label: 'Educação', icon: '📚', color: '#06b6d4' },
-        { id: 'invoice_payment', label: 'Pagamento de Fatura', icon: '🧾', color: '#3b82f6' },
-        { id: 'other_expense', label: 'Outros', icon: '🛍️', color: '#94a3b8' }
+        { id: 'food', label: 'Alimentação', iconName: 'Utensils', color: '#f59e0b' },
+        { id: 'transport', label: 'Transporte', iconName: 'Car', color: '#3b82f6' },
+        { id: 'housing', label: 'Moradia', iconName: 'Home', color: '#8b5cf6' },
+        { id: 'health', label: 'Saúde', iconName: 'Pill', color: '#ef4444' },
+        { id: 'leisure', label: 'Lazer', iconName: 'Theater', color: '#ec4899' },
+        { id: 'education', label: 'Educação', iconName: 'BookOpen', color: '#06b6d4' },
+        { id: 'invoice_payment', label: 'Pagamento de Fatura', iconName: 'Receipt', color: '#3b82f6' },
+        { id: 'other_expense', label: 'Outros', iconName: 'ShoppingBag', color: '#94a3b8' }
     ],
     income: [
-        { id: 'salary', label: 'Salário', icon: '💼', color: '#10b981' },
-        { id: 'freelance', label: 'Freelance', icon: '💻', color: '#3b82f6' },
-        { id: 'gift', label: 'Presente/Bônus', icon: '🎁', color: '#f59e0b' },
-        { id: 'other_income', label: 'Outros', icon: '💰', color: '#94a3b8' }
+        { id: 'salary', label: 'Salário', iconName: 'Briefcase', color: '#10b981' },
+        { id: 'freelance', label: 'Freelance', iconName: 'Laptop', color: '#3b82f6' },
+        { id: 'gift', label: 'Presente/Bônus', iconName: 'Gift', color: '#f59e0b' },
+        { id: 'other_income', label: 'Outros', iconName: 'Coins', color: '#94a3b8' }
     ],
     investment: [
-        { id: 'stocks', label: 'Ações/Bolsa', icon: '📈', color: '#8b5cf6' },
-        { id: 'crypto', label: 'Criptomoedas', icon: '₿', color: '#f59e0b' },
-        { id: 'fixed', label: 'Renda Fixa', icon: '🏦', color: '#10b981' },
-        { id: 'other_inv', label: 'Outros', icon: '🚀', color: '#94a3b8' }
+        { id: 'stocks', label: 'Ações/Bolsa', iconName: 'TrendingUp', color: '#8b5cf6' },
+        { id: 'crypto', label: 'Criptomoedas', iconName: 'Bitcoin', color: '#f59e0b' },
+        { id: 'fixed', label: 'Renda Fixa', iconName: 'Landmark', color: '#10b981' },
+        { id: 'other_inv', label: 'Outros', iconName: 'Rocket', color: '#94a3b8' }
     ]
 }
 
 export const ACCOUNTS = [
-    { id: 'cash', label: 'Dinheiro', icon: '💵' },
-    { id: 'checking', label: 'Conta Corrente', icon: '🏦' },
-    { id: 'savings', label: 'Poupança', icon: '💰' },
-    { id: 'credit', label: 'Cartão de Crédito', icon: '💳' },
-    { id: 'investment', label: 'Investimentos', icon: '📈' },
-    { id: 'outros', label: 'Outros', icon: '📁' }
+    { id: 'cash', label: 'Dinheiro', iconName: 'Banknote' },
+    { id: 'checking', label: 'Conta Corrente', iconName: 'Landmark' },
+    { id: 'savings', label: 'Poupança', iconName: 'PiggyBank' },
+    { id: 'credit', label: 'Cartão de Crédito', iconName: 'CreditCard' },
+    { id: 'investment', label: 'Investimentos', iconName: 'TrendingUp' },
+    { id: 'outros', label: 'Outros', iconName: 'Folder' }
 ]
 
 export function getCategoryDetails(type, catId) {
-    const defaultCat = { label: 'Indefinido', icon: '📌', color: '#94a3b8' }
+    const defaultCat = { label: 'Indefinido', iconName: 'Pin', color: '#94a3b8' }
     const cats = CATEGORY_MAP[type]
     if (!cats) return defaultCat
     return cats.find(c => c.id === catId) || defaultCat
 }
 
 export function getAccountLabel(id) {
-    return ACCOUNTS.find(a => a.id === id) || { label: id, icon: '📁' }
+    return ACCOUNTS.find(a => a.id === id) || { label: id, iconName: 'Folder' }
 }
 
 export function formatCurrency(amount) {

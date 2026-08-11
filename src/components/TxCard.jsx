@@ -1,5 +1,6 @@
 "use client";
 import { FileText, Pencil, Trash2 } from 'lucide-react'
+import CategoryIcon from './CategoryIcon'
 
 import { getCategoryDetails, getAccountLabel, formatCurrency, formatDate } from '../helpers'
 
@@ -14,13 +15,13 @@ export default function TxCard({ tx, onEdit, onDelete }) {
     return (
         <div className="tx-card">
             <div className="tx-card-left">
-                <div className="tx-card-icon" style={{ background: cat.color + '22', color: cat.color }}>{cat.icon}</div>
+                <div className="tx-card-icon" style={{ background: cat.color + '22', color: cat.color }}><CategoryIcon name={cat.iconName} size={18} /></div>
                 <div className="tx-card-info">
                     <div className="tx-card-desc">{tx.desc}</div>
                     <div className="tx-card-meta">
                         <span>{cat.label}</span>
                         <span className="tx-meta-dot">·</span>
-                        <span>{acc.icon} {acc.label}</span>
+                        <span className="inline-icon-label"><CategoryIcon name={acc.iconName} size={12} /> {acc.label}</span>
                         <span className="tx-meta-dot">·</span>
                         <span>{formatDate(tx.date)}</span>
                         {tx.note && (

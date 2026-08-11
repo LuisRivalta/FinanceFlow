@@ -1,5 +1,6 @@
 import React from 'react'
 import { X } from 'lucide-react'
+import CategoryIcon from './CategoryIcon'
 import { getCategoryDetails, getAccountLabel } from '../helpers'
 
 export default function DetailsModal({ isOpen, onClose, type, transactions, title, color }) {
@@ -78,14 +79,14 @@ export default function DetailsModal({ isOpen, onClose, type, transactions, titl
                                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                             fontSize: 18, flexShrink: 0
                                                         }}>
-                                                            {cat.icon}
+                                                            <CategoryIcon name={cat.iconName} size={16} />
                                                         </div>
                                                         <div>
                                                             <div style={{ fontWeight: 600, color: 'white', fontSize: 15 }}>{description}</div>
                                                             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
                                                                 <span>{cat.label}</span>
                                                                 <span>•</span>
-                                                                <span>{acc.icon} {acc.label}</span>
+                                                                <span className="inline-icon-label"><CategoryIcon name={acc.iconName} size={12} /> {acc.label}</span>
                                                             </div>
                                                         </div>
                                                     </div>

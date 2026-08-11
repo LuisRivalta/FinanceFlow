@@ -372,7 +372,7 @@ export default function DashboardPage() {
         
         sortedCats.forEach(([catId, amount]) => {
             const catDef = getCategoryDetails('expense', catId)
-            labels.push(`${catDef.icon} ${catDef.label}`)
+            labels.push(catDef.label)
             data.push(amount)
             bg.push(catDef.color)
         })

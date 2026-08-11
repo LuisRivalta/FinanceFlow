@@ -7,6 +7,7 @@ import Sidebar from '../../components/Sidebar'
 import { useSession } from '../../hooks/useSession'
 import { supabase } from '../../lib/supabase'
 import { mapFromDB, formatCurrency, getCategoryDetails, CATEGORY_MAP } from '../../helpers'
+import CategoryIcon from '../../components/CategoryIcon'
 import { currentLegendPosition } from '../../lib/responsive'
 
 // Register Chart.js components
@@ -168,7 +169,7 @@ export default function ChartsPage() {
         const totals = {}
         expenses.forEach(t => { totals[t.category] = (totals[t.category] || 0) + t.amount })
         const entries = Object.entries(totals).sort((a, b) => b[1] - a[1])
-        const labels = entries.map(([id]) => { const c = getCat(id); return `${c.icon} ${c.label}` })
+        const labels = entries.map(([id]) => { const c = getCat(id); return c.label })
         const data = entries.map(([, v]) => v)
         const colors = entries.map(([id]) => getCat(id).color)
         return {
@@ -226,7 +227,7 @@ export default function ChartsPage() {
         const totals = {}
         incomes.forEach(t => { totals[t.category] = (totals[t.category] || 0) + t.amount })
         const entries = Object.entries(totals).sort((a, b) => b[1] - a[1])
-        const labels = entries.map(([id]) => { const c = getCat(id); return `${c.icon} ${c.label}` })
+        const labels = entries.map(([id]) => { const c = getCat(id); return c.label })
         const data = entries.map(([, v]) => v)
         const colors = entries.map(([id]) => getCat(id).color)
         return {
@@ -345,7 +346,7 @@ export default function ChartsPage() {
                                         <Empty msg="Nenhum gasto" />
                                     ) : topCats.map(({ cat, val, pct }, i) => (
                                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                                            <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0, background: cat.color + '22', color: cat.color }}>{cat.icon}</div>
+                                            <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0, background: cat.color + '22', color: cat.color }}><CategoryIcon name={cat.iconName} size={16} /></div>
                                             <div style={{ flex: 1 }}>
                                                 <div style={{ fontSize: 13, fontWeight: 600 }}>{cat.label}</div>
                                                 <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, marginTop: 4, overflow: 'hidden' }}>
@@ -388,7 +389,7 @@ export default function ChartsPage() {
                                                                 <td style={{ padding: '12px 8px', fontWeight: 600, color: 'white' }}>{tx.description}</td>
                                                                 <td style={{ padding: '12px 8px' }}>
                                                                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: cat.color + '15', color: cat.color, borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
-                                                                        {cat.icon} {cat.label}
+                                                                        <CategoryIcon name={cat.iconName} size={12} /> {cat.label}
                                                                     </div>
                                                                 </td>
                                                                 <td style={{ padding: '12px 8px', color: 'rgba(255,255,255,0.5)' }}>{dateStr}</td>

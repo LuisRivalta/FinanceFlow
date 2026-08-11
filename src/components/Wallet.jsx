@@ -1070,7 +1070,7 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                                             >
                                                 {ACCOUNTS.filter(a => a.id !== 'credit' && a.id !== 'investment').map(acc => (
                                                     <option key={acc.id} value={acc.id}>
-                                                        {acc.icon} {acc.label}
+                                                        {acc.label}
                                                     </option>
                                                 ))}
                                             </select>

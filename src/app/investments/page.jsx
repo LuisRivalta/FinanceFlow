@@ -10,6 +10,7 @@ import { useTransactions } from '../../hooks/useTransactions'
 import { useRates } from '../../hooks/useRates'
 import { useWalletAssets } from '../../hooks/useWalletAssets'
 import { INVESTMENT_PRODUCTS, DEFAULT_PRODUCT_ID, getProduct, deriveRate, multiplierLabel } from '../../lib/investmentProducts'
+import CategoryIcon from '../../components/CategoryIcon'
 import { supabase } from '../../lib/supabase'
 import { formatCurrency, formatPercent, calcInvestment, CATEGORY_MAP, ACCOUNTS } from '../../helpers'
 import { Chart, ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler } from 'chart.js'
@@ -584,7 +585,7 @@ export default function InvestmentsPage() {
                             {CATEGORY_MAP.investment.map(cat => (
                                 <div key={cat.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: 14 }}>
-                                        <span style={{ color: cat.color }}>{cat.icon}</span> {cat.label}
+                                        <CategoryIcon name={cat.iconName} size={14} style={{ color: cat.color }} /> {cat.label}
                                     </div>
                                     <div style={{ fontSize: 18, fontWeight: 600, color: 'white' }}>
                                         {formatCurrency(catTotals[cat.id] || 0)}
@@ -648,7 +649,7 @@ export default function InvestmentsPage() {
                                             <select value={saqueAccount} onChange={e => setSaqueAccount(e.target.value)}>
                                                 {ACCOUNTS.filter(a => a.id !== 'credit' && a.id !== 'investment').map(acc => (
                                                     <option key={acc.id} value={acc.id}>
-                                                        {acc.icon} {acc.label}
+                                                        {acc.label}
                                                     </option>
                                                 ))}
                                             </select>
@@ -835,7 +836,7 @@ export default function InvestmentsPage() {
                             <div className="tx-field" style={{ margin: 0 }}>
                                 <select value={productId} onChange={handleProductChange} aria-label="Tipo de investimento">
                                     {INVESTMENT_PRODUCTS.map(p => (
-                                        <option key={p.id} value={p.id}>{p.icon} {p.label}</option>
+                                        <option key={p.id} value={p.id}>{p.label}</option>
                                     ))}
                                 </select>
                             </div>

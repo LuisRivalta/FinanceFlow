@@ -191,7 +191,7 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
                             <label>Categoria</label>
                             <select value={category} onChange={e => setCategory(e.target.value)}>
                                 {cats.map(c => (
-                                    <option key={c.id} value={c.id}>{c.icon} {c.label}</option>
+                                    <option key={c.id} value={c.id}>{c.label}</option>
                                 ))}
                             </select>
                         </div>
@@ -201,7 +201,7 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
                             <label>Conta/Forma de Pagamento</label>
                             <select value={account} onChange={e => setAccount(e.target.value)}>
                                 {ACCOUNTS.map(a => (
-                                    <option key={a.id} value={a.id}>{a.icon} {a.label}</option>
+                                    <option key={a.id} value={a.id}>{a.label}</option>
                                 ))}
                             </select>
                         </div>

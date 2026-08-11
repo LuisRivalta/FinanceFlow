@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '../../components/Sidebar';
+import Sidebar from '../../components/Sidebar'
+import CategoryIcon from '../../components/CategoryIcon';
 import { useSession } from '../../hooks/useSession';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency, mapFromDB, CATEGORY_MAP } from '../../helpers';
@@ -410,7 +411,7 @@ export default function RoadmapPage() {
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 12 }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                     <div style={{ width: 40, height: 40, borderRadius: 12, background: cat.color + '22', color: cat.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                                                        {cat.icon}
+                                                        <CategoryIcon name={cat.iconName} size={20} />
                                                     </div>
                                                     <div>
                                                         <div style={{ fontWeight: 700, fontSize: 16 }}>{cat.label}</div>
