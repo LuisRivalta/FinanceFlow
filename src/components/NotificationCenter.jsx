@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { generateFinancialNotifications, requestNotificationPermission, sendBrowserNotification } from '../lib/notifications';
+import { generateFinancialNotifications, requestNotificationPermission, sendBrowserNotification } from '../lib/financialNotifications';
 
 export default function NotificationCenter({
     receivables = [],
@@ -26,6 +26,9 @@ export default function NotificationCenter({
 
     const [pushEnabled, setPushEnabled] = useState(false);
     const [showExternalConfig, setShowExternalConfig] = useState(false);
+    const [targetEmail, setTargetEmail] = useState('');
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [emailStatusMsg, setEmailStatusMsg] = useState('');
 
     useEffect(() => {
         if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -68,6 +71,37 @@ export default function NotificationCenter({
             });
         } else {
             alert('Permissão de notificações não concedida. Verifique as configurações do seu navegador.');
+        }
+    };
+
+    const handleSendTestEmail = async () => {
+        if (!targetEmail) {
+            alert('Digite um endereço de e-mail válido.');
+            return;
+        }
+
+        setIsSendingEmail(true);
+        setEmailStatusMsg('');
+        try {
+            const res = await fetch('/api/notifications/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    toEmail: targetEmail,
+                    isTest: true,
+                    alerts: allAlerts
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setEmailStatusMsg(data.message || '✅ E-mail enviado com sucesso (0 custo)!');
+            } else {
+                setEmailStatusMsg(`❌ Falha ao enviar: ${data.error || 'Erro desconhecido'}`);
+            }
+        } catch (err) {
+            setEmailStatusMsg(`❌ Erro de conexão: ${err.message}`);
+        } finally {
+            setIsSendingEmail(false);
         }
     };
 
@@ -313,14 +347,37 @@ export default function NotificationCenter({
                                 </div>
                             </div>
 
-                            {/* Email Free */}
+                            {/* Email Free & Test Trigger */}
                             <div style={{ padding: 14, background: 'rgba(16,185,129,0.1)', borderRadius: 12, border: '1px solid rgba(16,185,129,0.3)' }}>
                                 <div style={{ fontWeight: 700, color: '#34d399', marginBottom: 4 }}>
                                     ✉️ 2. E-mail Gratuito (Resend / EmailJS / Gmail SMTP)
                                 </div>
-                                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
-                                    O serviço Resend disponibiliza até 3.000 e-mails/mês sem pagar nada. O EmailJS envia 200/mês. Podemos disparar alertas de lembrete 3 dias antes e no dia do vencimento.
+                                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginBottom: 10 }}>
+                                    O serviço <strong>Resend</strong> fornece 3.000 e-mails/mês totalmente grátis. Teste o disparo de e-mail agora:
                                 </div>
+
+                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                    <input
+                                        type="email"
+                                        placeholder="Seu e-mail (ex: voce@email.com)"
+                                        value={targetEmail}
+                                        onChange={e => setTargetEmail(e.target.value)}
+                                        style={{ flex: 1, minWidth: 200, padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(0,0,0,0.3)', color: 'white', fontSize: 12 }}
+                                    />
+                                    <button
+                                        onClick={handleSendTestEmail}
+                                        disabled={isSendingEmail}
+                                        style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: isSendingEmail ? 'wait' : 'pointer' }}
+                                    >
+                                        {isSendingEmail ? 'Enviando...' : '✉️ Enviar E-mail de Teste'}
+                                    </button>
+                                </div>
+
+                                {emailStatusMsg && (
+                                    <div style={{ marginTop: 8, fontSize: 12, padding: 8, borderRadius: 6, background: 'rgba(0,0,0,0.4)', color: 'white' }}>
+                                        {emailStatusMsg}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Telegram Bot */}
