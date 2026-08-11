@@ -2,6 +2,16 @@
 
 import { useState, useMemo } from 'react';
 import { formatCurrency, formatDate } from '../helpers';
+import { CalendarDays, HandCoins, CreditCard, Repeat, Car, Check, Coins, Receipt, X } from 'lucide-react';
+
+// Ícone derivado do `type` do item. Os typeLabel guardam só texto porque a
+// mesma string alimenta contextos onde JSX não entra.
+const TYPE_ICON = { receivable: HandCoins, card: CreditCard, subscription: Repeat, financing: Car };
+
+function TypeIcon({ type, size = 11 }) {
+    const Cmp = TYPE_ICON[type];
+    return Cmp ? <Cmp size={size} strokeWidth={2} /> : null;
+}
 
 // mode define o escopo do calendário:
 //   'receivables' → só contas a receber
@@ -55,7 +65,7 @@ export default function FinancialCalendar({
                 name: r.name,
                 amount: r.amount,
                 type: 'receivable',
-                typeLabel: '🟢 Conta a Receber',
+                typeLabel: 'Conta a Receber',
                 typeColor: '#10b981',
                 status: isReceived ? 'received' : 'pending',
                 statusLabel: isReceived ? 'Recebido' : 'A Receber',
@@ -86,7 +96,7 @@ export default function FinancialCalendar({
                 name: `Fatura ${card.name}`,
                 amount: invoiceAmount > 0 ? invoiceAmount : card.credit_limit,
                 type: 'card',
-                typeLabel: '💳 Fatura Cartão',
+                typeLabel: 'Fatura Cartão',
                 typeColor: '#8b5cf6',
                 status: isPaid ? 'paid' : 'pending',
                 statusLabel: isPaid ? 'Fatura Paga / Zerada' : 'Fatura em Aberto',
@@ -107,7 +117,7 @@ export default function FinancialCalendar({
                 name: sub.desc,
                 amount: sub.amount,
                 type: 'subscription',
-                typeLabel: '🔁 Assinatura',
+                typeLabel: 'Assinatura',
                 typeColor: '#ec4899',
                 status: 'scheduled',
                 statusLabel: 'Cobrança Recorrente',
@@ -131,7 +141,7 @@ export default function FinancialCalendar({
                 name: f.name,
                 amount: f.monthlyPayment,
                 type: 'financing',
-                typeLabel: '🚗 Financiamento / Empréstimo',
+                typeLabel: 'Financiamento / Empréstimo',
                 typeColor: '#f59e0b',
                 status: isCompleted ? 'completed' : hasPaidThisMonth ? 'paid' : 'pending',
                 statusLabel: isCompleted ? 'Quitado' : hasPaidThisMonth ? 'Parcela Paga' : `Parcela ${f.paidInstallments + 1}/${f.totalInstallments}`,
@@ -186,8 +196,8 @@ export default function FinancialCalendar({
             {/* Calendar Header Controls */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: 12, background: `${headerColor}26`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: headerColor, fontSize: 20 }}>
-                        📅
+                    <div style={{ width: 42, height: 42, borderRadius: 12, background: `${headerColor}26`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: headerColor }}>
+                        <CalendarDays size={20} strokeWidth={1.8} />
                     </div>
                     <div>
                         <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{headerTitle}</h3>
@@ -230,7 +240,7 @@ export default function FinancialCalendar({
                                 transition: 'all 0.2s'
                             }}
                         >
-                            🟢 Receber
+                            <HandCoins size={13} strokeWidth={2} /> Receber
                         </button>
                         <button
                             onClick={() => setCalendarFilter('payables')}
@@ -246,7 +256,7 @@ export default function FinancialCalendar({
                                 transition: 'all 0.2s'
                             }}
                         >
-                            💳 Pagar & Cartões
+                            <CreditCard size={13} strokeWidth={2} /> Pagar & Cartões
                         </button>
                     </div>
                     )}
@@ -409,7 +419,7 @@ export default function FinancialCalendar({
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 16 }}>
                             <div>
                                 <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>
-                                    📅 Dia {selectedDayNum} de {capitalizedMonth}
+                                    <CalendarDays size={18} strokeWidth={2} /> Dia {selectedDayNum} de {capitalizedMonth}
                                 </h3>
                                 <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
                                     {selectedDayItems.length} compromisso(s) financeiro(s) nesta data
@@ -419,7 +429,7 @@ export default function FinancialCalendar({
                                 onClick={() => setSelectedDayNum(null)}
                                 style={{ background: 'none', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer', opacity: 0.7 }}
                             >
-                                ✕
+                                <X size={18} strokeWidth={2} />
                             </button>
                         </div>
 
@@ -443,8 +453,8 @@ export default function FinancialCalendar({
                                     >
                                         <div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: `${item.typeColor}25`, color: item.typeColor }}>
-                                                    {item.typeLabel}
+                                                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: `${item.typeColor}25`, color: item.typeColor }} className="inline-icon-label">
+                                                    <TypeIcon type={item.type} /> {item.typeLabel}
                                                 </span>
                                                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
                                                     {item.statusLabel}
@@ -484,7 +494,7 @@ export default function FinancialCalendar({
                                                         cursor: 'pointer'
                                                     }}
                                                 >
-                                                    ✓ Confirmar Recebimento
+                                                    <Check size={13} strokeWidth={2.5} /> Confirmar Recebimento
                                                 </button>
                                             )}
 
@@ -506,7 +516,7 @@ export default function FinancialCalendar({
                                                         cursor: 'pointer'
                                                     }}
                                                 >
-                                                    💳 Pagar Parcela
+                                                    <Coins size={13} strokeWidth={2} /> Pagar Parcela
                                                 </button>
                                             )}
 
@@ -528,7 +538,7 @@ export default function FinancialCalendar({
                                                         cursor: 'pointer'
                                                     }}
                                                 >
-                                                    🧾 Pagar Fatura
+                                                    <Receipt size={13} strokeWidth={2} /> Pagar Fatura
                                                 </button>
                                             )}
                                         </div>

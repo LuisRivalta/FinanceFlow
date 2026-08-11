@@ -2,6 +2,16 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { generateFinancialNotifications, requestNotificationPermission, sendBrowserNotification } from '../lib/notificationsEngine';
+import { Bell, Lightbulb, Check, Coins, Receipt, Settings, Send, Smartphone, Mail, Bot, X, AlertTriangle, HandCoins, CreditCard } from 'lucide-react';
+
+// Os títulos dos alertas são texto puro (a mesma string vai para a notificação
+// nativa do navegador), então o ícone vem do `type`.
+const ALERT_ICON = { receivable: HandCoins, financing: Coins, card: CreditCard };
+
+function AlertIcon({ type, size = 13 }) {
+    const Cmp = ALERT_ICON[type];
+    return Cmp ? <Cmp size={size} strokeWidth={2} /> : null;
+}
 
 export default function NotificationCenter({
     receivables = [],
@@ -28,7 +38,7 @@ export default function NotificationCenter({
     const [showExternalConfig, setShowExternalConfig] = useState(false);
     const [targetEmail, setTargetEmail] = useState('');
     const [isSendingEmail, setIsSendingEmail] = useState(false);
-    const [emailStatusMsg, setEmailStatusMsg] = useState('');
+    const [emailStatusMsg, setEmailStatusMsg] = useState(null);
 
     useEffect(() => {
         if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -66,7 +76,7 @@ export default function NotificationCenter({
         const res = await requestNotificationPermission();
         if (res.granted) {
             setPushEnabled(true);
-            sendBrowserNotification('🎉 Notificações Ativadas!', {
+            sendBrowserNotification('Notificações ativadas!', {
                 body: 'Você receberá alertas automáticos de contas a pagar e receber sem custo algum.'
             });
         } else {
@@ -81,7 +91,7 @@ export default function NotificationCenter({
         }
 
         setIsSendingEmail(true);
-        setEmailStatusMsg('');
+        setEmailStatusMsg(null);
         try {
             const res = await fetch('/api/notifications/email', {
                 method: 'POST',
@@ -94,12 +104,12 @@ export default function NotificationCenter({
             });
             const data = await res.json();
             if (data.success) {
-                setEmailStatusMsg(data.message || '✅ E-mail enviado com sucesso (0 custo)!');
+                setEmailStatusMsg({ ok: true, text: data.message || 'E-mail enviado com sucesso (0 custo)!' });
             } else {
-                setEmailStatusMsg(`❌ Falha ao enviar: ${data.error || 'Erro desconhecido'}`);
+                setEmailStatusMsg({ ok: false, text: `Falha ao enviar: ${data.error || 'Erro desconhecido'}` });
             }
         } catch (err) {
-            setEmailStatusMsg(`❌ Erro de conexão: ${err.message}`);
+            setEmailStatusMsg({ ok: false, text: `Erro de conexão: ${err.message}` });
         } finally {
             setIsSendingEmail(false);
         }
@@ -114,10 +124,7 @@ export default function NotificationCenter({
                 title="Notificações & Lembretes"
                 aria-label={unreadAlerts.length > 0 ? `${unreadAlerts.length} alertas não lidos` : 'Notificações'}
             >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
+                <Bell size={18} strokeWidth={1.8} />
                 {unreadAlerts.length > 0 && (
                     <span className="notif-badge">{unreadAlerts.length}</span>
                 )}
@@ -140,7 +147,7 @@ export default function NotificationCenter({
                     {/* Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                         <div style={{ fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span>🔔 Lembretes Financeiros</span>
+                            <span className="inline-icon-label"><Bell size={14} strokeWidth={2} /> Lembretes Financeiros</span>
                             {unreadAlerts.length > 0 && (
                                 <span style={{ fontSize: 11, background: 'rgba(239,68,68,0.2)', color: '#f87171', padding: '2px 6px', borderRadius: 6 }}>
                                     {unreadAlerts.length} novos
@@ -161,7 +168,7 @@ export default function NotificationCenter({
                     {!pushEnabled ? (
                         <div style={{ padding: 10, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 10, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ fontSize: 11, color: '#93c5fd' }}>
-                                💡 Ative avisos no celular/PC de graça!
+                                <Lightbulb size={12} strokeWidth={2} /> Ative avisos no celular/PC de graça!
                             </div>
                             <button
                                 onClick={handleEnableBrowserPush}
@@ -172,7 +179,7 @@ export default function NotificationCenter({
                         </div>
                     ) : (
                         <div style={{ padding: '6px 10px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 10, marginBottom: 12, fontSize: 11, color: '#6ee7b7', display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span>✓ Notificações do Navegador Ativas</span>
+                            <span><Check size={12} strokeWidth={2.5} /> Notificações do Navegador Ativas</span>
                         </div>
                     )}
 
@@ -180,7 +187,7 @@ export default function NotificationCenter({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 320, overflowY: 'auto', paddingRight: 4 }}>
                         {allAlerts.length === 0 ? (
                             <div style={{ padding: 24, textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
-                                🎉 Nenhuma conta a vencer nos próximos dias!
+                                Nenhuma conta a vencer nos próximos dias!
                             </div>
                         ) : (
                             allAlerts.map((alert) => {
@@ -211,8 +218,8 @@ export default function NotificationCenter({
                                         }}
                                     >
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                                            <div style={{ fontWeight: 700, fontSize: 13, color: 'white' }}>
-                                                {alert.title}
+                                            <div className="inline-icon-label" style={{ fontWeight: 700, fontSize: 13, color: 'white' }}>
+                                                <AlertIcon type={alert.type} /> {alert.title}
                                             </div>
                                             {isUnread && (
                                                 <button
@@ -220,7 +227,7 @@ export default function NotificationCenter({
                                                     style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer' }}
                                                     title="Marcar como lida"
                                                 >
-                                                    ✓
+                                                    <Check size={13} strokeWidth={2.5} />
                                                 </button>
                                             )}
                                         </div>
@@ -239,7 +246,7 @@ export default function NotificationCenter({
                                                     }}
                                                     style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
                                                 >
-                                                    ✓ Recebido
+                                                    <Check size={12} strokeWidth={2.5} /> Recebido
                                                 </button>
                                             )}
                                             {alert.type === 'financing' && (
@@ -250,7 +257,7 @@ export default function NotificationCenter({
                                                     }}
                                                     style={{ background: '#f59e0b', color: 'white', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
                                                 >
-                                                    💳 Pagar Parcela
+                                                    <Coins size={12} strokeWidth={2} /> Pagar Parcela
                                                 </button>
                                             )}
                                             {alert.type === 'card' && (
@@ -261,7 +268,7 @@ export default function NotificationCenter({
                                                     }}
                                                     style={{ background: '#8b5cf6', color: 'white', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
                                                 >
-                                                    🧾 Pagar Fatura
+                                                    <Receipt size={12} strokeWidth={2} /> Pagar Fatura
                                                 </button>
                                             )}
                                         </div>
@@ -277,7 +284,7 @@ export default function NotificationCenter({
                             onClick={() => setShowExternalConfig(true)}
                             style={{ background: 'none', border: 'none', color: '#a78bfa', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                         >
-                            ⚙️ Configurar Notificações Externas Grátis (E-mail / Telegram)
+                            <Settings size={12} strokeWidth={2} /> Configurar Notificações Externas Grátis (E-mail / Telegram)
                         </button>
                     </div>
                 </div>
@@ -302,10 +309,10 @@ export default function NotificationCenter({
                     <div className="glass-panel fade-up" style={{ width: '100%', maxWidth: 540, padding: 28, borderRadius: 20, background: '#111827', border: '1px solid rgba(139,92,246,0.3)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                             <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'white' }}>
-                                📩 Sistema de Notificações Externas (100% Grátis)
+                                <Send size={18} strokeWidth={2} /> Sistema de Notificações Externas (100% Grátis)
                             </h3>
-                            <button onClick={() => setShowExternalConfig(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer' }}>
-                                ✕
+                            <button onClick={() => setShowExternalConfig(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+                                <X size={18} strokeWidth={2} />
                             </button>
                         </div>
 
@@ -317,7 +324,7 @@ export default function NotificationCenter({
                             {/* Push Browser */}
                             <div style={{ padding: 14, background: 'rgba(59,130,246,0.1)', borderRadius: 12, border: '1px solid rgba(59,130,246,0.3)' }}>
                                 <div style={{ fontWeight: 700, color: '#60a5fa', marginBottom: 4 }}>
-                                    📱 1. Push Native do Navegador (Sem Custo)
+                                    <Smartphone size={14} strokeWidth={2} /> 1. Push Native do Navegador (Sem Custo)
                                 </div>
                                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
                                     Funciona no Android, Windows, Mac e iOS (Safari PWA). Envia notificações diretamente para a tela do seu celular ou PC.
@@ -327,7 +334,7 @@ export default function NotificationCenter({
                             {/* Email Free & Test Trigger */}
                             <div style={{ padding: 14, background: 'rgba(16,185,129,0.1)', borderRadius: 12, border: '1px solid rgba(16,185,129,0.3)' }}>
                                 <div style={{ fontWeight: 700, color: '#34d399', marginBottom: 4 }}>
-                                    ✉️ 2. E-mail Gratuito (Resend / EmailJS / Gmail SMTP)
+                                    <Mail size={14} strokeWidth={2} /> 2. E-mail Gratuito (Resend / EmailJS / Gmail SMTP)
                                 </div>
                                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginBottom: 10 }}>
                                     O serviço <strong>Resend</strong> fornece 3.000 e-mails/mês totalmente grátis. Teste o disparo de e-mail agora:
@@ -346,13 +353,16 @@ export default function NotificationCenter({
                                         disabled={isSendingEmail}
                                         style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 700, cursor: isSendingEmail ? 'wait' : 'pointer' }}
                                     >
-                                        {isSendingEmail ? 'Enviando...' : '✉️ Enviar E-mail de Teste'}
+                                        {isSendingEmail ? 'Enviando...' : <><Mail size={13} strokeWidth={2} /> Enviar E-mail de Teste</>}
                                     </button>
                                 </div>
 
                                 {emailStatusMsg && (
-                                    <div style={{ marginTop: 8, fontSize: 12, padding: 8, borderRadius: 6, background: 'rgba(0,0,0,0.4)', color: 'white' }}>
-                                        {emailStatusMsg}
+                                    <div className="inline-icon-label" style={{ marginTop: 8, fontSize: 12, padding: 8, borderRadius: 6, background: 'rgba(0,0,0,0.4)', color: emailStatusMsg.ok ? '#6ee7b7' : '#fca5a5' }}>
+                                        {emailStatusMsg.ok
+                                            ? <Check size={13} strokeWidth={2.5} />
+                                            : <AlertTriangle size={13} strokeWidth={2} />}
+                                        {emailStatusMsg.text}
                                     </div>
                                 )}
                             </div>
@@ -360,7 +370,7 @@ export default function NotificationCenter({
                             {/* Telegram Bot */}
                             <div style={{ padding: 14, background: 'rgba(168,85,247,0.1)', borderRadius: 12, border: '1px solid rgba(168,85,247,0.3)' }}>
                                 <div style={{ fontWeight: 700, color: '#c084fc', marginBottom: 4 }}>
-                                    🤖 3. Bot do Telegram (100% Grátis & Instantâneo)
+                                    <Bot size={14} strokeWidth={2} /> 3. Bot do Telegram (100% Grátis & Instantâneo)
                                 </div>
                                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
                                     Criação de um bot próprio no Telegram em 1 minuto via BotFather. O bot envia mensagens automáticas no seu Telegram com os alertas de contas a receber e pagar.

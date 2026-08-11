@@ -1,4 +1,5 @@
 "use client";
+import { Pencil, Trash2, AlertTriangle, CalendarDays, Receipt, CheckCheck } from 'lucide-react'
 
 import { useEffect, useRef, useState } from 'react'
 import { formatCurrency, formatDate } from '../helpers'
@@ -90,8 +91,8 @@ export default function CreditCardItem({ card, invoiceAmount, invoicesBreakdown 
                     <span className="cc-brand">{card.brand}</span>
 
                     <div className="cc-actions">
-                        <button className="cc-action" onClick={() => onEdit(card)} aria-label={`Editar ${card.name}`}>✏️</button>
-                        <button className="cc-action" onClick={() => onRemove(card.id)} aria-label={`Excluir ${card.name}`}>🗑️</button>
+                        <button className="cc-action" onClick={() => onEdit(card)} aria-label={`Editar ${card.name}`}><Pencil size={14} strokeWidth={1.8} /></button>
+                        <button className="cc-action" onClick={() => onRemove(card.id)} aria-label={`Excluir ${card.name}`}><Trash2 size={14} strokeWidth={1.8} /></button>
                     </div>
                 </div>
 
@@ -132,7 +133,7 @@ export default function CreditCardItem({ card, invoiceAmount, invoicesBreakdown 
                                     <span>Fatura {formatInvoiceKey(inv.key)}</span>
                                 </div>
                                 <div style={{ fontSize: 11, color: inv.status === 'overdue' ? '#ef4444' : inv.status === 'pending' ? '#f59e0b' : 'rgba(255,255,255,0.6)', marginTop: 2 }}>
-                                    {inv.status === 'overdue' ? '⚠️ Vencida em ' : '🗓️ Vence em '}{formatDate(inv.dueDate)}
+                                    {inv.status === 'overdue' ? <><AlertTriangle size={12} strokeWidth={2} /> Vencida em </> : <><CalendarDays size={12} strokeWidth={2} /> Vence em </>}{formatDate(inv.dueDate)}
                                 </div>
                             </div>
                             <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
@@ -151,7 +152,7 @@ export default function CreditCardItem({ card, invoiceAmount, invoicesBreakdown 
                                     }}
                                     onClick={() => onPayInvoice(card, inv.remaining, inv.key)}
                                 >
-                                    🧾 Pagar
+                                    <Receipt size={13} strokeWidth={2} /> Pagar
                                 </button>
                             </div>
                         </div>
@@ -170,7 +171,7 @@ export default function CreditCardItem({ card, invoiceAmount, invoicesBreakdown 
                     }}
                     disabled={true}
                 >
-                    ✨ Faturas pagas
+                    <CheckCheck size={13} strokeWidth={2} /> Faturas pagas
                 </button>
             )}
         </div>
