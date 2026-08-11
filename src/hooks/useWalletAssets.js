@@ -109,21 +109,13 @@ export function useWalletAssets(userEmail) {
                 console.error("AwesomeAPI fetch error", e);
             }
 
-            // 2. Fetch live BTC-BRL price from Binance for real-time market accuracy
-            try {
-                const btcRes = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCBRL');
-                if (btcRes.ok) {
-                    const btcData = await btcRes.json();
-                    if (btcData && btcData.price) {
-                        const btcPrice = parseFloat(btcData.price);
-                        if (Number.isFinite(btcPrice) && btcPrice > 0) {
-                            newPrices['BTC-BRL'] = btcPrice;
-                            newPrices['BITCOIN-BRL'] = btcPrice;
-                        }
-                    }
-                }
-            } catch (e) {
-                // Binance fallback silent fail
+            // 2. A carteira também guarda o ticker por extenso; o preço é o mesmo.
+            // (Aqui havia uma segunda chamada à Binance só para o BTC — ela é
+            // bloqueada em algumas redes e derrubava o console com
+            // ERR_CONNECTION_RESET, sem nunca acrescentar nada: a AwesomeAPI
+            // acima já devolve BTCBRL.)
+            if (Number.isFinite(newPrices['BTC-BRL'])) {
+                newPrices['BITCOIN-BRL'] = newPrices['BTC-BRL'];
             }
 
             setLivePrices(prev => ({ ...prev, ...newPrices }));

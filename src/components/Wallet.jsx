@@ -318,21 +318,9 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                 console.error("AwesomeAPI fetch error", e);
             }
 
-            // Real-time Binance API ticker for BTC-BRL fallback
-            try {
-                const btcRes = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCBRL');
-                if (btcRes.ok) {
-                    const btcData = await btcRes.json();
-                    if (btcData && btcData.price) {
-                        const btcPrice = parseFloat(btcData.price);
-                        if (Number.isFinite(btcPrice) && btcPrice > 0) {
-                            newPrices['BTC-BRL'] = btcPrice;
-                            newPrices['BITCOIN-BRL'] = btcPrice;
-                        }
-                    }
-                }
-            } catch (e) {
-                // Ignore silent
+            // Alias do ticker por extenso — o BTC já veio da AwesomeAPI acima
+            if (Number.isFinite(newPrices['BTC-BRL'])) {
+                newPrices['BITCOIN-BRL'] = newPrices['BTC-BRL'];
             }
 
             setLivePrices(prev => ({ ...prev, ...newPrices }));
