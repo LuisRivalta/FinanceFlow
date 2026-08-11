@@ -125,29 +125,6 @@ export default function DashboardPage() {
             list = filteredTransactions
             title = 'Movimentações do Período'
             color = '#3b82f6'
-        } else if (detailView === 'invoices') {
-            const y = currentDate.getFullYear()
-            const m = currentDate.getMonth()
-            const selectedKey = `${y}-${String(m + 1).padStart(2, '0')}`
-            list = transactions.filter(t => {
-                if (t.category === 'invoice_payment') {
-                    const d = new Date(t.date + 'T00:00:00')
-                    return d.getFullYear() === y && d.getMonth() === m
-                }
-                if (t.account === 'credit') {
-                    const card = cards?.find(c => String(c.id) === String(t.creditCardId))
-                    if (card) {
-                        return getInvoiceKey(t.date, card.closing_day) === selectedKey
-                    }
-                    const d = new Date(t.date + 'T00:00:00')
-                    return d.getFullYear() === y && d.getMonth() === m
-                }
-                return false
-            })
-            const rawMonth = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-            const displayMonth = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1)
-            title = `Fatura do Mês (${displayMonth})`
-            color = '#8b5cf6'
         }
 
         return {
@@ -190,6 +167,49 @@ export default function DashboardPage() {
         }, 0)
     }, [transactions])
     
+    // Quanto das compras do mês já foi quitado. Cada compra pertence a uma
+    // fatura (o ciclo de fechamento do cartão); a fração já paga dessa fatura
+    // diz o quanto daquela compra saiu do bolso. Assim o painel fala de uma
+    // linha do tempo só — o mês da compra — sem exibir o ciclo como um
+    // segundo total concorrente.
+    const creditStatus = useMemo(() => {
+        if (!creditPurchases.length) return { paid: 0, unpaid: 0, nextDueDate: null }
+        if (!cards?.length) return { paid: 0, unpaid: creditExpense, nextDueDate: null }
+
+        const ratioByInvoice = {}
+        const dueByInvoice = {}
+        cards.forEach(card => {
+            getCardInvoiceBreakdown(transactions, card, currentDate).forEach(inv => {
+                const id = `${card.id}_${inv.key}`
+                ratioByInvoice[id] = inv.totalExpenses > 0 ? inv.paidAmount / inv.totalExpenses : 1
+                dueByInvoice[id] = inv.dueDate
+            })
+        })
+
+        let paid = 0
+        let unpaid = 0
+        const pendingDueDates = []
+
+        creditPurchases.forEach(t => {
+            const card = cards.find(c => String(c.id) === String(t.creditCardId))
+            const id = card ? `${card.id}_${getInvoiceKey(t.date, card.closing_day)}` : null
+            const ratio = id && ratioByInvoice[id] != null ? ratioByInvoice[id] : 0
+
+            const missing = t.amount * (1 - ratio)
+            paid += t.amount * ratio
+            unpaid += missing
+            // Meio centavo de resíduo não é fatura em aberto — sem o piso, uma
+            // fatura quitada entrava na conta do próximo vencimento
+            if (missing >= 0.01 && id && dueByInvoice[id]) pendingDueDates.push(dueByInvoice[id])
+        })
+
+        return {
+            paid,
+            unpaid,
+            nextDueDate: pendingDueDates.sort()[0] || null
+        }
+    }, [creditPurchases, creditExpense, cards, transactions, currentDate])
+
     const invoiceMetrics = useMemo(() => {
         const y = currentDate.getFullYear()
         const m = currentDate.getMonth()
@@ -197,20 +217,11 @@ export default function DashboardPage() {
 
         let selectedMonthInvoice = 0
         let priorPendingInvoices = 0
-        // Fatura fechada no mês: total, quanto já foi quitado e o que resta.
-        // Guardar o total (e não só o saldo em aberto) é o que permite mostrar
-        // uma fatura paga no painel em vez de ela simplesmente sumir.
-        let selectedInvoiceTotal = 0
-        let selectedInvoicePaid = 0
 
         if (cards && cards.length > 0) {
             cards.forEach(card => {
                 const breakdown = getCardInvoiceBreakdown(transactions, card, currentDate)
                 breakdown.forEach(inv => {
-                    if (inv.key === selectedKey) {
-                        selectedInvoiceTotal += inv.totalExpenses
-                        selectedInvoicePaid += inv.paidAmount
-                    }
                     if (inv.remaining > 0) {
                         if (inv.key === selectedKey) {
                             selectedMonthInvoice += inv.remaining
@@ -248,46 +259,12 @@ export default function DashboardPage() {
 
             const paidCurrent = Math.min(rawSelected, remPayments)
             selectedMonthInvoice = Math.max(0, rawSelected - paidCurrent)
-            selectedInvoiceTotal = rawSelected
-            selectedInvoicePaid = paidCurrent
         }
 
-        const totalInvoices = selectedMonthInvoice + priorPendingInvoices
-
-        return {
-            selectedMonthInvoice,
-            priorPendingInvoices,
-            totalInvoices,
-            selectedInvoiceTotal,
-            selectedInvoicePaid
-        }
+        return { totalInvoices: selectedMonthInvoice + priorPendingInvoices }
     }, [transactions, cards, currentDate])
 
-    const { selectedMonthInvoice, priorPendingInvoices, totalInvoices, selectedInvoiceTotal, selectedInvoicePaid } = invoiceMetrics
-    const isInvoiceSettled = selectedInvoiceTotal > 0 && selectedMonthInvoice <= 0
-
-    // Em que fatura caem as compras feitas no mês exibido (o ciclo fecha antes
-    // do fim do mês, então uma compra de agosto costuma vencer em setembro)
-    const creditInvoiceHint = useMemo(() => {
-        if (!creditPurchases.length || !cards?.length) return null
-        const keys = new Set()
-        creditPurchases.forEach(t => {
-            const card = cards.find(c => String(c.id) === String(t.creditCardId))
-            const key = getInvoiceKey(t.date, card?.closing_day)
-            if (key) keys.add(key)
-        })
-        const sorted = [...keys].sort()
-        if (!sorted.length) return null
-
-        const label = (key) => {
-            const [ky, km] = key.split('-')
-            const raw = new Date(Number(ky), Number(km) - 1).toLocaleDateString('pt-BR', { month: 'long' })
-            return raw.charAt(0).toUpperCase() + raw.slice(1)
-        }
-        return sorted.length === 1
-            ? `Fecha na fatura de ${label(sorted[0])}`
-            : `Fecha nas faturas de ${sorted.map(label).join(' e ')}`
-    }, [creditPurchases, cards])
+    const { totalInvoices } = invoiceMetrics
 
     const freeBalance = globalBalance - Math.max(0, totalInvoices)
 
@@ -598,10 +575,24 @@ export default function DashboardPage() {
                                     <div>
                                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Gastos no Crédito</div>
                                         <div style={{ fontSize: 24, fontWeight: 800, color: '#8b5cf6', margin: '2px 0 6px' }}>{formatCurrency(creditExpense)}</div>
-                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', display: 'flex', flexDirection: 'column' }}>
-                                            <span>{creditPurchases.length} compra(s) no cartão</span>
-                                            <span style={{ color: '#a78bfa', fontWeight: 600 }}>{creditInvoiceHint || 'Nenhuma compra neste mês'}</span>
-                                        </div>
+                                        {creditPurchases.length === 0 ? (
+                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Nenhuma compra no cartão neste mês</div>
+                                        ) : (
+                                            <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                <span style={{ color: 'rgba(255,255,255,0.4)' }}>{creditPurchases.length} compra(s) no cartão</span>
+                                                {creditStatus.unpaid < 0.01 ? (
+                                                    <span style={{ color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                        <Check size={12} strokeWidth={2.5} /> Tudo já pago
+                                                    </span>
+                                                ) : (
+                                                    <span style={{ color: '#a78bfa', fontWeight: 600 }}>
+                                                        {creditStatus.paid >= 0.01 && `${formatCurrency(creditStatus.paid)} pago • `}
+                                                        {formatCurrency(creditStatus.unpaid)} a pagar
+                                                        {creditStatus.nextDueDate && ` (vence ${creditStatus.nextDueDate.slice(8, 10)}/${creditStatus.nextDueDate.slice(5, 7)})`}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                     <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
                                         <CreditCard size={24} strokeWidth={2} />
@@ -609,6 +600,44 @@ export default function DashboardPage() {
                                 </div>
                                 <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative', zIndex: 1 }}>
                                     <canvas ref={credRef} />
+                                </div>
+                            </div>
+
+                        </section>
+
+
+                        <section className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginBottom: 24, alignItems: 'stretch' }}>
+                            {/* Balance */}
+                            <div className="card glass-panel clickable-card" onClick={() => setDetailView('balance')} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 240, border: '1px solid rgba(59,130,246,0.3)', background: 'linear-gradient(180deg, rgba(59,130,246,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
+                                {/* Big faint background icon */}
+                                <svg style={{ position: 'absolute', top: -10, right: 85, width: 140, height: 140, opacity: 0.04, transform: 'rotate(-5deg)', color: '#3b82f6', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M2 6v12h20V6H2zm18 10H4V8h16v8zm-9-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+                                    <circle cx="5.5" cy="12" r="1.5" />
+                                    <circle cx="18.5" cy="12" r="1.5" />
+                                </svg>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
+                                    <div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Saldo Livre</div>
+                                        <div style={{ fontSize: 28, fontWeight: 800, color: freeBalance < 0 ? '#ef4444' : '#3b82f6', margin: '2px 0 6px' }}>{formatCurrency(freeBalance)}</div>
+                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                            <span>Na Conta: <strong style={{ color: 'white' }}>{formatCurrency(globalBalance)}</strong></span>
+                                            {/* O que ainda vai ser debitado pelas faturas — o detalhe por
+                                                cartão e o pagamento ficam na página Cartões */}
+                                            {totalInvoices > 0 && (
+                                                <span>Faturas em aberto: <strong style={{ color: '#f59e0b' }}>−{formatCurrency(totalInvoices)}</strong></span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M2 6v12h20V6H2zm18 10H4V8h16v8zm-9-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+                                            <circle cx="5.5" cy="12" r="1.5" />
+                                            <circle cx="18.5" cy="12" r="1.5" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div style={{ flex: 1, minHeight: 0, width: '100%', marginTop: 6, position: 'relative' }}>
+                                    <canvas ref={balRef} />
                                 </div>
                             </div>
 
@@ -646,86 +675,6 @@ export default function DashboardPage() {
                                 </div>
                                 <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative', zIndex: 1 }}>
                                     <canvas ref={invRef} />
-                                </div>
-                            </div>
-                        </section>
-
-
-                        <section className="fade-up delay-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginBottom: 24, alignItems: 'stretch' }}>
-                            {/* Balance */}
-                            <div className="card glass-panel clickable-card" onClick={() => setDetailView('balance')} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 240, border: '1px solid rgba(59,130,246,0.3)', background: 'linear-gradient(180deg, rgba(59,130,246,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
-                                {/* Big faint background icon */}
-                                <svg style={{ position: 'absolute', top: -10, right: 85, width: 140, height: 140, opacity: 0.04, transform: 'rotate(-5deg)', color: '#3b82f6', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M2 6v12h20V6H2zm18 10H4V8h16v8zm-9-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
-                                    <circle cx="5.5" cy="12" r="1.5" />
-                                    <circle cx="18.5" cy="12" r="1.5" />
-                                </svg>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
-                                    <div>
-                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Saldo Livre</div>
-                                        <div style={{ fontSize: 28, fontWeight: 800, color: freeBalance < 0 ? '#ef4444' : '#3b82f6', margin: '2px 0 6px' }}>{formatCurrency(freeBalance)}</div>
-                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                            <span>Na Conta: <strong style={{ color: 'white' }}>{formatCurrency(globalBalance)}</strong></span>
-                                        </div>
-                                    </div>
-                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M2 6v12h20V6H2zm18 10H4V8h16v8zm-9-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
-                                            <circle cx="5.5" cy="12" r="1.5" />
-                                            <circle cx="18.5" cy="12" r="1.5" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div style={{ flex: 1, minHeight: 0, width: '100%', marginTop: 6, position: 'relative' }}>
-                                    <canvas ref={balRef} />
-                                </div>
-                            </div>
-
-                            {/* Invoices Card */}
-                            <div className="card glass-panel clickable-card" onClick={() => setDetailView('invoices')} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', height: 240, border: '1px solid rgba(139,92,246,0.3)', background: 'linear-gradient(180deg, rgba(139,92,246,0.08) 0%, rgba(255,255,255,0.02) 100%)', overflow: 'hidden', position: 'relative' }}>
-                                {/* Big faint background icon */}
-                                <svg style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 220, height: 220, opacity: 0.03, color: '#8b5cf6', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                                    <line x1="1" y1="10" x2="23" y2="10" />
-                                </svg>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
-                                    <div>
-                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Fatura do Mês</div>
-                                        {/* Mostra sempre o total fechado no ciclo — uma fatura quitada continua
-                                            visível, marcada como paga, em vez de virar R$ 0,00 */}
-                                        <div style={{ fontSize: 28, fontWeight: 800, color: isInvoiceSettled ? '#10b981' : '#8b5cf6', margin: '2px 0 4px' }}>
-                                            {formatCurrency(selectedInvoiceTotal)}
-                                        </div>
-                                        {selectedInvoiceTotal === 0 ? (
-                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>
-                                                Nenhuma fatura fechada neste mês
-                                            </div>
-                                        ) : isInvoiceSettled ? (
-                                            <div style={{ fontSize: 12, color: '#10b981', marginTop: 4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                <Check size={13} strokeWidth={2.5} /> Paga
-                                            </div>
-                                        ) : (
-                                            <div style={{ fontSize: 12, color: '#f59e0b', marginTop: 4, fontWeight: 600 }}>
-                                                Em aberto: {formatCurrency(selectedMonthInvoice)}
-                                                {selectedInvoicePaid > 0 && ` (${formatCurrency(selectedInvoicePaid)} já pago)`}
-                                            </div>
-                                        )}
-                                        {priorPendingInvoices > 0 ? (
-                                            <div style={{ fontSize: 12, color: '#f59e0b', marginTop: 4, fontWeight: 600 }}>
-                                                + {formatCurrency(priorPendingInvoices)} (anterior pendente)
-                                            </div>
-                                        ) : (
-                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
-                                                Faturas anteriores em dia
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                                            <line x1="1" y1="10" x2="23" y2="10" />
-                                        </svg>
-                                    </div>
                                 </div>
                             </div>
                         </section>
