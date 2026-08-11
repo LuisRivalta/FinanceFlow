@@ -10,7 +10,7 @@ import { useSession } from '../../hooks/useSession'
 import { useCreditCards } from '../../hooks/useCards'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useFinancings } from '../../hooks/useFinancings'
-import { useReceivables } from '../../hooks/useReceivables'
+import { useReceivables } from '../../hooks/useReceivablesData'
 import { formatCurrency, formatDate } from '../../helpers'
 import { calcCardInvoice, getCardInvoiceBreakdown } from '../../lib/cardMetrics'
 

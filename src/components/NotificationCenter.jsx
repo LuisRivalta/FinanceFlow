@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { generateFinancialNotifications, requestNotificationPermission, sendBrowserNotification } from '../lib/financialNotifications';
+import { generateFinancialNotifications, requestNotificationPermission, sendBrowserNotification } from '../lib/notificationsEngine';
 
 export default function NotificationCenter({
     receivables = [],

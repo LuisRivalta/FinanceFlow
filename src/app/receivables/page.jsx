@@ -6,7 +6,7 @@ import Sidebar from '../../components/Sidebar';
 import FinancialCalendar from '../../components/FinancialCalendar';
 import NotificationCenter from '../../components/NotificationCenter';
 import { useSession } from '../../hooks/useSession';
-import { useReceivables } from '../../hooks/useReceivables';
+import { useReceivables } from '../../hooks/useReceivablesData';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useCreditCards } from '../../hooks/useCards';
 import { useFinancings } from '../../hooks/useFinancings';
