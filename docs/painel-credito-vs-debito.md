@@ -1,6 +1,6 @@
 # Painel: crédito, débito e fatura
 
-**Arquivos:** `src/app/page.jsx` (dashboard), `src/helpers.js`, `src/lib/cardMetrics.js`
+**Arquivos:** `src/app/page.jsx` (dashboard), `src/app/cards/page.jsx`, `src/components/CreditSpendModal.jsx`, `src/helpers.js`, `src/lib/cardMetrics.js`, `src/lib/financingSchedule.js`
 
 ## O problema
 
@@ -51,3 +51,24 @@ Somar centavos em float deixa sobra (`3259.13 + 34.19 + … − 3577.12 = 4.5e-1
 
 - `getCardInvoiceBreakdown` arredonda `remaining` em centavos — senão a fatura quitada nunca ficava `paid`.
 - `creditStatus` só conta uma compra como pendente se faltar `>= 0.01` — senão uma fatura paga entrava na lista de vencimentos e o card anunciava o vencimento errado.
+
+## Financiamentos e empréstimos no painel
+
+O financiamento é um **cadastro**, não uma transação: o painel só via a despesa quando a parcela era paga pelo botão da página Cartões (que cria um `expense` de categoria `housing`). Quem paga por fora — a maioria — não via nada, e o painel afirmava implicitamente que o mês não tinha esse compromisso.
+
+`src/lib/financingSchedule.js` resolve isso pelo cadastro: `pendingInstallmentsFor(financings, ano, mês)` soma as parcelas que vencem no mês e ainda não foram quitadas. As parcelas pagas são sempre as primeiras da fila (`paidInstallments = 3` → parcelas 1, 2 e 3 quitadas), o mesmo modelo que a página Cartões já usa.
+
+O valor entra como mais uma linha de compromisso do **Saldo Livre** (`Parcelas do mês: −R$ 510`) e é descontado do saldo, junto com a fatura. Não vira card nem entra em "Despesas no Débito": não é gasto realizado, é dinheiro comprometido — e quando a parcela *é* paga pelo app, ela vira transação e aí sim conta como despesa, sem duplicar (a linha de compromisso some, porque `paidInstallments` avança).
+
+## Análise dos gastos no crédito — `CreditSpendModal`
+
+Um modal só, usado por duas telas, porque a pergunta é a mesma ("no que eu gastei no cartão?") variando só o recorte:
+
+| Tela | Como abre | Transações | Agrupamento |
+| --- | --- | --- | --- |
+| Painel | clique no card "Gastos no Crédito" | compras do ciclo | por data |
+| Cartões | clique na face do cartão | tudo daquele cartão | por fatura, com status (`paga`, `em aberto`, `a vencer`) |
+
+Conteúdo: total, **à vista × parcelado**, barras por categoria e o extrato com o cartão e o `parcela 2/4` em cada linha, mais um filtro "só parcelas".
+
+`installmentTotal > 1` é o que define uma parcela — campo real da transação, não o `(2/4)` escrito na descrição. Quem digita a descrição à mão não ganha o badge, mas também não recebe classificação errada.

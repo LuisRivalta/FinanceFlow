@@ -4,13 +4,14 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '../../components/Sidebar'
 import CreditCardItem from '../../components/CreditCardItem'
+import CreditSpendModal from '../../components/CreditSpendModal'
 import FinancialCalendar from '../../components/FinancialCalendar'
 import { useSession } from '../../hooks/useSession'
 import { useCreditCards } from '../../hooks/useCards'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useFinancings } from '../../hooks/useFinancings'
-import { formatCurrency, formatDate } from '../../helpers'
-import { calcCardInvoice, getCardInvoiceBreakdown } from '../../lib/cardMetrics'
+import { formatCurrency, formatDate, isSpending } from '../../helpers'
+import { calcCardInvoice, getCardInvoiceBreakdown, getInvoiceKey } from '../../lib/cardMetrics'
 import { CreditCard, Car, CalendarDays, ClipboardList, Repeat, Check, CheckCheck, X, Home, Landmark } from 'lucide-react'
 
 // Ícone por tipo de financiamento
@@ -40,6 +41,9 @@ export default function CardsPage() {
 
     // Active Tab state: 'cards' or 'financings'
     const [activeTab, setActiveTab] = useState('cards')
+
+    // Cartão cujo extrato está aberto (clique na face do cartão)
+    const [statementCard, setStatementCard] = useState(null)
 
     // Credit Card Form state
     const [isAddingCard, setIsAddingCard] = useState(false)
@@ -255,6 +259,31 @@ export default function CardsPage() {
 
     // Filter transactions
     const cardTxs = useMemo(() => transactions.filter(t => t.creditCardId != null && t.creditCardId !== ''), [transactions])
+
+    // Extrato do cartão aberto: compras agrupadas por fatura (ciclo de
+    // fechamento), que é como o cartão realmente cobra
+    const statementTxs = useMemo(() => {
+        if (!statementCard) return []
+        return cardTxs
+            .filter(t => String(t.creditCardId) === String(statementCard.id) && isSpending(t))
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
+    }, [cardTxs, statementCard])
+
+    // Situação de cada fatura do cartão aberto, para o extrato dizer se aquele
+    // bloco já foi pago ou ainda vai vencer
+    const statementInvoiceStatus = useMemo(() => {
+        if (!statementCard) return {}
+        const now = new Date()
+        const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+        const map = {}
+        getCardInvoiceBreakdown(cardTxs, statementCard, now).forEach(inv => {
+            map[inv.key] = inv.key > currentKey ? 'a vencer'
+                : inv.remaining <= 0 ? 'paga'
+                    : inv.status === 'overdue' ? 'vencida' : 'em aberto'
+        })
+        return map
+    }, [cardTxs, statementCard])
     const subscriptions = useMemo(() => cardTxs.filter(t => t.isSubscription), [cardTxs])
     const installments = useMemo(() => cardTxs.filter(t => (t.installmentTotal && t.installmentTotal > 1) || /\(\d+[\s\/de]+\d+\)/i.test(t.desc)), [cardTxs])
 
@@ -603,6 +632,7 @@ export default function CardsPage() {
                                             onEdit={handleEditCardClick}
                                             onRemove={removeCard}
                                             onPayInvoice={handlePayInvoice}
+                                            onOpenStatement={setStatementCard}
                                         />
                                     )
                                 })}
@@ -1097,6 +1127,22 @@ export default function CardsPage() {
                     )}
                 </main>
             </div>
+
+            <CreditSpendModal
+                isOpen={!!statementCard}
+                onClose={() => setStatementCard(null)}
+                title={statementCard ? `Extrato · ${statementCard.name}` : ''}
+                subtitle="Todas as compras registradas"
+                transactions={statementTxs}
+                color={statementCard?.color || '#8b5cf6'}
+                groupBy={t => getInvoiceKey(t.date, statementCard?.closing_day)}
+                groupLabel={key => {
+                    const [y, m] = key.split('-')
+                    const raw = new Date(Number(y), Number(m) - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+                    const status = statementInvoiceStatus[key]
+                    return `Fatura de ${raw}${status ? ` · ${status}` : ''}`
+                }}
+            />
         </div>
     )
 }

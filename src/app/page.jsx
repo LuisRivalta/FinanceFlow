@@ -8,13 +8,16 @@ import Sidebar from '../components/Sidebar'
 import TxCard from '../components/TxCard'
 import TransactionModal from '../components/TransactionModal'
 import DetailsModal from '../components/DetailsModal'
+import CreditSpendModal from '../components/CreditSpendModal'
 import dynamic from 'next/dynamic'
 import { useSession } from '../hooks/useSession'
 import { useTransactions } from '../hooks/useTransactions'
 import { useCreditCards } from '../hooks/useCards'
+import { useFinancings } from '../hooks/useFinancings'
 import { useWalletAssets } from '../hooks/useWalletAssets'
 import { formatCurrency, calcBalance, calcIncome, calcInvestment, getCategoryDetails, isSpending } from '../helpers'
 import { getCardInvoiceBreakdown, getInvoiceKey } from '../lib/cardMetrics'
+import { pendingInstallmentsFor } from '../lib/financingSchedule'
 import { currentLegendPosition } from '../lib/responsive'
 
 const Coin3D = dynamic(() => import('../components/3d/Coin3D'), { ssr: false })
@@ -50,6 +53,7 @@ export default function DashboardPage() {
     const router = useRouter()
     const session = useSession()
     const { cards } = useCreditCards(session?.email)
+    const { financings } = useFinancings(session?.email)
     const { transactions, loading, load, create, update, remove } = useTransactions(session?.email)
     const { totalNetWorth: walletTotalNetWorth } = useWalletAssets(session?.email)
 
@@ -187,12 +191,6 @@ export default function DashboardPage() {
             list = filteredTransactions.filter(t => isSpending(t) && t.account !== 'credit')
             title = 'Despesas no Débito, Pix e Dinheiro'
             color = '#ef4444'
-        } else if (detailView === 'credit') {
-            list = creditCycle.purchases
-            title = creditCycle.periodLabel
-                ? `Compras no Crédito (${creditCycle.periodLabel})`
-                : 'Compras no Cartão de Crédito'
-            color = '#8b5cf6'
         } else if (detailView === 'investment') {
             list = filteredTransactions.filter(t => t.type === 'investment')
             title = 'Detalhes de Investimentos'
@@ -327,7 +325,22 @@ export default function DashboardPage() {
     const totalInvoices = monthInvoice + olderPending
     const monthLabelShort = currentDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
 
-    const freeBalance = globalBalance - Math.max(0, totalInvoices)
+    const cardNameById = useMemo(() => {
+        const map = {}
+        ;(cards || []).forEach(c => { map[String(c.id)] = c.name })
+        return map
+    }, [cards])
+
+    // Parcela de financiamento/empréstimo que vence no mês e ainda não foi
+    // quitada. O financiamento é um cadastro, não uma transação: sem isso o
+    // painel ignorava o carro, a moto, o empréstimo — só via a despesa quando
+    // a parcela era paga pelo botão da página Cartões.
+    const financingDue = useMemo(
+        () => pendingInstallmentsFor(financings, currentDate.getFullYear(), currentDate.getMonth()),
+        [financings, currentDate]
+    )
+
+    const freeBalance = globalBalance - Math.max(0, totalInvoices) - Math.max(0, financingDue)
 
     // Recent (last 5)
     const recentTxs = useMemo(() => {
@@ -689,6 +702,9 @@ export default function DashboardPage() {
                                             {olderPending > 0 && (
                                                 <span>Anteriores em aberto: <strong style={{ color: '#ef4444' }}>−{formatCurrency(olderPending)}</strong></span>
                                             )}
+                                            {financingDue > 0 && (
+                                                <span>Parcelas do mês: <strong style={{ color: '#f59e0b' }}>−{formatCurrency(financingDue)}</strong></span>
+                                            )}
                                         </div>
                                     </div>
                                     <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
@@ -979,8 +995,16 @@ export default function DashboardPage() {
                     </div>
                 </div>
             )}
+            <CreditSpendModal
+                isOpen={detailView === 'credit'}
+                onClose={() => setDetailView(null)}
+                title="Gastos no Crédito"
+                subtitle={creditCycle.periodLabel}
+                transactions={creditCycle.purchases}
+                cardNameById={cardNameById}
+            />
             <DetailsModal
-                isOpen={!!detailView}
+                isOpen={!!detailView && detailView !== 'credit'}
                 onClose={() => setDetailView(null)}
                 type={detailView}
                 transactions={detailInfo.transactions}

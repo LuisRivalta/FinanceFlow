@@ -26,7 +26,7 @@ function formatInvoiceKey(key) {
     return date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
 }
 
-export default function CreditCardItem({ card, invoiceAmount, invoicesBreakdown = [], onEdit, onRemove, onPayInvoice }) {
+export default function CreditCardItem({ card, invoiceAmount, invoicesBreakdown = [], onEdit, onRemove, onPayInvoice, onOpenStatement }) {
     const faceRef = useRef(null)
     const [reducedMotion, setReducedMotion] = useState(false)
 
@@ -82,17 +82,19 @@ export default function CreditCardItem({ card, invoiceAmount, invoicesBreakdown 
             <div
                 ref={faceRef}
                 className="cc-face"
-                style={{ '--cc-color': card.color }}
+                style={{ '--cc-color': card.color, cursor: onOpenStatement ? 'pointer' : 'default' }}
                 onMouseMove={handleMove}
                 onMouseLeave={handleLeave}
+                onClick={() => onOpenStatement && onOpenStatement(card)}
+                title={onOpenStatement ? 'Ver extrato e gastos por categoria' : undefined}
             >
                 <div className="cc-row cc-depth-far">
                     <div className="cc-chip" aria-hidden="true" />
                     <span className="cc-brand">{card.brand}</span>
 
                     <div className="cc-actions">
-                        <button className="cc-action" onClick={() => onEdit(card)} aria-label={`Editar ${card.name}`}><Pencil size={14} strokeWidth={1.8} /></button>
-                        <button className="cc-action" onClick={() => onRemove(card.id)} aria-label={`Excluir ${card.name}`}><Trash2 size={14} strokeWidth={1.8} /></button>
+                        <button className="cc-action" onClick={e => { e.stopPropagation(); onEdit(card) }} aria-label={`Editar ${card.name}`}><Pencil size={14} strokeWidth={1.8} /></button>
+                        <button className="cc-action" onClick={e => { e.stopPropagation(); onRemove(card.id) }} aria-label={`Excluir ${card.name}`}><Trash2 size={14} strokeWidth={1.8} /></button>
                     </div>
                 </div>
 
