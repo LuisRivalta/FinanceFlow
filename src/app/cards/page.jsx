@@ -5,12 +5,10 @@ import { useRouter } from 'next/navigation'
 import Sidebar from '../../components/Sidebar'
 import CreditCardItem from '../../components/CreditCardItem'
 import FinancialCalendar from '../../components/FinancialCalendar'
-import NotificationCenter from '../../components/NotificationCenter'
 import { useSession } from '../../hooks/useSession'
 import { useCreditCards } from '../../hooks/useCards'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useFinancings } from '../../hooks/useFinancings'
-import { useReceivables } from '../../hooks/useReceivablesData'
 import { formatCurrency, formatDate } from '../../helpers'
 import { calcCardInvoice, getCardInvoiceBreakdown } from '../../lib/cardMetrics'
 
@@ -28,7 +26,6 @@ export default function CardsPage() {
     const { cards, load: loadCards, create: createCard, update: updateCard, remove: removeCard, loading: loadingCards } = useCreditCards(session?.email)
     const { transactions, load: loadTxs, create: createTx, remove: removeTx } = useTransactions(session?.email)
     const { financings, addFinancing, removeFinancing, payInstallment } = useFinancings(session?.email)
-    const { receivables, markAsReceived } = useReceivables(session?.email)
 
     useEffect(() => {
         if (session) {
@@ -431,16 +428,6 @@ export default function CardsPage() {
                         </header>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <NotificationCenter
-                                receivables={receivables}
-                                financings={financings}
-                                cards={cards}
-                                transactions={transactions}
-                                onMarkReceived={(id, ym) => markAsReceived(id, ym, createTx)}
-                                onPayFinancing={(f) => payInstallment(f.id, createTx)}
-                                onPayCardInvoice={(card, amt) => handlePayInvoice(card, amt)}
-                            />
-
                             {activeTab === 'cards' && (
                                 <button className="btn-primary" onClick={() => { cancelEditCard(); setIsAddingCard(true); }}>
                                     <span className="icon">💳</span> Adicionar Cartão
@@ -537,12 +524,11 @@ export default function CardsPage() {
                     {/* TAB: CALENDAR */}
                     {activeTab === 'calendar' && (
                         <FinancialCalendar
-                            receivables={receivables}
+                            mode="payables"
                             cards={cards}
                             financings={financings}
                             subscriptions={subscriptions}
                             transactions={transactions}
-                            onMarkReceived={(id, ym) => markAsReceived(id, ym, createTx)}
                             onPayFinancing={handlePayFinancingInstallment}
                             onPayCardInvoice={handlePayInvoice}
                         />

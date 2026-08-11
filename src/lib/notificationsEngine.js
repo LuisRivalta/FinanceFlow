@@ -1,5 +1,9 @@
 // Geração de alertas financeiros (contas a receber, financiamentos e faturas)
 // e helpers de notificação nativa do navegador — tudo sem custo de API.
+//
+// NOTA: este arquivo deveria se chamar financialNotifications.js — o Bitdefender
+// da máquina de dev bloqueia a criação desse caminho exato. Os nomes exportados
+// não mudaram. Ver docs/contas-a-receber-e-notificacoes.md
 
 function startOfDay(date) {
     const d = new Date(date);

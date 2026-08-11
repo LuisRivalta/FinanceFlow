@@ -3,16 +3,23 @@
 import { useState, useMemo } from 'react';
 import { formatCurrency, formatDate } from '../helpers';
 
+// mode define o escopo do calendário:
+//   'receivables' → só contas a receber
+//   'payables'    → só contas a pagar (faturas, assinaturas, financiamentos)
+//   'all'         → tudo, com os botões de filtro manual
 export default function FinancialCalendar({
     receivables = [],
     cards = [],
     financings = [],
     subscriptions = [],
     transactions = [],
+    mode = 'all',
     onMarkReceived,
     onPayFinancing,
     onPayCardInvoice
 }) {
+    const showReceivables = mode !== 'payables';
+    const showPayables = mode !== 'receivables';
     const [currentDate, setCurrentDate] = useState(() => {
         const d = new Date();
         return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -38,7 +45,7 @@ export default function FinancialCalendar({
         const map = {};
 
         // 1. Contas a Receber
-        receivables.forEach(r => {
+        if (showReceivables) receivables.forEach(r => {
             if (!r.active) return;
             const dueDay = Math.min(r.dueDay || 10, daysInMonth);
             if (!map[dueDay]) map[dueDay] = [];
@@ -60,7 +67,7 @@ export default function FinancialCalendar({
         });
 
         // 2. Cartões de Crédito (Vencimento da Fatura)
-        cards.forEach(card => {
+        if (showPayables) cards.forEach(card => {
             const dueDay = Math.min(card.due_day || 10, daysInMonth);
             if (!map[dueDay]) map[dueDay] = [];
 
@@ -91,7 +98,7 @@ export default function FinancialCalendar({
         });
 
         // 3. Assinaturas no Cartão
-        subscriptions.forEach(sub => {
+        if (showPayables) subscriptions.forEach(sub => {
             const subDate = new Date(sub.date + 'T00:00:00');
             const dueDay = Math.min(subDate.getDate() || 5, daysInMonth);
             if (!map[dueDay]) map[dueDay] = [];
@@ -109,7 +116,7 @@ export default function FinancialCalendar({
         });
 
         // 4. Financiamentos & Empréstimos
-        financings.forEach(f => {
+        if (showPayables) financings.forEach(f => {
             const dueDay = Math.min(f.dueDay || 10, daysInMonth);
             if (!map[dueDay]) map[dueDay] = [];
 
@@ -134,7 +141,7 @@ export default function FinancialCalendar({
         });
 
         return map;
-    }, [receivables, cards, subscriptions, financings, transactions, year, month, yearMonthStr, daysInMonth]);
+    }, [receivables, cards, subscriptions, financings, transactions, year, month, yearMonthStr, daysInMonth, showReceivables, showPayables]);
 
     const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
     const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
@@ -147,12 +154,26 @@ export default function FinancialCalendar({
     const isCurrentMonthView = todayDate.getFullYear() === year && todayDate.getMonth() === month;
     const todayDayNum = isCurrentMonthView ? todayDate.getDate() : null;
 
-    // Filter items based on calendarFilter toggle
+    // Fora do modo 'all' o escopo já foi aplicado na montagem dos itens, então
+    // o filtro manual não se aplica.
     const filterItem = (item) => {
+        if (mode !== 'all') return true;
         if (calendarFilter === 'receivables') return item.type === 'receivable';
         if (calendarFilter === 'payables') return item.type !== 'receivable';
         return true;
     };
+
+    const headerTitle = mode === 'receivables' ? 'Calendário de Recebimentos'
+        : mode === 'payables' ? 'Calendário de Pagamentos'
+            : 'Calendário Financeiro';
+
+    const headerSubtitle = mode === 'receivables' ? 'Datas previstas de recebimento das suas contas a receber.'
+        : mode === 'payables' ? 'Vencimentos de faturas, assinaturas, financiamentos e empréstimos.'
+            : 'Vizualize datas de recebimento, cartões, assinaturas e parcelas.';
+
+    const headerColor = mode === 'receivables' ? '#10b981'
+        : mode === 'payables' ? '#8b5cf6'
+            : '#60a5fa';
 
     const handleDayClick = (dayNum, dayItems) => {
         const filtered = (dayItems || []).filter(filterItem);
@@ -165,18 +186,19 @@ export default function FinancialCalendar({
             {/* Calendar Header Controls */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: 12, background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa', fontSize: 20 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 12, background: `${headerColor}26`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: headerColor, fontSize: 20 }}>
                         📅
                     </div>
                     <div>
-                        <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Calendário Financeiro</h3>
-                        <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Vizualize datas de recebimento, cartões, assinaturas e parcelas.</p>
+                        <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{headerTitle}</h3>
+                        <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{headerSubtitle}</p>
                     </div>
                 </div>
 
                 {/* Month Navigation & Filters */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                    {/* View Filters */}
+                    {/* View Filters — só fazem sentido quando o calendário mostra tudo */}
+                    {mode === 'all' && (
                     <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', padding: 4, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }}>
                         <button
                             onClick={() => setCalendarFilter('all')}
@@ -227,6 +249,7 @@ export default function FinancialCalendar({
                             💳 Pagar & Cartões
                         </button>
                     </div>
+                    )}
 
                     {/* Month Picker Controls */}
                     <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }}>

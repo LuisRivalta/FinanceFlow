@@ -106,29 +106,15 @@ export default function NotificationCenter({
     };
 
     return (
-        <div style={{ position: 'relative', display: 'inline-block' }}>
-            {/* Bell Icon Button */}
+        <div style={{ display: 'inline-block' }}>
+            {/* Bell Icon Button — estilo em globals.css (.notif-bell) */}
             <button
+                className="notif-bell"
                 onClick={() => setIsOpen(!isOpen)}
-                style={{
-                    position: 'relative',
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    borderRadius: 12,
-                    padding: '8px 12px',
-                    color: 'white',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    transition: 'all 0.2s ease'
-                }}
                 title="Notificações & Lembretes"
             >
                 <span style={{ fontSize: 18 }}>🔔</span>
-                <span className="mobile-hide">Alertas</span>
+                <span className="notif-bell-text">Alertas</span>
                 {unreadAlerts.length > 0 && (
                     <span style={{
                         background: '#ef4444',
@@ -144,22 +130,20 @@ export default function NotificationCenter({
                 )}
             </button>
 
-            {/* Dropdown Popover */}
+            {/* Clique fora fecha o painel */}
+            {isOpen && <div className="notif-backdrop" onClick={() => setIsOpen(false)} />}
+
+            {/* Painel ancorado na viewport — o botão vive dentro da Sidebar, que
+                tem overflow-y:auto e recortaria um dropdown posicionado nela */}
             {isOpen && (
                 <div style={{
-                    position: 'absolute',
-                    top: '120%',
-                    right: 0,
-                    width: 380,
-                    maxWidth: '90vw',
                     background: '#111827',
                     border: '1px solid rgba(255,255,255,0.15)',
                     borderRadius: 18,
                     boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
-                    zIndex: 1000,
                     padding: 16,
                     backdropFilter: 'blur(16px)'
-                }} className="fade-up">
+                }} className="fade-up notif-panel">
                     {/* Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                         <div style={{ fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>

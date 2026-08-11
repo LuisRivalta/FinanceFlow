@@ -1734,3 +1734,98 @@ html.lenis, html.lenis body {
         display: none;
     }
 }
+
+/* ==========================================================================
+   Sino de notificações global
+   --------------------------------------------------------------------------
+   Instância única, montada na Sidebar (que já é global) — nenhuma página
+   precisa renderizar ou alimentar o sino.
+
+   Fica FORA de <header class="sidebar"> de propósito: no mobile a sidebar
+   recebe transform: translateX(-100%), e um filho position:fixed dentro de um
+   ancestral transformado passa a se posicionar por ele, não pela viewport —
+   o sino sairia da tela junto com o drawer.
+
+   Desktop: flutua no canto inferior direito. O topo direito não serve porque
+   as páginas já colocam botões de ação ali (ex: "+ Nova Conta a Receber"),
+   fora do .top-header, e o sino cobriria esses botões.
+   Mobile: encaixa na barra fixa do topo, à esquerda do avatar.
+   ========================================================================== */
+.global-notifications {
+    position: fixed;
+    right: 28px;
+    bottom: 28px;
+    z-index: 900;
+}
+
+.notif-bell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: rgba(17, 24, 39, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.notif-bell:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.notif-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1400;
+}
+
+/* Painel preso à viewport: o botão fica em containers com overflow/z-index
+   próprios, então um dropdown posicionado nele seria recortado. */
+.notif-panel {
+    position: fixed;
+    right: 28px;
+    bottom: 88px;
+    width: 380px;
+    max-width: calc(100vw - 56px);
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+    z-index: 1500;
+}
+
+@media (max-width: 768px) {
+    .global-notifications {
+        top: 11px;
+        bottom: auto;
+        right: 64px; /* espaço para o avatar do .mobile-header */
+        z-index: 1000; /* acima do .mobile-header (999) */
+    }
+
+    .notif-bell {
+        padding: 8px 10px;
+        border-radius: 12px;
+    }
+
+    /* Só o ícone no mobile — a barra do topo é estreita */
+    .notif-bell-text {
+        display: none;
+    }
+
+    .notif-panel {
+        top: 68px;
+        bottom: auto;
+        left: 12px;
+        right: 12px;
+        width: auto;
+        max-width: none;
+        max-height: calc(100vh - 96px);
+    }
+}

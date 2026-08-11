@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from '../hooks/useSession';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import GlobalNotifications from './GlobalNotifications';
 
 function LogoIcon() {
     return (
@@ -84,6 +85,12 @@ export default function Sidebar() {
 
     return (
         <>
+            {/* Sino global — instância única, reposicionada por CSS: canto
+                superior direito no desktop, dentro da barra fixa no mobile */}
+            <div className="global-notifications">
+                <GlobalNotifications />
+            </div>
+
             {/* Mobile Sticky Top Header */}
             <header className="mobile-header">
                 <button

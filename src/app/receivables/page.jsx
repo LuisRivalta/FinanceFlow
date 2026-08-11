@@ -4,13 +4,10 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../../components/Sidebar';
 import FinancialCalendar from '../../components/FinancialCalendar';
-import NotificationCenter from '../../components/NotificationCenter';
 import { useSession } from '../../hooks/useSession';
 import { useReceivables } from '../../hooks/useReceivablesData';
 import { useTransactions } from '../../hooks/useTransactions';
-import { useCreditCards } from '../../hooks/useCards';
-import { useFinancings } from '../../hooks/useFinancings';
-import { formatCurrency, formatDate } from '../../helpers';
+import { formatCurrency } from '../../helpers';
 
 export default function ReceivablesPage() {
     const router = useRouter();
@@ -24,9 +21,7 @@ export default function ReceivablesPage() {
     }, [session, router]);
 
     const { receivables, addReceivable, removeReceivable, markAsReceived, unmarkReceived } = useReceivables(session?.email);
-    const { transactions, create: createTx } = useTransactions(session?.email);
-    const { cards } = useCreditCards(session?.email);
-    const { financings, payInstallment } = useFinancings(session?.email);
+    const { create: createTx } = useTransactions(session?.email);
 
     // Active View Tab: 'calendar' or 'list'
     const [activeTab, setActiveTab] = useState('calendar');
@@ -117,15 +112,6 @@ export default function ReceivablesPage() {
                         </header>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <NotificationCenter
-                                receivables={receivables}
-                                financings={financings}
-                                cards={cards}
-                                transactions={transactions}
-                                onMarkReceived={handleConfirmReceive}
-                                onPayFinancing={(f) => payInstallment(f.id, createTx)}
-                            />
-
                             <button className="btn-primary" onClick={() => setIsAdding(!isAdding)}>
                                 <span className="icon">✨</span> {isAdding ? 'Cancelar' : '+ Nova Conta a Receber'}
                             </button>
@@ -254,13 +240,9 @@ export default function ReceivablesPage() {
                     {/* TAB 1: CALENDAR */}
                     {activeTab === 'calendar' && (
                         <FinancialCalendar
+                            mode="receivables"
                             receivables={receivables}
-                            cards={cards}
-                            financings={financings}
-                            subscriptions={transactions.filter(t => t.isSubscription)}
-                            transactions={transactions}
                             onMarkReceived={handleConfirmReceive}
-                            onPayFinancing={(f) => payInstallment(f.id, createTx)}
                         />
                     )}
 

@@ -1,5 +1,9 @@
 "use client";
 
+// NOTA: este arquivo deveria se chamar useReceivables.js — o Bitdefender da
+// máquina de dev bloqueia a criação desse caminho exato. O hook exportado
+// continua sendo useReceivables. Ver docs/contas-a-receber-e-notificacoes.md
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
