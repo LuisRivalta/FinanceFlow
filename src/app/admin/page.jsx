@@ -1,4 +1,5 @@
 "use client";
+import { Shield, RefreshCw, Crown, Ban, Check, Key, Trash2 } from 'lucide-react'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -16,7 +17,7 @@ export default function AdminPage() {
     useEffect(() => {
         if (session === undefined) return
         if (!session || session.role !== 'admin') {
-            alert('⛔ Acesso Restrito. Você não possui privilégios de Administrador.')
+            alert('Acesso Restrito. Você não possui privilégios de Administrador.')
             router.push('/')
             return
         }
@@ -65,7 +66,7 @@ export default function AdminPage() {
                 <main className="main-content">
                     <header className="top-header fade-up">
                         <div>
-                            <h2 className="page-title">🛡️ Painel Admin</h2>
+                            <h2 className="page-title"><Shield size={24} strokeWidth={2} /> Painel Admin</h2>
                             <p className="page-subtitle">Gerencie usuários, cargos e acessos da plataforma.</p>
                         </div>
                         <button className="btn-primary" onClick={() => router.push('/profile')}>
@@ -77,7 +78,7 @@ export default function AdminPage() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                             <h3 style={{ fontSize: 20, fontWeight: 600 }}>Usuários Registrados</h3>
                             <button onClick={loadUsers} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-secondary)', cursor: 'pointer', padding: '8px 16px', borderRadius: 8, fontFamily: 'inherit', fontSize: 13 }}>
-                                🔄 Atualizar
+                                <RefreshCw size={13} strokeWidth={2} /> Atualizar
                             </button>
                         </div>
 
@@ -120,12 +121,12 @@ export default function AdminPage() {
                                                     <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontSize: 14 }}>{u.email}</td>
                                                     <td style={{ padding: '14px 16px' }}>
                                                         <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: u.role === 'admin' ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.06)', color: u.role === 'admin' ? 'var(--accent-primary)' : 'var(--text-secondary)', border: `1px solid ${u.role === 'admin' ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.1)'}` }}>
-                                                            {u.role === 'admin' ? '👑 Administrador' : 'Membro'}
+                                                            {u.role === 'admin' ? <><Crown size={11} strokeWidth={2} /> Administrador</> : 'Membro'}
                                                         </span>
                                                     </td>
                                                     <td style={{ padding: '14px 16px' }}>
                                                         <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: u.status === 'blocked' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)', color: u.status === 'blocked' ? 'var(--danger-color)' : 'var(--success-color)', border: `1px solid ${u.status === 'blocked' ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'}` }}>
-                                                            {u.status === 'blocked' ? '🚫 Bloqueado' : '✅ Ativo'}
+                                                            {u.status === 'blocked' ? <><Ban size={11} strokeWidth={2} /> Bloqueado</> : <><Check size={11} strokeWidth={2.5} /> Ativo</>}
                                                         </span>
                                                     </td>
                                                     <td style={{ padding: '14px 16px' }}>
@@ -134,13 +135,13 @@ export default function AdminPage() {
                                                         ) : (
                                                             <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                                                                 <ActionBtn onClick={() => toggleRole(u.id, u.role)}>
-                                                                    🔑 {u.role === 'admin' ? 'Remover Admin' : 'Dar Admin'}
+                                                                    <Key size={12} strokeWidth={2} /> {u.role === 'admin' ? 'Remover Admin' : 'Dar Admin'}
                                                                 </ActionBtn>
                                                                 <ActionBtn onClick={() => toggleStatus(u.id, u.status)}>
-                                                                    {u.status === 'blocked' ? '✅ Desbloquear' : '🚫 Bloquear'}
+                                                                    {u.status === 'blocked' ? <><Check size={12} strokeWidth={2.5} /> Desbloquear</> : <><Ban size={12} strokeWidth={2} /> Bloquear</>}
                                                                 </ActionBtn>
                                                                 <ActionBtn danger onClick={() => deleteUser(u.id, u.email)}>
-                                                                    🗑️ Excluir
+                                                                    <Trash2 size={12} strokeWidth={2} /> Excluir
                                                                 </ActionBtn>
                                                             </div>
                                                         )}

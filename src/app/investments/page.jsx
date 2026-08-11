@@ -11,6 +11,7 @@ import { useRates } from '../../hooks/useRates'
 import { useWalletAssets } from '../../hooks/useWalletAssets'
 import { INVESTMENT_PRODUCTS, DEFAULT_PRODUCT_ID, getProduct, deriveRate, multiplierLabel } from '../../lib/investmentProducts'
 import CategoryIcon from '../../components/CategoryIcon'
+import { Landmark, Coins, X, Plus, CalendarDays, TrendingUp, Calculator, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { formatCurrency, formatPercent, calcInvestment, CATEGORY_MAP, ACCOUNTS } from '../../helpers'
 import { Chart, ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler } from 'chart.js'
@@ -187,7 +188,7 @@ export default function InvestmentsPage() {
 
             setSaqueMessage({
                 type: 'success',
-                text: `🎉 Saque de ${formatCurrency(saqueCalc.brlToWithdraw)} realizado com sucesso! O valor foi transferido do investimento para a sua ${targetAccObj.label}.`
+                text: `Saque de ${formatCurrency(saqueCalc.brlToWithdraw)} realizado com sucesso! O valor foi transferido do investimento para a sua ${targetAccObj.label}.`
             })
             setSaqueVal('')
         } catch (err) {
@@ -298,7 +299,7 @@ export default function InvestmentsPage() {
         // TypeError dentro do useMemo, durante o render, e como não há error
         // boundary em src/app/ a página de investimentos ficaria em branco.
         if (degraded.includes(product.index) || !indexRate || !Number.isFinite(indexRate.value)) {
-            return { text: '⚠ não deu pra atualizar; usando último valor conhecido', tone: '#f59e0b' }
+            return { text: 'não deu pra atualizar; usando último valor conhecido', tone: '#f59e0b' }
         }
 
         return {
@@ -565,7 +566,7 @@ export default function InvestmentsPage() {
                 <Sidebar />
                 <main className="main-content">
                 <header className="fade-up" style={{ marginBottom: 20 }}>
-                    <h2 style={{ fontSize: 32, fontWeight: 700, margin: 0 }}>🏦 Meus Investimentos</h2>
+                    <h2 style={{ fontSize: 32, fontWeight: 700, margin: 0 }} className="inline-icon-label"><Landmark size={28} strokeWidth={2} /> Meus Investimentos</h2>
                     <p style={{ color: 'var(--text-secondary)', marginTop: 6 }}>Gerencie seu patrimônio e simule seus rendimentos.</p>
                 </header>
 
@@ -602,7 +603,7 @@ export default function InvestmentsPage() {
                 {/* Área de Saque Section */}
                 <div id="saque-section" className="fade-up delay-2" style={{ marginBottom: 36 }}>
                     <h3 style={{ fontSize: 24, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <span>💸</span> Área de Saque & Resgate de Investimentos
+                        <Coins size={18} strokeWidth={2} /> Área de Saque &amp; Resgate de Investimentos
                     </h3>
 
                     {(!walletAssets || walletAssets.length === 0) ? (
@@ -632,7 +633,7 @@ export default function InvestmentsPage() {
                                                     const val = calculateCurrentValue(a);
                                                     return (
                                                         <option key={a.id || a.dbId} value={a.id || a.dbId}>
-                                                            {a.type === 'crypto' ? '₿' : a.type === 'currency' ? '💵' : '🏦'} {a.name || a.ticker} ({formatCurrency(val)})
+                                                            {a.name || a.ticker} ({formatCurrency(val)})
                                                         </option>
                                                     );
                                                 })}
@@ -702,7 +703,7 @@ export default function InvestmentsPage() {
                                             min={0}
                                             max={1000000000}
                                             decimals={saqueCalc?.isCryptoOrCurr && saqueMode === 'units' ? 8 : 2}
-                                            icon="💸"
+                                            icon={<Coins size={14} strokeWidth={2} />}
                                             ariaLabel="Valor a sacar"
                                         />
                                     </div>
@@ -814,7 +815,7 @@ export default function InvestmentsPage() {
                                             className="btn-primary"
                                             style={{ width: '100%', padding: '14px', fontSize: 16, background: '#10b981', borderColor: '#10b981', boxShadow: '0 4px 20px rgba(16,185,129,0.4)' }}
                                         >
-                                            {isSubmittingSaque ? 'Processando Saque...' : '💸 Confirmar Saque e Creditar na Conta'}
+                                            {isSubmittingSaque ? 'Processando Saque...' : <><Coins size={14} strokeWidth={2} /> Confirmar Saque e Creditar na Conta</>}
                                         </button>
                                     </div>
                                 </div>
@@ -825,7 +826,7 @@ export default function InvestmentsPage() {
 
                 {/* Simulador Section */}
                 <h3 id="simulador-section" className="fade-up delay-2" style={{ fontSize: 24, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span>🧮</span> Simulador de Juros Compostos
+                    <Calculator size={18} strokeWidth={2} /> Simulador de Juros Compostos
                 </h3>
                 <div className="fade-up delay-2 sim-grid">
 
@@ -856,7 +857,7 @@ export default function InvestmentsPage() {
                                     min={0}
                                     max={product.multiplierKind === 'percent_of' ? 300 : 50}
                                     decimals={2}
-                                    icon={product.multiplierKind === 'percent_of' ? '✖️' : '➕'}
+                                    icon={product.multiplierKind === 'percent_of' ? <X size={14} strokeWidth={2} /> : <Plus size={14} strokeWidth={2} />}
                                     ariaLabel={multiplierFieldLabel}
                                 />
                             </div>
@@ -870,7 +871,7 @@ export default function InvestmentsPage() {
                                 min={0}
                                 max={1000000000}
                                 decimals={2}
-                                icon="💰"
+                                icon={<Coins size={14} strokeWidth={2} />}
                                 ariaLabel="Valor inicial"
                             />
                         </div>
@@ -883,7 +884,7 @@ export default function InvestmentsPage() {
                                 min={0}
                                 max={1000000000}
                                 decimals={2}
-                                icon="📅"
+                                icon={<CalendarDays size={14} strokeWidth={2} />}
                                 ariaLabel="Aporte mensal"
                             />
                         </div>
@@ -896,7 +897,7 @@ export default function InvestmentsPage() {
                                 min={0}
                                 max={100}
                                 decimals={2}
-                                icon="📈"
+                                icon={<TrendingUp size={14} strokeWidth={2} />}
                                 suffix="%"
                                 ariaLabel="Taxa de rendimento anual"
                             />
@@ -960,7 +961,7 @@ export default function InvestmentsPage() {
                             </div>
                             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 16, lineHeight: 1.5 }}>
                                 {simData.isTaxExempt 
-                                    ? '✓ Produto isento de Imposto de Renda (IR) para pessoa física.' 
+                                    ? <><Check size={12} strokeWidth={2.5} /> Produto isento de Imposto de Renda (IR) para pessoa física.</> 
                                     : `* Desconto de IR calculado pela tabela regressiva de renda fixa (${simData.irRatePct}% para ${simData.months} meses).`}
                             </div>
                         </div>

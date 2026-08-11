@@ -1,4 +1,5 @@
 "use client";
+import { Crown, Star, Camera, Loader2, Check, X, Pencil, Mail, Shield } from 'lucide-react'
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
@@ -60,7 +61,7 @@ export default function ProfilePage() {
     async function handleFileChange(e) {
         const file = e.target.files[0]
         if (!file) return
-        if (file.size > 2 * 1024 * 1024) { alert('⚠️ Imagem muito grande! Max 2MB.'); return }
+        if (file.size > 2 * 1024 * 1024) { alert('Imagem muito grande! Max 2MB.'); return }
         const reader = new FileReader()
         reader.onload = async (ev) => {
             const base64 = ev.target.result
@@ -120,7 +121,9 @@ export default function ProfilePage() {
     }
 
     const isAdmin = session?.role === 'admin'
-    const roleBadge = isAdmin ? '👑 Administrador ✦' : 'Nível Premium ✶'
+    const roleBadge = isAdmin
+        ? <span className="inline-icon-label"><Crown size={12} strokeWidth={2} /> Administrador</span>
+        : <span className="inline-icon-label"><Star size={12} strokeWidth={2} /> Nível Premium</span>
 
     if (session === undefined) return null;
 
@@ -155,7 +158,7 @@ export default function ProfilePage() {
                                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s', fontSize: 22, gap: 4 }}
                                     onMouseOver={e => e.currentTarget.style.opacity = '1'}
                                     onMouseOut={e => e.currentTarget.style.opacity = '0'}>
-                                    📷<span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>Alterar</span>
+                                    <Camera size={16} strokeWidth={2} /><span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>Alterar</span>
                                 </div>
                             </div>
 
@@ -172,14 +175,14 @@ export default function ProfilePage() {
                                             autoFocus
                                         />
                                         <button onClick={handleSaveName} disabled={saving} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--panel-border)', borderRadius: 8, color: 'var(--success-color)', cursor: 'pointer', padding: '6px 10px', fontSize: 16 }}>
-                                            {saving ? '⏳' : '✓'}
+                                            {saving ? <Loader2 size={15} strokeWidth={2} /> : <Check size={15} strokeWidth={2.5} />}
                                         </button>
-                                        <button onClick={() => setEditMode(false)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--panel-border)', borderRadius: 8, color: 'var(--danger-color)', cursor: 'pointer', padding: '6px 10px', fontSize: 16 }}>✕</button>
+                                        <button onClick={() => setEditMode(false)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--panel-border)', borderRadius: 8, color: 'var(--danger-color)', cursor: 'pointer', padding: '6px 10px', }}><X size={15} strokeWidth={2} /></button>
                                     </>
                                 ) : (
                                     <>
                                         <h2 style={{ fontSize: 28, margin: 0 }}>{displayName}</h2>
-                                        <button onClick={() => { setNameInput(displayName); setEditMode(true) }} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--panel-border)', borderRadius: 8, color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px 10px', fontSize: 16 }}>✏️</button>
+                                        <button onClick={() => { setNameInput(displayName); setEditMode(true) }} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--panel-border)', borderRadius: 8, color: 'var(--text-secondary)', cursor: 'pointer', padding: '6px 10px', }}><Pencil size={15} strokeWidth={2} /></button>
                                     </>
                                 )}
                             </div>
@@ -200,7 +203,7 @@ export default function ProfilePage() {
                                     Solicite um link de segurança para alterar a sua senha de acesso na nuvem.
                                 </p>
                                 <button className="btn-primary" onClick={handleResetPwd} disabled={pwdLoading}>
-                                    <span className="icon">{pwdLoading ? '⏳' : '✉️'}</span>
+                                    <span className="icon">{pwdLoading ? <Loader2 size={15} strokeWidth={2} /> : <Mail size={15} strokeWidth={2} />}</span>
                                     {pwdLoading ? 'Enviando...' : 'Enviar Link de Recuperação'}
                                 </button>
                                 {pwdSent && (
@@ -214,13 +217,13 @@ export default function ProfilePage() {
                             {isAdmin && (
                                 <div className="glass-panel" style={{ padding: 32, borderColor: 'rgba(99,102,241,0.3)' }}>
                                     <h3 style={{ color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                                        🛡️ Painel de Administração
+                                        <Shield size={15} strokeWidth={2} /> Painel de Administração
                                     </h3>
                                     <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: 15, marginTop: 8 }}>
                                         Gerencie usuários, atribua cargos e controle acessos da plataforma.
                                     </p>
                                     <button className="btn-primary" onClick={() => router.push('/admin')}>
-                                        <span>🛡️</span> Acessar Painel Admin
+                                        <Shield size={15} strokeWidth={2} /> Acessar Painel Admin
                                     </button>
                                 </div>
                             )}

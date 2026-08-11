@@ -3,7 +3,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '../../components/Sidebar'
-import CategoryIcon from '../../components/CategoryIcon';
+import CategoryIcon from '../../components/CategoryIcon'
+import { Map, Bot, Save, Pencil, Banknote, Target, CreditCard, Shield, Zap, AlertTriangle, Check } from 'lucide-react';
 import { useSession } from '../../hooks/useSession';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency, mapFromDB, CATEGORY_MAP } from '../../helpers';
@@ -188,10 +189,10 @@ export default function RoadmapPage() {
             if (data.advice) {
                 setAiAdvice(data.advice);
             } else {
-                setAiAdvice("❌ Erro: " + (data.error || "Tente novamente mais tarde."));
+                setAiAdvice("Erro: " + (data.error || "Tente novamente mais tarde."));
             }
         } catch (e) {
-            setAiAdvice("❌ Erro ao conectar com o serviço de Inteligência Artificial.");
+            setAiAdvice("Erro ao conectar com o serviço de Inteligência Artificial.");
         }
         setAiLoading(false);
     }
@@ -230,7 +231,7 @@ export default function RoadmapPage() {
                     {/* Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
                         <div>
-                            <h2 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 800 }}>🗺️ Roteiro Financeiro & Teto de Gastos</h2>
+                            <h2 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 800 }} className="inline-icon-label"><Map size={26} strokeWidth={2} /> Roteiro Financeiro &amp; Teto de Gastos</h2>
                             <p style={{ margin: 0, color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>
                                 Configure metas de orçamento mensais, evite estouros e receba auxílio da IA.
                             </p>
@@ -246,13 +247,13 @@ export default function RoadmapPage() {
                             </div>
 
                             <button className="btn btn-secondary" onClick={askAI} disabled={aiLoading} style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid #6366f1', opacity: aiLoading ? 0.5 : 1 }}>
-                                {aiLoading ? '🤖 Analisando...' : '🤖 Análise da IA'}
+                                {aiLoading ? <><Bot size={14} strokeWidth={2} /> Analisando...</> : <><Bot size={14} strokeWidth={2} /> Análise da IA</>}
                             </button>
 
                             {isEditing ? (
-                                <button className="btn btn-primary" onClick={saveBudgets} style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>💾 Salvar Limites</button>
+                                <button className="btn btn-primary" onClick={saveBudgets} style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}><Save size={14} strokeWidth={2} /> Salvar Limites</button>
                             ) : (
-                                <button className="btn btn-secondary" onClick={() => setIsEditing(true)}>✏️ Editar Roteiro</button>
+                                <button className="btn btn-secondary" onClick={() => setIsEditing(true)}><Pencil size={14} strokeWidth={2} /> Editar Roteiro</button>
                             )}
                         </div>
                     </div>
@@ -260,14 +261,14 @@ export default function RoadmapPage() {
                     {/* KPI Stats Grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 28 }}>
                         <div className="card glass-panel" style={{ padding: 20 }}>
-                            <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>💵 Receita Mensal Base</span>
+                            <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}><Banknote size={13} strokeWidth={2} /> Receita Mensal Base</span>
                             <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981', marginTop: 6 }}>
                                 {formatCurrency(totalIncome)}
                             </div>
                         </div>
 
                         <div className="card glass-panel" style={{ padding: 20 }}>
-                            <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>🎯 Orçamento Total Planejado</span>
+                            <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}><Target size={13} strokeWidth={2} /> Orçamento Total Planejado</span>
                             <div style={{ fontSize: 22, fontWeight: 800, color: '#818cf8', marginTop: 6 }}>
                                 {formatCurrency(totalPlannedLimit)}
                             </div>
@@ -277,14 +278,14 @@ export default function RoadmapPage() {
                         </div>
 
                         <div className="card glass-panel" style={{ padding: 20 }}>
-                            <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>💳 Gastos Realizados</span>
+                            <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}><CreditCard size={13} strokeWidth={2} /> Gastos Realizados</span>
                             <div style={{ fontSize: 22, fontWeight: 800, color: totalSpent > totalPlannedLimit && totalPlannedLimit > 0 ? '#ef4444' : '#38bdf8', marginTop: 6 }}>
                                 {formatCurrency(totalSpent)}
                             </div>
                         </div>
 
                         <div className="card glass-panel" style={{ padding: 20 }}>
-                            <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>🛡️ Saldo de Limite Livre</span>
+                            <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}><Shield size={13} strokeWidth={2} /> Saldo de Limite Livre</span>
                             <div style={{ fontSize: 22, fontWeight: 800, color: remainingTotalMargin >= 0 ? '#10b981' : '#ef4444', marginTop: 6 }}>
                                 {formatCurrency(remainingTotalMargin)}
                             </div>
@@ -298,7 +299,7 @@ export default function RoadmapPage() {
                     {aiAdvice && (
                         <div className="card glass-panel fade-up" style={{ padding: 24, marginBottom: 28, border: '1px solid rgba(99,102,241,0.4)', background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(15,23,42,0.6) 100%)' }}>
                             <h3 style={{ margin: '0 0 14px', fontSize: 16, color: '#818cf8', display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <span>🤖</span> Diagnóstico & Conselho da Inteligência Financeira
+                                <Bot size={18} strokeWidth={2} /> Diagnóstico &amp; Conselho da Inteligência Financeira
                             </h3>
                             <div style={{ fontSize: 14, lineHeight: 1.6, color: 'rgba(255,255,255,0.9)', whiteSpace: 'pre-wrap' }}>
                                 {aiAdvice}
@@ -325,7 +326,7 @@ export default function RoadmapPage() {
                                     style={{ fontSize: 13, padding: '8px 14px', background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid #3b82f6' }}
                                     title="Preencher % com base no modelo financeiro 50/30/20"
                                 >
-                                    ⚡ Aplicar Modelo 50/30/20
+                                    <Zap size={13} strokeWidth={2} /> Aplicar Modelo 50/30/20
                                 </button>
                             )}
 
@@ -344,21 +345,21 @@ export default function RoadmapPage() {
                                         onClick={() => setFilterStatus('alert')}
                                         style={{ padding: '6px 12px', fontSize: 12, color: filterStatus === 'alert' ? '#fff' : '#f59e0b' }}
                                     >
-                                        ⚠️ Alerta / Estourado
+                                        <AlertTriangle size={12} strokeWidth={2} /> Alerta / Estourado
                                     </button>
                                     <button
                                         className={`btn ${filterStatus === 'ok' ? 'btn-primary' : 'btn-secondary'}`}
                                         onClick={() => setFilterStatus('ok')}
                                         style={{ padding: '6px 12px', fontSize: 12, color: filterStatus === 'ok' ? '#fff' : '#10b981' }}
                                     >
-                                        🟢 No Limite
+                                        <Check size={12} strokeWidth={2.5} /> No Limite
                                     </button>
                                     <button
                                         className={`btn ${filterStatus === 'unset' ? 'btn-primary' : 'btn-secondary'}`}
                                         onClick={() => setFilterStatus('unset')}
                                         style={{ padding: '6px 12px', fontSize: 12 }}
                                     >
-                                        ✏️ Sem Meta
+                                        <Pencil size={12} strokeWidth={2} /> Sem Meta
                                     </button>
                                 </div>
                             )}
@@ -384,11 +385,11 @@ export default function RoadmapPage() {
 
                                     let badgeTag = null;
                                     if (isOver) {
-                                        badgeTag = <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)' }}>🔴 ESTOURADO ({pctSpent.toFixed(0)}%)</span>;
+                                        badgeTag = <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)' }} className="inline-icon-label"><AlertTriangle size={11} strokeWidth={2} /> ESTOURADO ({pctSpent.toFixed(0)}%)</span>;
                                     } else if (isWarning) {
-                                        badgeTag = <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.4)' }}>🟡 ATENÇÃO ({pctSpent.toFixed(0)}%)</span>;
+                                        badgeTag = <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.4)' }} className="inline-icon-label"><AlertTriangle size={11} strokeWidth={2} /> ATENÇÃO ({pctSpent.toFixed(0)}%)</span>;
                                     } else if (isOk) {
-                                        badgeTag = <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: 'rgba(16,185,129,0.2)', color: '#10b981', border: '1px solid rgba(16,185,129,0.4)' }}>🟢 DENTRO DA META</span>;
+                                        badgeTag = <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: 'rgba(16,185,129,0.2)', color: '#10b981', border: '1px solid rgba(16,185,129,0.4)' }} className="inline-icon-label"><Check size={11} strokeWidth={2.5} /> DENTRO DA META</span>;
                                     } else if (isUnset) {
                                         badgeTag = <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}>SEM META DEFINIDA</span>;
                                     }
@@ -501,7 +502,7 @@ export default function RoadmapPage() {
                                                         <span>0%</span>
                                                         <span>
                                                             {isOver
-                                                                ? `⚠️ Estourou por ${formatCurrency(spent - limitAmt)}`
+                                                                ? `Estourou por ${formatCurrency(spent - limitAmt)}`
                                                                 : `Restam ${formatCurrency(limitAmt - spent)} de limite`}
                                                         </span>
                                                         <span>100%</span>

@@ -15,9 +15,10 @@ Analise os dados financeiros abaixo e forneça um diagnóstico profissional, emp
 - Gastos Reais no Mês: ${JSON.stringify(expenses)}
 
 Estrutura da sua resposta:
-1. 📊 Diagnóstico Geral (resumo da saúde do orçamento).
-2. ⚠️ Pontos de Atenção (categorias estouradas ou próximas do limite).
-3. 💡 Ações Práticas Recomendadas (passos claros para os próximos dias).
+1. Diagnóstico Geral (resumo da saúde do orçamento).
+2. Pontos de Atenção (categorias estouradas ou próximas do limite).
+3. Ações Práticas Recomendadas (passos claros para os próximos dias).
+Não use emojis na resposta: a interface usa ícones próprios.
 
 Responda em português do Brasil, usando emojis amigáveis e marcadores markdown limpos.`;
 
@@ -61,36 +62,36 @@ Responda em português do Brasil, usando emojis amigáveis e marcadores markdown
 
         let adviceLines = [];
 
-        adviceLines.push("📊 **Diagnóstico Geral do seu Roteiro**");
+        adviceLines.push("**Diagnóstico Geral do seu Roteiro**");
         if (income > 0) {
             const committedPct = (totalLimitBrl / income) * 100;
             adviceLines.push(`• Sua renda mensal base é de **R$ ${income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}**.`);
             adviceLines.push(`• Você planejou um teto total de **R$ ${totalLimitBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}** (${committedPct.toFixed(1)}% da sua renda).`);
             if (committedPct > 90) {
-                adviceLines.push(`⚠️ Seu planejamento compromete mais de 90% da sua renda. O ideal é manter orçamentos essenciais em até 70-80% para ter margem de reserva.`);
+                adviceLines.push(`Seu planejamento compromete mais de 90% da sua renda. O ideal é manter orçamentos essenciais em até 70-80% para ter margem de reserva.`);
             } else {
-                adviceLines.push(`✅ Seu planejamento inicial está dentro de uma margem saudável em relação à sua renda!`);
+                adviceLines.push(`Seu planejamento inicial está dentro de uma margem saudável em relação à sua renda!`);
             }
         } else {
             adviceLines.push(`• Adicione suas receitas mensais no Dashboard para receber análises comparativas de % da renda.`);
         }
 
-        adviceLines.push("\n⚠️ **Categorias em Atenção**");
+        adviceLines.push("\n**Categorias em Atenção**");
         if (overspent.length > 0) {
             overspent.forEach(o => {
-                adviceLines.push(`• 🔴 **${o.label}**: Orçamento estourado em **R$ ${o.diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}** (Gasto: R$ ${o.spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / Meta: R$ ${o.limit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}).`);
+                adviceLines.push(`• **${o.label}**: Orçamento estourado em **R$ ${o.diff.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}** (Gasto: R$ ${o.spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / Meta: R$ ${o.limit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}).`);
             });
         } else {
-            adviceLines.push(`• 🎉 Parabéns! Nenhuma categoria ultrapassou a meta planejada até o momento.`);
+            adviceLines.push(`• Parabéns! Nenhuma categoria ultrapassou a meta planejada até o momento.`);
         }
 
         if (nearLimit.length > 0) {
             nearLimit.forEach(n => {
-                adviceLines.push(`• 🟡 **${n.label}**: Próximo da meta (já utilizou mais de 80% do teto).`);
+                adviceLines.push(`• **${n.label}**: Próximo da meta (já utilizou mais de 80% do teto).`);
             });
         }
 
-        adviceLines.push("\n💡 **Recomendações Práticas**");
+        adviceLines.push("\n**Recomendações Práticas**");
         if (overspent.length > 0) {
             adviceLines.push(`1. Tente remanejar saldo de categorias com sobra (ex: Lazer ou Outros) para cobrir os excessos em **${overspent.map(o => o.label).join(', ')}**.`);
         } else {

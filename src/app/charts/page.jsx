@@ -8,6 +8,7 @@ import { useSession } from '../../hooks/useSession'
 import { supabase } from '../../lib/supabase'
 import { mapFromDB, formatCurrency, getCategoryDetails, CATEGORY_MAP } from '../../helpers'
 import CategoryIcon from '../../components/CategoryIcon'
+import { BarChart3, ArrowUp, ArrowDown, TrendingUp, Wallet, Check, AlertTriangle, Scale, PieChart, CreditCard, Flame, Sprout, Siren, Inbox } from 'lucide-react'
 import { currentLegendPosition } from '../../lib/responsive'
 
 // Register Chart.js components
@@ -48,7 +49,7 @@ function getCat(id) {
         const f = list.find(c => c.id === id)
         if (f) return f
     }
-    return { label: id || 'Outros', icon: '📌', color: '#94a3b8' }
+    return { label: id || 'Outros', iconName: 'Pin', color: '#94a3b8' }
 }
 
 export default function ChartsPage() {
@@ -188,7 +189,7 @@ export default function ChartsPage() {
         const totals = { checking: 0, savings: 0, credit: 0 }
         expenses.forEach(t => { totals[t.account] = (totals[t.account] || 0) + t.amount })
         
-        const rawLabels = ['💳 Cartão de Crédito', '🏦 Conta Corrente', '💰 Poupança']
+        const rawLabels = ['Cartão de Crédito', 'Conta Corrente', 'Poupança']
         const rawData = [totals.credit || 0, totals.checking || 0, totals.savings || 0]
         const rawBg = ['rgba(139,92,246,0.8)', 'rgba(59,130,246,0.8)', 'rgba(16,185,129,0.8)']
         const rawBd = ['#8b5cf6', '#3b82f6', '#10b981']
@@ -276,7 +277,7 @@ export default function ChartsPage() {
                             {/* Header */}
                             <div style={{ marginBottom: 32 }}>
                                 <h1 style={{ fontSize: 'clamp(24px,4vw,36px)', fontWeight: 800, margin: '0 0 6px', background: 'linear-gradient(135deg,#fff 0%,rgba(255,255,255,0.6) 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                                    📈 Análise Financeira
+                                    <BarChart3 size={24} strokeWidth={2} /> Análise Financeira
                                 </h1>
                                 <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, margin: 0 }}>Visualize seus rendimentos, gastos e evolução patrimonial.</p>
                             </div>
@@ -297,13 +298,13 @@ export default function ChartsPage() {
                             {/* KPIs */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
                                 {[
-                                    { label: '💰 Receitas Totais', val: totalIncome, count: kpiIncome.length, color: '#10b981' },
-                                    { label: '💸 Despesas Totais', val: totalExpense, count: kpiExpense.length, color: '#ef4444' },
-                                    { label: '📈 Investimentos', val: totalInvest, count: kpiInvest.length, color: '#8b5cf6' },
-                                    { label: '🏦 Saldo Líquido', val: netBalance, sub: netBalance >= 0 ? '✅ Positivo' : '⚠️ Negativo', color: netBalance >= 0 ? '#10b981' : '#ef4444' }
+                                    { icon: ArrowUp, label: 'Receitas Totais', val: totalIncome, count: kpiIncome.length, color: '#10b981' },
+                                    { icon: ArrowDown, label: 'Despesas Totais', val: totalExpense, count: kpiExpense.length, color: '#ef4444' },
+                                    { icon: TrendingUp, label: 'Investimentos', val: totalInvest, count: kpiInvest.length, color: '#8b5cf6' },
+                                    { icon: Wallet, label: 'Saldo Líquido', val: netBalance, sub: netBalance >= 0 ? <><Check size={11} strokeWidth={2.5} /> Positivo</> : <><AlertTriangle size={11} strokeWidth={2} /> Negativo</>, color: netBalance >= 0 ? '#10b981' : '#ef4444' }
                                 ].map((k, i) => (
                                     <div key={i} className="card glass-panel" style={{ padding: 20, gap: 6 }}>
-                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 700 }}>{k.label}</div>
+                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 700 }} className="inline-icon-label">{k.icon && <k.icon size={12} strokeWidth={2} />} {k.label}</div>
                                         <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{fmt(k.val)}</div>
                                         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{k.sub || `${k.count} transação(ões)`}</div>
                                     </div>
@@ -313,35 +314,35 @@ export default function ChartsPage() {
                             {/* Charts Grid */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
                                 {/* 1. Balance */}
-                                <ChartCard title="🚀 Evolução do Patrimônio" subtitle="Saldo acumulado ao longo do tempo" full>
+                                <ChartCard icon={TrendingUp} title="Evolução do Patrimônio" subtitle="Saldo acumulado ao longo do tempo" full>
                                     <div style={{ position: 'relative', height: 320, width: '100%' }}>
                                         {!balanceChartConfig ? <Empty /> : <canvas ref={balanceRef} />}
                                     </div>
                                 </ChartCard>
 
                                 {/* 2. Monthly */}
-                                <ChartCard title="⚖️ Receitas vs Despesas por Mês" subtitle="Comparativo mensal de entrada e saída" full>
+                                <ChartCard icon={Scale} title="Receitas vs Despesas por Mês" subtitle="Comparativo mensal de entrada e saída" full>
                                     <div style={{ position: 'relative', height: 320, width: '100%' }}>
                                         {!monthlyChartConfig ? <Empty /> : <canvas ref={monthlyRef} />}
                                     </div>
                                 </ChartCard>
 
                                 {/* 3. Cat Expense */}
-                                <ChartCard title="🍩 Gastos por Categoria" subtitle="Distribuição das despesas">
+                                <ChartCard icon={PieChart} title="Gastos por Categoria" subtitle="Distribuição das despesas">
                                     <div style={{ position: 'relative', height: 260, width: '100%' }}>
                                         {!catExpenseConfig ? <Empty msg="Nenhuma despesa" /> : <canvas ref={catExpenseRef} />}
                                     </div>
                                 </ChartCard>
 
                                 {/* 4. Type Dist */}
-                                <ChartCard title="💳 Gastos por Conta" subtitle="Meios de pagamento mais utilizados">
+                                <ChartCard icon={CreditCard} title="Gastos por Conta" subtitle="Meios de pagamento mais utilizados">
                                     <div style={{ position: 'relative', height: 260, width: '100%' }}>
                                         {!typeDistConfig ? <Empty /> : <canvas ref={typeDistRef} />}
                                     </div>
                                 </ChartCard>
 
                                 {/* 5. Top Cats */}
-                                <ChartCard title="🔥 Top Gastos" subtitle="Categorias que mais pesam no bolso">
+                                <ChartCard icon={Flame} title="Top Gastos" subtitle="Categorias que mais pesam no bolso">
                                     {topCats.length === 0 ? (
                                         <Empty msg="Nenhum gasto" />
                                     ) : topCats.map(({ cat, val, pct }, i) => (
@@ -359,14 +360,14 @@ export default function ChartsPage() {
                                 </ChartCard>
 
                                 {/* 6. Income Cat */}
-                                <ChartCard title="🌱 Fontes de Renda" subtitle="De onde vem seu dinheiro">
+                                <ChartCard icon={Sprout} title="Fontes de Renda" subtitle="De onde vem seu dinheiro">
                                     <div style={{ position: 'relative', height: 260, width: '100%' }}>
                                         {!catIncomeConfig ? <Empty msg="Sem receitas" /> : <canvas ref={catIncomeRef} />}
                                     </div>
                                 </ChartCard>
 
                                 {/* 7. Top Expenses Table */}
-                                <ChartCard title="🚨 Maiores Despesas Individuais" subtitle="As compras/contas mais caras do período" full>
+                                <ChartCard icon={Siren} title="Maiores Despesas Individuais" subtitle="As compras/contas mais caras do período" full>
                                     {topExpenses.length === 0 ? (
                                         <Empty msg="Nenhuma despesa" />
                                     ) : (
@@ -411,10 +412,10 @@ export default function ChartsPage() {
     )
 }
 
-function ChartCard({ title, subtitle, children, full }) {
+function ChartCard({ title, subtitle, children, full, icon: Icon }) {
     return (
         <div className="card glass-panel" style={{ gridColumn: full ? '1/-1' : 'auto' }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>{title}</h3>
+            <h3 className="inline-icon-label" style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>{Icon && <Icon size={14} strokeWidth={2} />} {title}</h3>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', margin: '0 0 20px' }}>{subtitle}</p>
             {children}
         </div>
@@ -424,7 +425,7 @@ function ChartCard({ title, subtitle, children, full }) {
 function Empty({ msg = 'Sem dados no período' }) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 120, color: 'rgba(255,255,255,0.2)', fontSize: 13, gap: 8 }}>
-            <span style={{ fontSize: 'clamp(22px, 5vw, 32px)' }}>📭</span>
+            <Inbox size={30} strokeWidth={1.5} />
             {msg}
         </div>
     )
