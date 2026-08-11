@@ -10,27 +10,31 @@ A primeira tentativa de conserto foi separar em dois cards — "Gastos no Crédi
 
 **São duas linhas do tempo diferentes** — quando você comprou × quando o banco fechou o ciclo — e o painel não consegue exibir as duas sem confundir.
 
-## A decisão: o painel fala do mês da compra
+## A decisão: cada frente no seu próprio calendário
 
-O painel usa **uma linha do tempo só**, a data da compra, que é a que o usuário controla. A fatura por ciclo é assunto da página **Cartões**, onde ela é paga.
+Contar o cartão por mês de calendário mantinha a divergência: em agosto o painel dizia R$ 2.082,38 enquanto a fatura a pagar era R$ 1.764,39, porque as compras de 01 a 03/08 já tinham entrado na fatura fechada em 04/08.
 
-| Card | O que soma | Filtro |
+O cartão passa a ser lido pelo **ciclo de fechamento**, que é como o usuário enxerga: num cartão que fecha dia 4, "agosto" vai de 05/08 a 04/09. Assim o card bate com a fatura, sem número intermediário.
+
+| Card | Recorte | Filtro |
 | --- | --- | --- |
-| **Despesas no Débito** | saiu da conta na hora: pix, débito, dinheiro | `isSpending(t) && t.account !== 'credit'` |
-| **Gastos no Crédito** | compras no cartão feitas no mês, com quanto já foi quitado | `isSpending(t) && t.account === 'credit'` |
+| **Despesas no Débito** | mês de calendário — sai da conta na hora | `isSpending(t) && t.account !== 'credit'` |
+| **Gastos no Crédito** | ciclo aberto no mês (`creditCycle`) | `getInvoiceKey(t.date, closing_day) === cycleKey` |
+
+`cycleKey` é o **mês seguinte** ao exibido: o ciclo aberto em agosto vira a fatura que fecha em setembro. Cada cartão tem seu fechamento, então a filtragem é por cartão. Quando todos os cartões com compra no ciclo têm o mesmo fechamento, o card mostra o intervalo exato (`05/08 a 04/09`); com fechamentos diferentes, mostra só o mês (`ciclos que fecham em setembro`) — um intervalo único mentiria sobre pelo menos um cartão.
 
 `isSpending` (em `helpers.js`) exclui `invoice_payment`: o pagamento da fatura não é gasto novo, quita compras que já entraram em "Gastos no Crédito". Cada lançamento cai em exatamente um dos dois cards. O termômetro e a rosca de categorias mostram a soma, rotulados como tal.
 
 O saldo em aberto das faturas não sumiu do painel: aparece como linha dentro do **Saldo Livre** (`Faturas em aberto: −R$ X`), que é onde importa — dinheiro comprometido.
 
-## Pago x a pagar, sem falar em ciclo
+## Pago x a pagar
 
-`creditStatus` (em `page.jsx`) responde "essas compras já saíram do bolso?" sem exibir o ciclo como um segundo total. Cada compra pertence a uma fatura; a fração já quitada dessa fatura (`paidAmount / totalExpenses` de `getCardInvoiceBreakdown`) diz o quanto daquela compra foi pago:
+`creditStatus` (em `page.jsx`) responde "essa fatura já saiu do bolso?" pela fração quitada da fatura do ciclo em cada cartão (`paidAmount / totalExpenses` de `getCardInvoiceBreakdown`):
 
 ```
 GASTOS NO CRÉDITO — agosto
-R$ 2.082,38   (15 compras)
-R$ 317,99 pago • R$ 1.764,39 a pagar (vence 10/09)
+R$ 1.764,39   (11 compras · ciclos que fecham em setembro)
+R$ 1.764,39 a pagar (vence 10/09)
 ```
 
 Quitado tudo, vira `✓ Tudo já pago`.

@@ -13,7 +13,7 @@ import { useSession } from '../hooks/useSession'
 import { useTransactions } from '../hooks/useTransactions'
 import { useCreditCards } from '../hooks/useCards'
 import { useWalletAssets } from '../hooks/useWalletAssets'
-import { formatCurrency, calcBalance, calcIncome, calcExpense, calcInvestment, getCategoryDetails, isSpending } from '../helpers'
+import { formatCurrency, calcBalance, calcIncome, calcInvestment, getCategoryDetails, isSpending } from '../helpers'
 import { getCardInvoiceBreakdown, getInvoiceKey } from '../lib/cardMetrics'
 import { currentLegendPosition } from '../lib/responsive'
 
@@ -99,6 +99,80 @@ export default function DashboardPage() {
         })
     }, [transactions, currentDate])
 
+    // Summaries
+    //
+    // O gasto do mês é lido em duas frentes que nunca se sobrepõem:
+    //   directExpenses — sai da conta na hora (pix, débito, dinheiro)
+    //   creditPurchases — compras no cartão, que só saem da conta na fatura
+    // O pagamento de fatura fica de fora dos dois: ele quita compras que já
+    // foram contadas em creditPurchases.
+    const directExpenses = useMemo(
+        () => filteredTransactions.filter(t => isSpending(t) && t.account !== 'credit'),
+        [filteredTransactions]
+    )
+    // O cartão não segue o calendário: para um cartão que fecha dia 4, o "mês"
+    // de agosto vai de 05/08 a 04/09 — é o ciclo que vira a próxima fatura.
+    // Contar por mês de calendário fazia o painel divergir da fatura real.
+    const creditCycle = useMemo(() => {
+        const openMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
+        const cycleKey = `${openMonth.getFullYear()}-${String(openMonth.getMonth() + 1).padStart(2, '0')}`
+
+        const purchases = transactions.filter(t => {
+            if (!isSpending(t) || t.account !== 'credit') return false
+            const card = cards?.find(c => String(c.id) === String(t.creditCardId))
+            return getInvoiceKey(t.date, card?.closing_day) === cycleKey
+        })
+
+        // Datas de abertura e fechamento do ciclo, por cartão que tem compra nele
+        const closings = [...new Set(purchases.map(t => {
+            const card = cards?.find(c => String(c.id) === String(t.creditCardId))
+            return Number(card?.closing_day) || 25
+        }))]
+
+        const dayLabel = (year, month, day) => {
+            const maxDay = new Date(year, month + 1, 0).getDate()
+            return `${String(Math.min(day, maxDay)).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}`
+        }
+
+        let periodLabel = null
+        if (closings.length === 1) {
+            const closing = closings[0]
+            const y = currentDate.getFullYear()
+            const m = currentDate.getMonth()
+            periodLabel = `${dayLabel(y, m, closing + 1)} a ${dayLabel(openMonth.getFullYear(), openMonth.getMonth(), closing)}`
+        } else if (closings.length > 1) {
+            // Cartões com fechamentos diferentes: um intervalo único mentiria
+            // sobre pelo menos um deles, então fica só o mês do fechamento
+            const raw = openMonth.toLocaleDateString('pt-BR', { month: 'long' })
+            periodLabel = `ciclos que fecham em ${raw}`
+        }
+
+        // Sparkline: quatro semanas contadas a partir da abertura do ciclo de
+        // cada cartão, não do dia 1 do mês
+        const weekly = [0, 0, 0, 0]
+        purchases.forEach(t => {
+            const card = cards?.find(c => String(c.id) === String(t.creditCardId))
+            const closing = Number(card?.closing_day) || 25
+            const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), closing + 1)
+            const days = Math.floor((new Date(t.date + 'T00:00:00') - start) / 86400000)
+            weekly[Math.min(3, Math.max(0, Math.floor(days / 7)))] += t.amount
+        })
+
+        return { cycleKey, purchases, periodLabel, weekly }
+    }, [transactions, cards, currentDate])
+
+    const creditPurchases = creditCycle.purchases
+
+    const income = useMemo(() => calcIncome(filteredTransactions), [filteredTransactions])
+    const directExpense = useMemo(() => directExpenses.reduce((s, t) => s + t.amount, 0), [directExpenses])
+    const creditExpense = useMemo(() => creditPurchases.reduce((s, t) => s + t.amount, 0), [creditPurchases])
+    // As duas frentes somadas — termômetro e rosca de categorias. O débito é do
+    // mês, o crédito é do ciclo da fatura: cada um no recorte em que é lido.
+    const monthSpending = useMemo(() => [...directExpenses, ...creditPurchases], [directExpenses, creditPurchases])
+    const expense = directExpense + creditExpense
+    const investment = useMemo(() => calcInvestment(filteredTransactions) + walletTotalNetWorth, [filteredTransactions, walletTotalNetWorth])
+    const balance = useMemo(() => calcBalance(filteredTransactions), [filteredTransactions])
+
     const detailInfo = useMemo(() => {
         if (!detailView) return { transactions: [], title: '', color: '' }
         let list = []
@@ -114,8 +188,10 @@ export default function DashboardPage() {
             title = 'Despesas no Débito, Pix e Dinheiro'
             color = '#ef4444'
         } else if (detailView === 'credit') {
-            list = filteredTransactions.filter(t => isSpending(t) && t.account === 'credit')
-            title = 'Compras no Cartão de Crédito'
+            list = creditCycle.purchases
+            title = creditCycle.periodLabel
+                ? `Compras no Crédito (${creditCycle.periodLabel})`
+                : 'Compras no Cartão de Crédito'
             color = '#8b5cf6'
         } else if (detailView === 'investment') {
             list = filteredTransactions.filter(t => t.type === 'investment')
@@ -134,29 +210,6 @@ export default function DashboardPage() {
         }
     }, [detailView, filteredTransactions, transactions, currentDate])
 
-    // Summaries
-    //
-    // O gasto do mês é lido em duas frentes que nunca se sobrepõem:
-    //   directExpenses — sai da conta na hora (pix, débito, dinheiro)
-    //   creditPurchases — compras no cartão, que só saem da conta na fatura
-    // O pagamento de fatura fica de fora dos dois: ele quita compras que já
-    // foram contadas em creditPurchases.
-    const directExpenses = useMemo(
-        () => filteredTransactions.filter(t => isSpending(t) && t.account !== 'credit'),
-        [filteredTransactions]
-    )
-    const creditPurchases = useMemo(
-        () => filteredTransactions.filter(t => isSpending(t) && t.account === 'credit'),
-        [filteredTransactions]
-    )
-
-    const income = useMemo(() => calcIncome(filteredTransactions), [filteredTransactions])
-    const directExpense = useMemo(() => directExpenses.reduce((s, t) => s + t.amount, 0), [directExpenses])
-    const creditExpense = useMemo(() => creditPurchases.reduce((s, t) => s + t.amount, 0), [creditPurchases])
-    // Total do mês (as duas frentes somadas) — usado no termômetro e na rosca de categorias
-    const expense = useMemo(() => calcExpense(filteredTransactions), [filteredTransactions])
-    const investment = useMemo(() => calcInvestment(filteredTransactions) + walletTotalNetWorth, [filteredTransactions, walletTotalNetWorth])
-    const balance = useMemo(() => calcBalance(filteredTransactions), [filteredTransactions])
     
     const globalBalance = useMemo(() => {
         return transactions.reduce((acc, t) => {
@@ -167,11 +220,8 @@ export default function DashboardPage() {
         }, 0)
     }, [transactions])
     
-    // Quanto das compras do mês já foi quitado. Cada compra pertence a uma
-    // fatura (o ciclo de fechamento do cartão); a fração já paga dessa fatura
-    // diz o quanto daquela compra saiu do bolso. Assim o painel fala de uma
-    // linha do tempo só — o mês da compra — sem exibir o ciclo como um
-    // segundo total concorrente.
+    // A fatura do ciclo já foi paga? Como todas as compras aqui pertencem ao
+    // mesmo ciclo, basta a fração quitada da fatura correspondente em cada cartão.
     const creditStatus = useMemo(() => {
         if (!creditPurchases.length) return { paid: 0, unpaid: 0, nextDueDate: null }
         if (!cards?.length) return { paid: 0, unpaid: creditExpense, nextDueDate: null }
@@ -318,13 +368,13 @@ export default function DashboardPage() {
 
     // Data generation for sparklines (Weekly buckets within the selected month)
     const monthsData = useMemo(() => {
-        if (!filteredTransactions) return { inc: { data: [] }, exp: { data: [] }, cred: { data: [] }, inv: { data: [] }, bal: { data: [] } }
+        if (!filteredTransactions) return { inc: { data: [] }, exp: { data: [] }, inv: { data: [] }, bal: { data: [] } }
 
         const year = currentDate.getFullYear()
         const month = currentDate.getMonth()
         // Create 4 weekly buckets
         const weekLabels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4']
-        const wInc = [0, 0, 0, 0], wExp = [0, 0, 0, 0], wCred = [0, 0, 0, 0], wInv = [0, 0, 0, 0], wBal = [0, 0, 0, 0]
+        const wInc = [0, 0, 0, 0], wExp = [0, 0, 0, 0], wInv = [0, 0, 0, 0], wBal = [0, 0, 0, 0]
 
         filteredTransactions.forEach(t => {
             const d = new Date(t.date + 'T00:00:00')
@@ -333,11 +383,8 @@ export default function DashboardPage() {
                 const wi = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3
                 if (t.type === 'income') wInc[wi] += t.amount
                 else if (t.type === 'investment') wInv[wi] += t.amount
-                else if (isSpending(t)) {
-                    // Cada linha vai para uma frente só, igual aos cards
-                    if (t.account === 'credit') wCred[wi] += t.amount
-                    else wExp[wi] += t.amount
-                }
+                // O crédito tem sparkline própria, por semana do ciclo de fatura
+                else if (isSpending(t) && t.account !== 'credit') wExp[wi] += t.amount
             }
         })
 
@@ -376,7 +423,6 @@ export default function DashboardPage() {
         return {
             inc: buildWeekMetric(wInc),
             exp: buildWeekMetric(wExp),
-            cred: buildWeekMetric(wCred),
             inv: buildWeekMetric(wInv),
             bal: buildWeekMetric(wBal)
         }
@@ -393,7 +439,7 @@ export default function DashboardPage() {
 
     const incConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.inc.labels, datasets: [{ data: monthsData.inc.data, borderColor: '#10b981', backgroundColor: '#10b98122', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
     const expConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.exp.labels, datasets: [{ data: monthsData.exp.data, borderColor: '#ef4444', backgroundColor: '#ef444422', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
-    const credConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.cred.labels, datasets: [{ data: monthsData.cred.data, borderColor: '#8b5cf6', backgroundColor: '#8b5cf622', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
+    const credConfig = useMemo(() => ({ type: 'line', data: { labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'], datasets: [{ data: creditCycle.weekly, borderColor: '#8b5cf6', backgroundColor: '#8b5cf622', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [creditCycle, sparkOpts])
     const invConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.inv.labels, datasets: [{ data: monthsData.inv.data, borderColor: '#eab308', backgroundColor: '#eab30822', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
     const balConfig = useMemo(() => ({ type: 'line', data: { labels: monthsData.bal.labels, datasets: [{ data: monthsData.bal.data, borderColor: '#3b82f6', backgroundColor: '#3b82f622', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 4 }] }, options: sparkOpts }), [monthsData, sparkOpts])
 
@@ -404,7 +450,7 @@ export default function DashboardPage() {
     useChart(balRef, balConfig, [balConfig])
 
     const pieConfig = useMemo(() => {
-        const expenses = filteredTransactions.filter(isSpending)
+        const expenses = monthSpending
         const catTotals = {}
         let totalExp = 0
         expenses.forEach(t => {
@@ -444,7 +490,7 @@ export default function DashboardPage() {
                 }
             }
         }
-    }, [filteredTransactions])
+    }, [monthSpending])
     useChart(pieRef, pieConfig, [pieConfig])
 
     if (session === undefined) return null;
@@ -576,10 +622,12 @@ export default function DashboardPage() {
                                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Gastos no Crédito</div>
                                         <div style={{ fontSize: 24, fontWeight: 800, color: '#8b5cf6', margin: '2px 0 6px' }}>{formatCurrency(creditExpense)}</div>
                                         {creditPurchases.length === 0 ? (
-                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Nenhuma compra no cartão neste mês</div>
+                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Nenhuma compra neste ciclo</div>
                                         ) : (
                                             <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                <span style={{ color: 'rgba(255,255,255,0.4)' }}>{creditPurchases.length} compra(s) no cartão</span>
+                                                <span style={{ color: 'rgba(255,255,255,0.4)' }}>
+                                                    {creditPurchases.length} compra(s){creditCycle.periodLabel ? ` · ${creditCycle.periodLabel}` : ''}
+                                                </span>
                                                 {creditStatus.unpaid < 0.01 ? (
                                                     <span style={{ color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                                                         <Check size={12} strokeWidth={2.5} /> Tudo já pago
