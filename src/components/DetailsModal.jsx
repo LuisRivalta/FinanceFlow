@@ -1,4 +1,5 @@
 import React from 'react'
+import { X } from 'lucide-react'
 import { getCategoryDetails, getAccountLabel } from '../helpers'
 
 export default function DetailsModal({ isOpen, onClose, type, transactions, title, color }) {
@@ -34,7 +35,7 @@ export default function DetailsModal({ isOpen, onClose, type, transactions, titl
                     position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.1)', border: 'none',
                     color: 'white', width: 32, height: 32, borderRadius: '50%', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>✕</button>
+                }}><X size={16} strokeWidth={2} /></button>
 
                 <h2 style={{ fontSize: 20, fontWeight: 700, color: 'white', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ width: 12, height: 12, borderRadius: '50%', background: color }} />

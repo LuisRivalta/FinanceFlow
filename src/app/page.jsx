@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { Plus, ArrowUp, ArrowDown, TrendingUp, Inbox, X } from 'lucide-react'
 import { Chart, ArcElement, DoughnutController, LineElement, LineController, BarElement, BarController, PieController, PointElement, CategoryScale, LinearScale, Legend, Tooltip, Filler } from 'chart.js'
 import Sidebar from '../components/Sidebar'
 import TxCard from '../components/TxCard'
@@ -66,7 +67,7 @@ export default function DashboardPage() {
     const [detailView, setDetailView] = useState(null)
 
     // Greeting
-    const [greeting, setGreeting] = useState('Olá 👋')
+    const [greeting, setGreeting] = useState('Olá')
 
     useEffect(() => {
         const hour = new Date().getHours()
@@ -76,7 +77,7 @@ export default function DashboardPage() {
         let word = 'Bom dia,'
         if (hour >= 12 && hour < 18) word = 'Boa tarde,'
         else if (hour >= 18) word = 'Boa noite,'
-        setGreeting(`${word} ${firstName} 👋`)
+        setGreeting(`${word} ${firstName}`)
     }, [session])
 
     useEffect(() => {
@@ -451,7 +452,7 @@ export default function DashboardPage() {
                                 </div>
                             </div>
                             <button id="add-transaction-btn" className="btn-primary" onClick={openNew}>
-                                <span className="icon">✨</span> Nova Transação
+                                <Plus size={16} strokeWidth={2} className="icon" /> Nova Transação
                             </button>
                         </header>
 
@@ -692,7 +693,7 @@ export default function DashboardPage() {
                             <div className="split-lists">
                                 <div className="list-column">
                                     <h4 style={{ marginBottom: 12, color: 'var(--success-color)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <span style={{ fontSize: 18 }}>⬆️</span> Receitas
+                                        <ArrowUp size={18} strokeWidth={2} /> Receitas
                                     </h4>
                                     <div className="transactions-list">
                                         {incomeList.length === 0 ? (
@@ -708,7 +709,7 @@ export default function DashboardPage() {
 
                                 <div className="list-column">
                                     <h4 style={{ marginBottom: 12, color: 'var(--danger-color)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <span style={{ fontSize: 18 }}>⬇️</span> Saídas (Gastos/Invest.)
+                                        <ArrowDown size={18} strokeWidth={2} /> Saídas (Gastos/Invest.)
                                     </h4>
                                     <div className="transactions-list">
                                         {expenseList.length === 0 ? (
@@ -744,7 +745,7 @@ export default function DashboardPage() {
                                 <input
                                     type="search"
                                     id="tx-search"
-                                    placeholder="🔍 Buscar..."
+                                    placeholder="Buscar..."
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                     style={{ flex: 1, minWidth: 160, padding: '9px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.3)', color: 'white', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
@@ -757,7 +758,7 @@ export default function DashboardPage() {
                                             className={'tx-filter-btn' + (filterType === ft ? ' tx-filter-active' : '')}
                                             onClick={() => setFilterType(ft)}
                                         >
-                                            {ft === 'all' ? 'Todas' : ft === 'income' ? '📥 Entradas' : ft === 'expense' ? '📤 Saídas' : '📈 Invest.'}
+                                            {ft === 'all' ? 'Todas' : ft === 'income' ? <><ArrowUp size={13} strokeWidth={2} /> Entradas</> : ft === 'expense' ? <><ArrowDown size={13} strokeWidth={2} /> Saídas</> : <><TrendingUp size={13} strokeWidth={2} /> Invest.</>}
                                         </button>
                                     ))}
                                 </div>
@@ -771,7 +772,7 @@ export default function DashboardPage() {
                                     </div>
                                 ) : recentTxs.length === 0 ? (
                                     <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.3)' }}>
-                                        <div style={{ fontSize: 'clamp(22px, 5vw, 32px)', marginBottom: 8 }}>📭</div>
+                                        <div style={{ fontSize: 'clamp(22px, 5vw, 32px)', marginBottom: 8 }}><Inbox size={30} strokeWidth={1.5} /></div>
                                         Nenhuma transação encontrada.
                                     </div>
                                 ) : recentTxs.map(tx => (
@@ -802,7 +803,7 @@ export default function DashboardPage() {
                         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
                             <input
                                 type="search"
-                                placeholder="🔍 Buscar por descrição ou observação..."
+                                placeholder="Buscar por descrição ou observação..."
                                 value={allSearch}
                                 onChange={e => setAllSearch(e.target.value)}
                                 style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.3)', color: 'white', fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
@@ -812,7 +813,7 @@ export default function DashboardPage() {
                                 id="all-tx-close"
                                 onClick={() => setShowAllModal(false)}
                                 style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', width: 34, height: 34, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-                            >✕</button>
+                            ><X size={16} strokeWidth={2} /></button>
                         </div>
 
                         {/* Filters */}
@@ -823,7 +824,7 @@ export default function DashboardPage() {
                                     className={'tx-filter-btn' + (allFilter === ft ? ' tx-filter-active' : '')}
                                     onClick={() => setAllFilter(ft)}
                                 >
-                                    {ft === 'all' ? 'Todas' : ft === 'income' ? '📥 Entradas' : ft === 'expense' ? '📤 Saídas' : '📈 Invest.'}
+                                    {ft === 'all' ? 'Todas' : ft === 'income' ? <><ArrowUp size={13} strokeWidth={2} /> Entradas</> : ft === 'expense' ? <><ArrowDown size={13} strokeWidth={2} /> Saídas</> : <><TrendingUp size={13} strokeWidth={2} /> Invest.</>}
                                 </button>
                             ))}
                         </div>
@@ -832,7 +833,7 @@ export default function DashboardPage() {
                         <div id="all-tx-list" style={{ overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                             {allTxs.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.3)' }}>
-                                    <div style={{ fontSize: 'clamp(22px, 5vw, 32px)', marginBottom: 8 }}>📭</div>
+                                    <div style={{ fontSize: 'clamp(22px, 5vw, 32px)', marginBottom: 8 }}><Inbox size={30} strokeWidth={1.5} /></div>
                                     Nenhuma transação encontrada.
                                 </div>
                             ) : allTxs.map(tx => (

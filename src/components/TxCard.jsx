@@ -1,4 +1,5 @@
 "use client";
+import { FileText, Pencil, Trash2 } from 'lucide-react'
 
 import { getCategoryDetails, getAccountLabel, formatCurrency, formatDate } from '../helpers'
 
@@ -25,7 +26,7 @@ export default function TxCard({ tx, onEdit, onDelete }) {
                         {tx.note && (
                             <>
                                 <span className="tx-meta-dot">·</span>
-                                <span title={tx.note} style={{ color: 'rgba(255,255,255,0.4)', cursor: 'help' }}>📝 obs</span>
+                                <span title={tx.note} style={{ color: 'rgba(255,255,255,0.4)', cursor: 'help' }} className="inline-icon-label"><FileText size={12} strokeWidth={1.8} /> obs</span>
                             </>
                         )}
                         {tx.isRecurring && <span title="Recorrente" style={{ color: 'var(--warning-color)' }}>↻</span>}
@@ -36,8 +37,8 @@ export default function TxCard({ tx, onEdit, onDelete }) {
             <div className="tx-card-right">
                 <div className="tx-card-amount" style={{ color }}>{sign} {formatCurrency(tx.amount)}</div>
                 <div className="tx-card-actions">
-                    <button className="tx-act-btn" onClick={() => onEdit(tx)} title="Editar">✏️</button>
-                    <button className="tx-act-btn tx-act-danger" onClick={() => onDelete(tx.id)} title="Excluir">🗑️</button>
+                    <button className="tx-act-btn" onClick={() => onEdit(tx)} title="Editar"><Pencil size={14} strokeWidth={1.8} /></button>
+                    <button className="tx-act-btn tx-act-danger" onClick={() => onDelete(tx.id)} title="Excluir"><Trash2 size={14} strokeWidth={1.8} /></button>
                 </div>
             </div>
         </div>

@@ -1,4 +1,5 @@
 "use client";
+import { Pencil, Plus, X, ArrowUp, ArrowDown, AlertTriangle, Repeat } from 'lucide-react'
 
 import { useState, useEffect } from 'react'
 import { CATEGORY_MAP, ACCOUNTS } from '../helpers'
@@ -139,9 +140,9 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                     <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
-                        {editTx ? '✏️ Editar Transação' : '➕ Nova Transação'}
+                        {editTx ? <><Pencil size={17} strokeWidth={2} /> Editar Transação</> : <><Plus size={17} strokeWidth={2} /> Nova Transação</>}
                     </h3>
-                    <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', width: 32, height: 32, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                    <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', width: 32, height: 32, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} strokeWidth={2} /></button>
                 </div>
 
                 {/* Type selector */}
@@ -153,7 +154,7 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
                             className={`tx-type-btn${type === t ? ` active-${t}` : ''}`}
                             onClick={() => setType(t)}
                         >
-                            {t === 'expense' ? '📤 Gasto' : '📥 Receita'}
+                            {t === 'expense' ? <><ArrowDown size={13} strokeWidth={2} /> Gasto</> : <><ArrowUp size={13} strokeWidth={2} /> Receita</>}
                         </button>
                     ))}
                 </div>
@@ -162,7 +163,7 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
                     {/* Errors */}
                     {errors.length > 0 && (
                         <div className="tx-form-errors">
-                            {errors.map((err, i) => <div key={i} className="tx-error-item">⚠️ {err}</div>)}
+                            {errors.map((err, i) => <div key={i} className="tx-error-item"><AlertTriangle size={13} strokeWidth={2} /> {err}</div>)}
                         </div>
                     )}
 
@@ -262,7 +263,7 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
                                         style={{ width: 18, height: 18, cursor: 'pointer' }}
                                     />
                                     <label htmlFor="tx-recurring" style={{ cursor: 'pointer', textTransform: 'none', fontSize: 14, color: 'var(--text-secondary)', letterSpacing: 0 }}>
-                                        🔁 Transação recorrente (mensal)
+                                        <Repeat size={14} strokeWidth={1.8} /> Transação recorrente (mensal)
                                     </label>
                                 </div>
 
