@@ -8,6 +8,7 @@ import { useSession } from '../../hooks/useSession';
 import { useReceivables } from '../../hooks/useReceivablesData';
 import { useTransactions } from '../../hooks/useTransactions';
 import { formatCurrency } from '../../helpers';
+import { HandCoins, Plus, CalendarDays, ClipboardList, Check, X } from 'lucide-react'
 
 export default function ReceivablesPage() {
     const router = useRouter();
@@ -106,14 +107,14 @@ export default function ReceivablesPage() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 16 }}>
                         <header className="top-header fade-up" style={{ flex: 1, margin: 0 }}>
                             <div>
-                                <h2 className="page-title">💰 Contas a Receber</h2>
+                                <h2 className="page-title"><HandCoins size={24} strokeWidth={2} /> Contas a Receber</h2>
                                 <p className="page-subtitle">Gerencie receitas mensais, datas de recebimento e acompanhe o calendário.</p>
                             </div>
                         </header>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             <button className="btn-primary" onClick={() => setIsAdding(!isAdding)}>
-                                <span className="icon">✨</span> {isAdding ? 'Cancelar' : '+ Nova Conta a Receber'}
+                                <Plus size={16} strokeWidth={2} className="icon" /> {isAdding ? 'Cancelar' : '+ Nova Conta a Receber'}
                             </button>
                         </div>
                     </div>
@@ -143,7 +144,7 @@ export default function ReceivablesPage() {
                     {isAdding && (
                         <div className="glass-panel fade-up" style={{ padding: 24, marginBottom: 24, border: '1px solid rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.03)' }}>
                             <h3 style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span>🟢</span> Cadastrar Nova Conta a Receber
+                                <Plus size={16} strokeWidth={2} /> Cadastrar Nova Conta a Receber
                             </h3>
                             <form onSubmit={handleFormSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
                                 <div className="tx-field">
@@ -161,7 +162,7 @@ export default function ReceivablesPage() {
                                 <div className="tx-field">
                                     <label>Tipo de Recorrência</label>
                                     <select value={newReceivable.recurrenceType} onChange={e => setNewReceivable({ ...newReceivable, recurrenceType: e.target.value })}>
-                                        <option value="indefinite">♾️ Sem Prazo Determinado (Recorrente)</option>
+                                        <option value="indefinite">Sem Prazo Determinado (Recorrente)</option>
                                         <option value="fixed_duration">⏳ Tempo Determinado (Meses)</option>
                                     </select>
                                 </div>
@@ -178,9 +179,9 @@ export default function ReceivablesPage() {
                                 <div className="tx-field">
                                     <label>Conta para Receber</label>
                                     <select value={newReceivable.account} onChange={e => setNewReceivable({ ...newReceivable, account: e.target.value })}>
-                                        <option value="checking">🏦 Conta Corrente</option>
-                                        <option value="savings">💰 Poupança</option>
-                                        <option value="cash">💵 Dinheiro</option>
+                                        <option value="checking">Conta Corrente</option>
+                                        <option value="savings">Poupança</option>
+                                        <option value="cash">Dinheiro</option>
                                     </select>
                                 </div>
                                 <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 12 }}>
@@ -214,7 +215,7 @@ export default function ReceivablesPage() {
                                 transition: 'all 0.2s'
                             }}
                         >
-                            <span>📅</span> Calendário Interativo
+                            <CalendarDays size={16} strokeWidth={2} /> Calendário Interativo
                         </button>
                         <button
                             onClick={() => setActiveTab('list')}
@@ -233,7 +234,7 @@ export default function ReceivablesPage() {
                                 transition: 'all 0.2s'
                             }}
                         >
-                            <span>📋</span> Lista de Contas Cadastradas ({receivables.length})
+                            <ClipboardList size={16} strokeWidth={2} /> Lista de Contas Cadastradas ({receivables.length})
                         </button>
                     </div>
 
@@ -253,7 +254,7 @@ export default function ReceivablesPage() {
 
                             {receivables.length === 0 ? (
                                 <div style={{ padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>
-                                    <div style={{ fontSize: 40, marginBottom: 12 }}>💰</div>
+                                    <div style={{ marginBottom: 12 }}><HandCoins size={38} strokeWidth={1.5} /></div>
                                     Nenhuma conta a receber cadastrada ainda.<br />
                                     Clique em <strong>"+ Nova Conta a Receber"</strong> acima para registrar.
                                 </div>
@@ -286,7 +287,7 @@ export default function ReceivablesPage() {
                                                             style={{ background: 'none', border: 'none', color: '#ef4444', opacity: 0.6, cursor: 'pointer', fontSize: 14 }}
                                                             title="Excluir"
                                                         >
-                                                            ✖
+                                                            <X size={14} strokeWidth={2} />
                                                         </button>
                                                     </div>
 
@@ -306,7 +307,7 @@ export default function ReceivablesPage() {
                                                 <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                     {isReceived ? (
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                            <span style={{ color: '#10b981', fontWeight: 700, fontSize: 13 }}>✓ Recebido este mês</span>
+                                                            <span style={{ color: '#10b981', fontWeight: 700, fontSize: 13 }} className="inline-icon-label"><Check size={13} strokeWidth={2.5} /> Recebido este mês</span>
                                                             <button
                                                                 onClick={() => unmarkReceived(r.id, yearMonthStr)}
                                                                 style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', textDecoration: 'underline', fontSize: 11, cursor: 'pointer' }}
@@ -329,7 +330,7 @@ export default function ReceivablesPage() {
                                                                 cursor: 'pointer'
                                                             }}
                                                         >
-                                                            ✓ Confirmar Recebimento do Mês
+                                                            <Check size={13} strokeWidth={2.5} /> Confirmar Recebimento do Mês
                                                         </button>
                                                     )}
                                                 </div>

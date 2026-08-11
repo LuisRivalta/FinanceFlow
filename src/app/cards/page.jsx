@@ -11,6 +11,10 @@ import { useTransactions } from '../../hooks/useTransactions'
 import { useFinancings } from '../../hooks/useFinancings'
 import { formatCurrency, formatDate } from '../../helpers'
 import { calcCardInvoice, getCardInvoiceBreakdown } from '../../lib/cardMetrics'
+import { CreditCard, Car, CalendarDays, ClipboardList, Repeat, Check, CheckCheck, X, Home, Landmark } from 'lucide-react'
+
+// Ícone por tipo de financiamento
+const FINANCING_ICON = { car: Car, housing: Home, loan: Landmark, other: CreditCard };
 
 export default function CardsPage() {
     const router = useRouter()
@@ -359,7 +363,7 @@ export default function CardsPage() {
                 id: `sub_${sub.id}`,
                 name: sub.desc,
                 type: 'subscription',
-                typeLabel: '🔁 Assinatura',
+                typeLabel: 'Assinatura',
                 typeColor: '#8b5cf6',
                 origin: cardObj ? `Cartão ${cardObj.name}` : 'Cartão de Crédito',
                 progressText: 'Mensal Recorrente',
@@ -397,7 +401,7 @@ export default function CardsPage() {
                 id: `fin_${fin.id}`,
                 name: fin.name,
                 type: 'financing',
-                typeLabel: '🚗 Financiamento',
+                typeLabel: 'Financiamento',
                 typeColor: '#f59e0b',
                 origin: typeNames[fin.type] || 'Financiamento',
                 progressText: `${fin.paidInstallments} de ${fin.totalInstallments} parcelas (${Math.round((fin.paidInstallments / fin.totalInstallments) * 100)}%)`,
@@ -422,7 +426,7 @@ export default function CardsPage() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 16 }}>
                         <header className="top-header fade-up" style={{ flex: 1, margin: 0 }}>
                             <div>
-                                <h2 className="page-title">💳 Crédito & Dívidas</h2>
+                                <h2 className="page-title"><CreditCard size={24} strokeWidth={2} /> Crédito &amp; Dívidas</h2>
                                 <p className="page-subtitle">Gerencie cartões de crédito, faturas, financiamentos e empréstimos.</p>
                             </div>
                         </header>
@@ -430,12 +434,12 @@ export default function CardsPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             {activeTab === 'cards' && (
                                 <button className="btn-primary" onClick={() => { cancelEditCard(); setIsAddingCard(true); }}>
-                                    <span className="icon">💳</span> Adicionar Cartão
+                                    <CreditCard size={16} strokeWidth={2} className="icon" /> Adicionar Cartão
                                 </button>
                             )}
                             {activeTab === 'financings' && (
                                 <button className="btn-primary" onClick={() => setIsAddingFinancing(!isAddingFinancing)}>
-                                    <span className="icon">🚗</span> {isAddingFinancing ? 'Cancelar' : '+ Novo Financiamento'}
+                                    <Car size={16} strokeWidth={2} className="icon" /> {isAddingFinancing ? 'Cancelar' : '+ Novo Financiamento'}
                                 </button>
                             )}
                         </div>
@@ -460,7 +464,7 @@ export default function CardsPage() {
                                 transition: 'all 0.2s'
                             }}
                         >
-                            <span>💳</span> Cartões de Crédito ({cards.length})
+                            <CreditCard size={16} strokeWidth={2} /> Cartões de Crédito ({cards.length})
                         </button>
                         <button
                             onClick={() => setActiveTab('financings')}
@@ -479,7 +483,7 @@ export default function CardsPage() {
                                 transition: 'all 0.2s'
                             }}
                         >
-                            <span>🚗</span> Financiamentos & Empréstimos ({financings.length})
+                            <Car size={16} strokeWidth={2} /> Financiamentos &amp; Empréstimos ({financings.length})
                         </button>
                         <button
                             onClick={() => setActiveTab('calendar')}
@@ -498,7 +502,7 @@ export default function CardsPage() {
                                 transition: 'all 0.2s'
                             }}
                         >
-                            <span>📅</span> Calendário de Vencimentos
+                            <CalendarDays size={16} strokeWidth={2} /> Calendário de Vencimentos
                         </button>
                         <button
                             onClick={() => setActiveTab('summary')}
@@ -517,7 +521,7 @@ export default function CardsPage() {
                                 transition: 'all 0.2s'
                             }}
                         >
-                            <span>📋</span> Resumo de Contas Fixas ({allFixedItems.length})
+                            <ClipboardList size={16} strokeWidth={2} /> Resumo de Contas Fixas ({allFixedItems.length})
                         </button>
                     </div>
 
@@ -582,7 +586,7 @@ export default function CardsPage() {
                             <section className="fade-up delay-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24, marginBottom: 32 }}>
                                 {cards.length === 0 && !loadingCards && (
                                     <div className="glass-panel" style={{ gridColumn: '1 / -1', padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
-                                        <div style={{ fontSize: 'clamp(28px, 6vw, 40px)', marginBottom: 12 }}>💳</div>
+                                        <div style={{ fontSize: 'clamp(28px, 6vw, 40px)', marginBottom: 12 }}><CreditCard size={38} strokeWidth={1.5} /></div>
                                         Nenhum cartão cadastrado.
                                     </div>
                                 )}
@@ -610,7 +614,7 @@ export default function CardsPage() {
                                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
                                         <div className="section-header" style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <h3 style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 20, margin: 0 }}>
-                                                <span style={{ color: '#8b5cf6', fontSize: 26 }}>🔁</span> Minhas Assinaturas
+                                                <Repeat size={22} strokeWidth={2} style={{ color: '#8b5cf6' }} /> Minhas Assinaturas
                                             </h3>
                                             <button 
                                                 onClick={() => setIsAddingSub(!isAddingSub)}
@@ -643,8 +647,8 @@ export default function CardsPage() {
                                                 <div className="tx-field">
                                                     <label>Primeira Cobrança</label>
                                                     <select value={newSub.billingPeriod} onChange={e => handleSubPeriodChange(e.target.value)}>
-                                                        <option value="current">📅 Fatura Deste Mês (Atual)</option>
-                                                        <option value="next">📆 Próxima Fatura (Mês Que Vem)</option>
+                                                        <option value="current">Fatura Deste Mês (Atual)</option>
+                                                        <option value="next">Próxima Fatura (Mês Que Vem)</option>
                                                     </select>
                                                 </div>
                                                 <div className="tx-field">
@@ -670,7 +674,7 @@ export default function CardsPage() {
                                                     </div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                         <div style={{ fontWeight: 600, color: 'var(--danger-color)' }}>- {formatCurrency(sub.amount)} /mês</div>
-                                                        <button onClick={() => { if(confirm(`Remover assinatura "${sub.desc}"?`)) removeTx(sub.id) }} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.6 }} title="Remover Assinatura">✖</button>
+                                                        <button onClick={() => { if(confirm(`Remover assinatura "${sub.desc}"?`)) removeTx(sub.id) }} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.6 }} title="Remover Assinatura"><X size={14} strokeWidth={2} /></button>
                                                     </div>
                                                 </div>
                                             ))}
@@ -721,8 +725,8 @@ export default function CardsPage() {
                                                 <div className="tx-field">
                                                     <label>Próxima Cobrança na Fatura</label>
                                                     <select value={newInstallment.billingPeriod} onChange={e => setNewInstallment({...newInstallment, billingPeriod: e.target.value})}>
-                                                        <option value="current">📅 Fatura Deste Mês (Atual)</option>
-                                                        <option value="next">📆 Próxima Fatura (Mês Que Vem)</option>
+                                                        <option value="current">Fatura Deste Mês (Atual)</option>
+                                                        <option value="next">Próxima Fatura (Mês Que Vem)</option>
                                                     </select>
                                                 </div>
                                                 <div className="tx-field">
@@ -761,7 +765,7 @@ export default function CardsPage() {
                                                                     style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.6, fontSize: 14 }} 
                                                                     title="Apagar Compra Parcelada"
                                                                 >
-                                                                    ✖
+                                                                    <X size={14} strokeWidth={2} />
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -825,10 +829,10 @@ export default function CardsPage() {
                                         <div className="tx-field">
                                             <label>Tipo</label>
                                             <select value={newFinancing.type} onChange={e => setNewFinancing({...newFinancing, type: e.target.value})}>
-                                                <option value="car">🚗 Veículo (Carro / Moto)</option>
-                                                <option value="housing">🏠 Imóvel (Casa / Apto)</option>
-                                                <option value="loan">🏦 Empréstimo Bancário</option>
-                                                <option value="other">💳 Outros Financiamentos</option>
+                                                <option value="car">Veículo (Carro / Moto)</option>
+                                                <option value="housing">Imóvel (Casa / Apto)</option>
+                                                <option value="loan">Empréstimo Bancário</option>
+                                                <option value="other">Outros Financiamentos</option>
                                             </select>
                                         </div>
 
@@ -869,7 +873,7 @@ export default function CardsPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
                                 {financings.length === 0 && !isAddingFinancing ? (
                                     <div className="glass-panel" style={{ gridColumn: '1 / -1', padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
-                                        <div style={{ fontSize: 'clamp(28px, 6vw, 40px)', marginBottom: 12 }}>🚗</div>
+                                        <div style={{ fontSize: 'clamp(28px, 6vw, 40px)', marginBottom: 12 }}><Car size={38} strokeWidth={1.5} /></div>
                                         Nenhum financiamento ou empréstimo cadastrado. Clique em "+ Novo Financiamento" para adicionar!
                                     </div>
                                 ) : financings.map(f => {
@@ -879,7 +883,7 @@ export default function CardsPage() {
                                     const progressPct = Math.min(100, Math.max(0, (f.paidInstallments / f.totalInstallments) * 100));
                                     const isPaidOff = remainingInstallments === 0;
 
-                                    const icon = f.type === 'car' ? '🚗' : f.type === 'housing' ? '🏠' : f.type === 'loan' ? '🏦' : '💳';
+                                    const FinIcon = FINANCING_ICON[f.type] || CreditCard;
 
                                     return (
                                         <div key={f.id} className="card glass-panel fade-up" style={{ padding: 24, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -888,13 +892,13 @@ export default function CardsPage() {
                                                 style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.5 }}
                                                 title="Remover Financiamento"
                                             >
-                                                ✖
+                                                <X size={14} strokeWidth={2} />
                                             </button>
 
                                             <div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
-                                                        {icon}
+                                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', }}>
+                                                        <FinIcon size={22} strokeWidth={1.8} />
                                                     </div>
                                                     <div>
                                                         <div style={{ fontWeight: 700, fontSize: 18, color: 'white' }}>{f.name}</div>
@@ -942,7 +946,7 @@ export default function CardsPage() {
                                             <div>
                                                 {isPaidOff ? (
                                                     <div style={{ padding: '10px', textAlign: 'center', background: 'rgba(16,185,129,0.15)', color: '#10b981', borderRadius: 10, fontWeight: 700, fontSize: 14 }}>
-                                                        🎉 Financiamento 100% Quitado!
+                                                        <CheckCheck size={14} strokeWidth={2} /> Financiamento 100% Quitado!
                                                     </div>
                                                 ) : (
                                                     <button
@@ -950,7 +954,7 @@ export default function CardsPage() {
                                                         className="btn-primary"
                                                         style={{ width: '100%', padding: '11px', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 14 }}
                                                     >
-                                                        <span>✅</span> Dar Baixa na Parcela ({f.paidInstallments + 1}/{f.totalInstallments})
+                                                        <Check size={14} strokeWidth={2.5} /> Dar Baixa na Parcela ({f.paidInstallments + 1}/{f.totalInstallments})
                                                     </button>
                                                 )}
                                             </div>
@@ -1023,13 +1027,13 @@ export default function CardsPage() {
                             <div className="glass-panel fade-up delay-2" style={{ padding: 24 }}>
                                 <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <h3 style={{ fontSize: 20, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-                                        <span style={{ fontSize: 24 }}>📋</span> Todas as Contas Fixas & Dívidas ({allFixedItems.length})
+                                        <ClipboardList size={20} strokeWidth={2} /> Todas as Contas Fixas &amp; Dívidas ({allFixedItems.length})
                                     </h3>
                                 </div>
 
                                 {allFixedItems.length === 0 ? (
                                     <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.4)' }}>
-                                        <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
+                                        <div style={{ marginBottom: 12 }}><CheckCheck size={38} strokeWidth={1.5} /></div>
                                         Nenhuma conta fixa, assinatura ou financiamento cadastrado no momento.
                                     </div>
                                 ) : (

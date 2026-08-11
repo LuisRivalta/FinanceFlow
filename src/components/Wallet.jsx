@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatCurrency, ACCOUNTS, getAccountLabel } from '../helpers';
+import { Briefcase, TrendingUp, Bitcoin, Banknote, Landmark, Pencil, Zap, RefreshCw, Coins, Rocket, X } from 'lucide-react';
 import { useRates } from '../hooks/useRates';
 import { getProduct, deriveRate } from '../lib/investmentProducts';
 import { supabase } from '../lib/supabase';
@@ -520,7 +521,7 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
         <div style={{ marginTop: 20, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <h3 className="fade-up" style={{ fontSize: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span>💼</span> Minha Carteira
+                    <Briefcase size={18} strokeWidth={2} /> Minha Carteira
                 </h3>
                 <button 
                     onClick={() => setIsAdding(!isAdding)}
@@ -606,7 +607,7 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
 
             {assets.length === 0 && !isAdding ? (
                 <div className="card glass-panel fade-up delay-1" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-                    <div style={{ fontSize: 'clamp(26px, 6vw, 40px)', marginBottom: 16 }}>📈</div>
+                    <div style={{ fontSize: 'clamp(26px, 6vw, 40px)', marginBottom: 16 }}><TrendingUp size={38} strokeWidth={1.5} /></div>
                     <div>Sua carteira está vazia. Adicione ativos para começar a acompanhar o rendimento em tempo real!</div>
                 </div>
             ) : (
@@ -644,13 +645,13 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                                     style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.5 }}
                                     title="Remover"
                                 >
-                                    ✖
+                                    <X size={14} strokeWidth={2} />
                                 </button>
                                 
                                 <div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                                         <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                                            {asset.type === 'crypto' ? '₿' : asset.type === 'currency' ? '💵' : '🏦'}
+                                            {asset.type === 'crypto' ? <Bitcoin size={18} strokeWidth={1.8} /> : asset.type === 'currency' ? <Banknote size={18} strokeWidth={1.8} /> : <Landmark size={18} strokeWidth={1.8} />}
                                         </div>
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{asset.name}</div>
@@ -666,7 +667,7 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                                             <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Valor Atual</span>
                                             <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: isManual ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)', color: isManual ? '#60a5fa' : '#10b981' }}>
-                                                {isManual ? '✏️ Saldo Manual' : asset.type === 'fixed' ? '⚡ Auto Rendimento' : '📈 Cotação Ao Vivo'}
+                                                {isManual ? <><Pencil size={11} strokeWidth={2} /> Saldo Manual</> : asset.type === 'fixed' ? <><Zap size={11} strokeWidth={2} /> Auto Rendimento</> : <><TrendingUp size={11} strokeWidth={2} /> Cotação Ao Vivo</>}
                                             </span>
                                         </div>
 
@@ -695,7 +696,7 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                                                             onClick={() => handleResetToAutomatic(asset.id)}
                                                             style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
                                                         >
-                                                            🔄 Usar Auto
+                                                            <RefreshCw size={12} strokeWidth={2} /> Usar Auto
                                                         </button>
                                                     )}
                                                     <button 
@@ -717,7 +718,7 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                                                         onClick={() => { setEditingAssetId(asset.id); setEditBalanceVal(currentValue.toFixed(2)); }}
                                                         style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}
                                                     >
-                                                        ✏️ Ajustar
+                                                        <Pencil size={12} strokeWidth={2} /> Ajustar
                                                     </button>
                                                 </div>
 
@@ -768,7 +769,7 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                                         }}
                                         style={{ flex: 1, padding: '8px 12px', background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                                     >
-                                        💸 Sacar / Resgatar
+                                        <Coins size={13} strokeWidth={2} /> Sacar / Resgatar
                                     </button>
                                     {asset.type === 'fixed' ? (
                                         <button 
@@ -786,14 +787,14 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                                             }}
                                             style={{ flex: 1, padding: '8px 12px', background: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                                         >
-                                            🚀 Simular
+                                            <Rocket size={13} strokeWidth={2} /> Simular
                                         </button>
                                     ) : (
                                         <button 
                                             onClick={() => openSimulationModal(asset)}
                                             style={{ flex: 1, padding: '8px 12px', background: 'rgba(234,179,8,0.12)', color: '#eab308', border: '1px solid rgba(234,179,8,0.25)', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                                         >
-                                            🚀 Simular
+                                            <Rocket size={13} strokeWidth={2} /> Simular
                                         </button>
                                     )}
                                 </div>
@@ -812,9 +813,9 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                     <div style={{ background: '#111827', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 24, padding: 28, width: '100%', maxWidth: 500, color: 'white', boxShadow: '0 25px 60px rgba(0,0,0,0.85)', position: 'relative' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                             <h4 style={{ fontSize: 20, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <span>🚀</span> Simular Cotação: <span style={{ color: '#f59e0b' }}>{simulatingAsset.name}</span>
+                                <Rocket size={18} strokeWidth={2} /> Simular Cotação: <span style={{ color: '#f59e0b' }}>{simulatingAsset.name}</span>
                             </h4>
-                            <button onClick={() => setSimulatingAsset(null)} style={{ background: 'rgba(255,255,255,0.07)', border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', width: 34, height: 34, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                            <button onClick={() => setSimulatingAsset(null)} style={{ background: 'rgba(255,255,255,0.07)', border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', width: 34, height: 34, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} strokeWidth={2} /></button>
                         </div>
 
                         {(() => {
@@ -890,7 +891,7 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                                                     transition: 'all 0.2s'
                                                 }}
                                             >
-                                                <span>🇧🇷</span> Real (R$)
+                                                <Landmark size={14} strokeWidth={2} /> Real (R$)
                                             </button>
                                             <button
                                                 type="button"
@@ -912,7 +913,7 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                                                     transition: 'all 0.2s'
                                                 }}
                                             >
-                                                <span>💵</span> Dólar (USD $)
+                                                <Banknote size={14} strokeWidth={2} /> Dólar (USD $)
                                             </button>
                                         </div>
                                     </div>
@@ -937,9 +938,9 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                                                 { label: '+10%', mult: 1.1 },
                                                 { label: '+25%', mult: 1.25 },
                                                 { label: '+50%', mult: 1.5 },
-                                                { label: '🚀 2x', mult: 2.0 },
-                                                { label: '🌕 5x', mult: 5.0 },
-                                                { label: '⚡ 10x', mult: 10.0 }
+                                                { label: '2x', mult: 2.0 },
+                                                { label: '5x', mult: 5.0 },
+                                                { label: '10x', mult: 10.0 }
                                             ].map((p, idx) => (
                                                 <button
                                                     key={idx}
@@ -1014,9 +1015,9 @@ export default function Wallet({ userEmail, onSimulate, onSelectWithdraw }) {
                     <div style={{ background: '#111827', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 24, padding: 28, width: '100%', maxWidth: 500, color: 'white', boxShadow: '0 25px 60px rgba(0,0,0,0.85)', position: 'relative' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                             <h4 style={{ fontSize: 20, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <span>💸</span> Sacar / Resgatar: <span style={{ color: '#10b981' }}>{withdrawingAsset.name}</span>
+                                <Coins size={18} strokeWidth={2} /> Sacar / Resgatar: <span style={{ color: '#10b981' }}>{withdrawingAsset.name}</span>
                             </h4>
-                            <button onClick={() => setWithdrawingAsset(null)} style={{ background: 'rgba(255,255,255,0.07)', border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', width: 34, height: 34, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                            <button onClick={() => setWithdrawingAsset(null)} style={{ background: 'rgba(255,255,255,0.07)', border: 'none', borderRadius: 10, color: 'white', cursor: 'pointer', width: 34, height: 34, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} strokeWidth={2} /></button>
                         </div>
 
                         <form onSubmit={handleConfirmWithdraw} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
