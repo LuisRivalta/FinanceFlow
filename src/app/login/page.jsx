@@ -7,16 +7,6 @@ import { saveSession } from '../../hooks/useSession'
 import { useSession } from '../../hooks/useSession'
 import { useEffect } from 'react'
 
-function LogoIcon({ size = 24 }) {
-    return (
-        <div className="logo-icon" style={{ width: size * 2, height: size * 2 }}>
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
-        </div>
-    )
-}
-
 export default function LoginPage() {
     const router = useRouter()
     const session = useSession()
@@ -225,10 +215,8 @@ export default function LoginPage() {
             <div className="bg-grid" />
             <div className="glass-panel auth-box">
                 <div className="auth-logo">
-                    <div style={{ width: 48, height: 48, background: 'linear-gradient(135deg, #6366f1, #818cf8)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(99,102,241,0.4)' }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                        </svg>
+                    <div className="logo-icon">
+                        <img src="/blumii-logo.png" alt="Blumii" width={48} height={48} />
                     </div>
                     <h1>Blumii</h1>
                 </div>
