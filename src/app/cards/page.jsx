@@ -4,10 +4,13 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '../../components/Sidebar'
 import CreditCardItem from '../../components/CreditCardItem'
+import FinancialCalendar from '../../components/FinancialCalendar'
+import NotificationCenter from '../../components/NotificationCenter'
 import { useSession } from '../../hooks/useSession'
 import { useCreditCards } from '../../hooks/useCards'
 import { useTransactions } from '../../hooks/useTransactions'
 import { useFinancings } from '../../hooks/useFinancings'
+import { useReceivables } from '../../hooks/useReceivables'
 import { formatCurrency, formatDate } from '../../helpers'
 import { calcCardInvoice, getCardInvoiceBreakdown } from '../../lib/cardMetrics'
 
@@ -25,6 +28,7 @@ export default function CardsPage() {
     const { cards, load: loadCards, create: createCard, update: updateCard, remove: removeCard, loading: loadingCards } = useCreditCards(session?.email)
     const { transactions, load: loadTxs, create: createTx, remove: removeTx } = useTransactions(session?.email)
     const { financings, addFinancing, removeFinancing, payInstallment } = useFinancings(session?.email)
+    const { receivables, markAsReceived } = useReceivables(session?.email)
 
     useEffect(() => {
         if (session) {
@@ -418,28 +422,40 @@ export default function CardsPage() {
                 <Sidebar />
 
                 <main className="main-content">
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                        <header className="top-header fade-up" style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 16 }}>
+                        <header className="top-header fade-up" style={{ flex: 1, margin: 0 }}>
                             <div>
                                 <h2 className="page-title">💳 Crédito & Dívidas</h2>
                                 <p className="page-subtitle">Gerencie cartões de crédito, faturas, financiamentos e empréstimos.</p>
                             </div>
-                            <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-                                {activeTab === 'cards' ? (
-                                    <button className="btn-primary" onClick={() => { cancelEditCard(); setIsAddingCard(true); }}>
-                                        <span className="icon">💳</span> Adicionar Cartão
-                                    </button>
-                                ) : (
-                                    <button className="btn-primary" onClick={() => setIsAddingFinancing(!isAddingFinancing)}>
-                                        <span className="icon">🚗</span> {isAddingFinancing ? 'Cancelar' : '+ Novo Financiamento / Empréstimo'}
-                                    </button>
-                                )}
-                            </div>
                         </header>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <NotificationCenter
+                                receivables={receivables}
+                                financings={financings}
+                                cards={cards}
+                                transactions={transactions}
+                                onMarkReceived={(id, ym) => markAsReceived(id, ym, createTx)}
+                                onPayFinancing={(f) => payInstallment(f.id, createTx)}
+                                onPayCardInvoice={(card, amt) => handlePayInvoice(card, amt)}
+                            />
+
+                            {activeTab === 'cards' && (
+                                <button className="btn-primary" onClick={() => { cancelEditCard(); setIsAddingCard(true); }}>
+                                    <span className="icon">💳</span> Adicionar Cartão
+                                </button>
+                            )}
+                            {activeTab === 'financings' && (
+                                <button className="btn-primary" onClick={() => setIsAddingFinancing(!isAddingFinancing)}>
+                                    <span className="icon">🚗</span> {isAddingFinancing ? 'Cancelar' : '+ Novo Financiamento'}
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* Tab Navigation */}
-                    <div className="fade-up" style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12 }}>
+                    <div className="fade-up" style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12, flexWrap: 'wrap' }}>
                         <button
                             onClick={() => setActiveTab('cards')}
                             style={{
@@ -479,6 +495,25 @@ export default function CardsPage() {
                             <span>🚗</span> Financiamentos & Empréstimos ({financings.length})
                         </button>
                         <button
+                            onClick={() => setActiveTab('calendar')}
+                            style={{
+                                padding: '10px 20px',
+                                borderRadius: 10,
+                                border: 'none',
+                                background: activeTab === 'calendar' ? '#8b5cf6' : 'rgba(255,255,255,0.05)',
+                                color: 'white',
+                                fontWeight: 600,
+                                fontSize: 14,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            <span>📅</span> Calendário de Vencimentos
+                        </button>
+                        <button
                             onClick={() => setActiveTab('summary')}
                             style={{
                                 padding: '10px 20px',
@@ -498,6 +533,20 @@ export default function CardsPage() {
                             <span>📋</span> Resumo de Contas Fixas ({allFixedItems.length})
                         </button>
                     </div>
+
+                    {/* TAB: CALENDAR */}
+                    {activeTab === 'calendar' && (
+                        <FinancialCalendar
+                            receivables={receivables}
+                            cards={cards}
+                            financings={financings}
+                            subscriptions={subscriptions}
+                            transactions={transactions}
+                            onMarkReceived={(id, ym) => markAsReceived(id, ym, createTx)}
+                            onPayFinancing={handlePayFinancingInstallment}
+                            onPayCardInvoice={handlePayInvoice}
+                        />
+                    )}
 
                     {/* TAB 1: CREDIT CARDS */}
                     {activeTab === 'cards' && (

@@ -172,6 +172,10 @@ export default function Sidebar() {
                         <span className="icon">🏦</span>
                         <span className="nav-text">Investimentos</span>
                     </Link>
+                    <Link href="/receivables" className={`nav-item ${pathName === '/receivables' ? 'active' : ''}`} title="Contas a Receber">
+                        <span className="icon">💰</span>
+                        <span className="nav-text">Contas a Receber</span>
+                    </Link>
                     <Link href="/cards" className={`nav-item ${pathName === '/cards' ? 'active' : ''}`} title="Crédito & Dívidas">
                         <span className="icon">💳</span>
                         <span className="nav-text">Crédito & Dívidas</span>
