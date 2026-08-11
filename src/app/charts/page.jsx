@@ -6,7 +6,7 @@ import { Chart, ArcElement, DoughnutController, LineElement, LineController, Bar
 import Sidebar from '../../components/Sidebar'
 import { useSession } from '../../hooks/useSession'
 import { supabase } from '../../lib/supabase'
-import { mapFromDB, formatCurrency, getCategoryDetails, CATEGORY_MAP } from '../../helpers'
+import { mapFromDB, formatCurrency, getCategoryDetails, CATEGORY_MAP, isUserTransaction, isSpending } from '../../helpers'
 import CategoryIcon from '../../components/CategoryIcon'
 import { BarChart3, ArrowUp, ArrowDown, TrendingUp, Wallet, Check, AlertTriangle, Scale, PieChart, CreditCard, Flame, Sprout, Siren, Inbox } from 'lucide-react'
 import { currentLegendPosition } from '../../lib/responsive'
@@ -73,7 +73,10 @@ export default function ChartsPage() {
                 .select('*')
                 .eq('user_email', session?.email)
                 .order('date', { ascending: true })
-            if (!error && data) setAllTx(data.map(mapFromDB))
+            // A consulta é direta (sem useTransactions), então o descarte das
+            // linhas de sistema precisa ser feito aqui — senão o cadastro de um
+            // financiamento entra como despesa nos gráficos.
+            if (!error && data) setAllTx(data.map(mapFromDB).filter(isUserTransaction))
             setLoading(false)
         }
         if (session === undefined) return
@@ -84,19 +87,34 @@ export default function ChartsPage() {
         if (session?.email) load()
     }, [session, router])
 
+    // A janela também fecha no presente: parcelas com data futura já estão
+    // gravadas, mas não são gasto realizado do período analisado.
     const filtered = useMemo(() => {
-        if (months === 0) return [...allTx]
-        const cutoff = new Date()
-        cutoff.setMonth(cutoff.getMonth() - months)
-        return allTx.filter(t => new Date(t.date + 'T00:00:00') >= cutoff)
+        const endOfToday = new Date()
+        endOfToday.setHours(23, 59, 59, 999)
+
+        let cutoff = null
+        if (months !== 0) {
+            cutoff = new Date()
+            cutoff.setMonth(cutoff.getMonth() - months)
+            cutoff.setHours(0, 0, 0, 0)
+        }
+
+        return allTx.filter(t => {
+            const d = new Date(t.date + 'T00:00:00')
+            if (d > endOfToday) return false
+            return !cutoff || d >= cutoff
+        })
     }, [allTx, months])
+
+    // Gasto de verdade — sem os pagamentos de fatura, que apenas quitam compras já contadas
+    const spending = useMemo(() => filtered.filter(isSpending), [filtered])
 
     // KPIs
     const kpiIncome = useMemo(() => filtered.filter(t => t.type === 'income'), [filtered])
-    const kpiExpense = useMemo(() => filtered.filter(t => t.type === 'expense'), [filtered])
     const kpiInvest = useMemo(() => filtered.filter(t => t.type === 'investment'), [filtered])
     const totalIncome = kpiIncome.reduce((s, t) => s + t.amount, 0)
-    const totalExpense = kpiExpense.reduce((s, t) => s + t.amount, 0)
+    const totalExpense = spending.reduce((s, t) => s + t.amount, 0)
     const totalInvest = kpiInvest.reduce((s, t) => s + t.amount, 0)
     const netBalance = totalIncome - totalExpense
 
@@ -106,8 +124,10 @@ export default function ChartsPage() {
         const sorted = [...filtered].sort((a, b) => new Date(a.date) - new Date(b.date))
         let running = 0
         const labels = [], data = []
+        // Mesma regra do calcBalance: compra no cartão não mexe no saldo — quem
+        // tira dinheiro da conta é o pagamento da fatura.
         sorted.forEach(t => {
-            running += t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0
+            running += t.type === 'income' ? t.amount : (t.type === 'expense' && t.account !== 'credit') ? -t.amount : 0
             labels.push(new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }))
             data.push(running)
         })
@@ -133,6 +153,7 @@ export default function ChartsPage() {
         if (!filtered.length) return null
         const buckets = {}
         filtered.forEach(t => {
+            if (t.type === 'expense' && !isSpending(t)) return // pagamento de fatura
             const d = new Date(t.date + 'T00:00:00')
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
             if (!buckets[key]) buckets[key] = { income: 0, expense: 0, investment: 0 }
@@ -165,7 +186,7 @@ export default function ChartsPage() {
 
     // 3. Cat Expense Donut
     const catExpenseConfig = useMemo(() => {
-        const expenses = filtered.filter(t => t.type === 'expense')
+        const expenses = spending
         if (!expenses.length) return null
         const totals = {}
         expenses.forEach(t => { totals[t.category] = (totals[t.category] || 0) + t.amount })
@@ -178,12 +199,12 @@ export default function ChartsPage() {
             data: { labels, datasets: [{ data, backgroundColor: colors.map(c => c + 'cc'), borderColor: colors, borderWidth: 2, hoverOffset: 8 }] },
             options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: currentLegendPosition(), labels: { usePointStyle: true, pointStyle: 'circle', padding: 12 } }, tooltip: { ...TOOLTIP_OPTS, callbacks: { label: ctx => ` ${fmt(ctx.raw)}` } } } }
         }
-    }, [filtered])
+    }, [spending])
     useChart(catExpenseRef, catExpenseConfig, [catExpenseConfig])
 
     // 4. Payment Distribution Pie
     const typeDistConfig = useMemo(() => {
-        const expenses = filtered.filter(t => t.type === 'expense')
+        const expenses = spending
         if (!expenses.length) return null
         
         const totals = { checking: 0, savings: 0, credit: 0 }
@@ -218,7 +239,7 @@ export default function ChartsPage() {
                 plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 14 } }, tooltip: { ...TOOLTIP_OPTS, callbacks: { label: ctx => { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); const pct = total > 0 ? Math.round((ctx.raw / total) * 100) : 0; return ` ${fmt(ctx.raw)} (${pct}%)` } } } }
             }
         }
-    }, [filtered])
+    }, [spending])
     useChart(typeDistRef, typeDistConfig, [typeDistConfig])
 
     // 5. Income Category Donut
@@ -241,22 +262,19 @@ export default function ChartsPage() {
 
     // Top cats
     const topCats = useMemo(() => {
-        const expenses = filtered.filter(t => t.type === 'expense')
+        const expenses = spending
         if (!expenses.length) return []
         const totals = {}
         expenses.forEach(t => { totals[t.category] = (totals[t.category] || 0) + t.amount })
         const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, 6)
         const max = entries[0]?.[1] || 1
         return entries.map(([id, val]) => ({ cat: getCat(id), val, pct: Math.round((val / max) * 100) }))
-    }, [filtered])
+    }, [spending])
 
     // Top Expenses
     const topExpenses = useMemo(() => {
-        return filtered
-            .filter(t => t.type === 'expense' && t.category !== 'invoice_payment')
-            .sort((a, b) => b.amount - a.amount)
-            .slice(0, 6)
-    }, [filtered])
+        return [...spending].sort((a, b) => b.amount - a.amount).slice(0, 6)
+    }, [spending])
 
     if (session === undefined) return null;
 
@@ -299,7 +317,7 @@ export default function ChartsPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
                                 {[
                                     { icon: ArrowUp, label: 'Receitas Totais', val: totalIncome, count: kpiIncome.length, color: '#10b981' },
-                                    { icon: ArrowDown, label: 'Despesas Totais', val: totalExpense, count: kpiExpense.length, color: '#ef4444' },
+                                    { icon: ArrowDown, label: 'Despesas Totais', val: totalExpense, count: spending.length, color: '#ef4444' },
                                     { icon: TrendingUp, label: 'Investimentos', val: totalInvest, count: kpiInvest.length, color: '#8b5cf6' },
                                     { icon: Wallet, label: 'Saldo Líquido', val: netBalance, sub: netBalance >= 0 ? <><Check size={11} strokeWidth={2.5} /> Positivo</> : <><AlertTriangle size={11} strokeWidth={2} /> Negativo</>, color: netBalance >= 0 ? '#10b981' : '#ef4444' }
                                 ].map((k, i) => (

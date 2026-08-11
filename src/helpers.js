@@ -61,6 +61,24 @@ export function formatCurrencyWithSign(amount, type) {
     return `${sign} ${formatCurrency(Math.abs(amount))}`
 }
 
+// Linhas de sistema (cadastro de financiamento, ativos da carteira, contas a
+// receber) moram na mesma tabela das transações, mas não são movimentações do
+// usuário — algumas até gravam type 'expense'/'income'. Quem lê `transactions`
+// direto do Supabase precisa aplicar este filtro; o useTransactions já aplica.
+export function isUserTransaction(t) {
+    if (!t) return false
+    return t.type !== 'system'
+        && t.category !== 'system_asset'
+        && t.category !== 'system_financing'
+        && t.category !== 'system_receivable'
+}
+
+// Saída de dinheiro de verdade: o pagamento de fatura não é um gasto novo,
+// as compras que formaram a fatura já foram contadas uma vez.
+export function isSpending(t) {
+    return !!t && t.type === 'expense' && t.category !== 'invoice_payment'
+}
+
 export function calcBalance(txList) {
     return (txList || []).reduce((acc, t) => {
         if (!t || t.category === 'system_asset' || t.category === 'system_financing' || t.type === 'system' || t.type === 'investment') return acc;
@@ -77,7 +95,7 @@ export function calcIncome(txList) {
 
 export function calcExpense(txList) {
     // Pagamento de fatura não entra como despesa dupla, pois os gastos do cartão já foram contabilizados nas categorias
-    return txList.filter(t => t.type === 'expense' && t.category !== 'invoice_payment').reduce((s, t) => s + t.amount, 0)
+    return (txList || []).filter(isSpending).reduce((s, t) => s + t.amount, 0)
 }
 
 export function calcInvestment(txList) {

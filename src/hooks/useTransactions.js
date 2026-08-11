@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { mapFromDB } from '../helpers'
+import { mapFromDB, isUserTransaction } from '../helpers'
 
 export function useTransactions(userEmail) {
     const [transactions, setTransactions] = useState([])
@@ -19,9 +19,7 @@ export function useTransactions(userEmail) {
                 .order('date', { ascending: false })
 
             if (!error && data) {
-                const userOnlyTxs = data
-                    .map(mapFromDB)
-                    .filter(t => t.category !== 'system_asset' && t.category !== 'system_financing' && t.type !== 'system');
+                const userOnlyTxs = data.map(mapFromDB).filter(isUserTransaction);
                 setTransactions(userOnlyTxs);
             }
         } finally {
