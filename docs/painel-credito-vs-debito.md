@@ -25,7 +25,13 @@ O cartão passa a ser lido pelo **ciclo de fechamento**, que é como o usuário 
 
 `isSpending` (em `helpers.js`) exclui `invoice_payment`: o pagamento da fatura não é gasto novo, quita compras que já entraram em "Gastos no Crédito". Cada lançamento cai em exatamente um dos dois cards. O termômetro e a rosca de categorias mostram a soma, rotulados como tal.
 
-O saldo em aberto das faturas não sumiu do painel: aparece como linha dentro do **Saldo Livre** (`Faturas em aberto: −R$ X`), que é onde importa — dinheiro comprometido.
+O saldo em aberto das faturas não sumiu do painel: aparece como linha dentro do **Saldo Livre**, que é onde importa — dinheiro comprometido.
+
+### Fatura do mês x atraso
+
+A linha do Saldo Livre mostra a **fatura que vence no mês exibido** (`Fatura de out: −R$ 338,50`), não a soma de tudo que está em aberto. Faturas anteriores ainda pendentes aparecem numa segunda linha (`Anteriores em aberto`) e **só quando o mês exibido é o corrente ou passado**: num mês futuro isso é previsão, e a previsão razoável é que as anteriores sejam pagas em dia.
+
+Sem essa regra, avançar o seletor empilhava faturas — outubro somava setembro + outubro (R$ 2.102,89) e novembro somava três (R$ 2.441,39), como se o usuário fosse ficar inadimplente até lá.
 
 ## Pago x a pagar
 

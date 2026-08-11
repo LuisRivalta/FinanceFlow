@@ -311,10 +311,21 @@ export default function DashboardPage() {
             selectedMonthInvoice = Math.max(0, rawSelected - paidCurrent)
         }
 
-        return { totalInvoices: selectedMonthInvoice + priorPendingInvoices }
+        // Num mês futuro, faturas anteriores não são dívida — é previsão, e a
+        // previsão razoável é que sejam pagas em dia. Empilhá-las fazia
+        // "faturas em aberto" crescer a cada mês avançado no seletor.
+        const now = new Date()
+        const isFutureMonth = y > now.getFullYear() || (y === now.getFullYear() && m > now.getMonth())
+
+        return {
+            monthInvoice: selectedMonthInvoice,
+            olderPending: isFutureMonth ? 0 : priorPendingInvoices
+        }
     }, [transactions, cards, currentDate])
 
-    const { totalInvoices } = invoiceMetrics
+    const { monthInvoice, olderPending } = invoiceMetrics
+    const totalInvoices = monthInvoice + olderPending
+    const monthLabelShort = currentDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
 
     const freeBalance = globalBalance - Math.max(0, totalInvoices)
 
@@ -669,10 +680,14 @@ export default function DashboardPage() {
                                         <div style={{ fontSize: 28, fontWeight: 800, color: freeBalance < 0 ? '#ef4444' : '#3b82f6', margin: '2px 0 6px' }}>{formatCurrency(freeBalance)}</div>
                                         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', display: 'flex', flexDirection: 'column', gap: 2 }}>
                                             <span>Na Conta: <strong style={{ color: 'white' }}>{formatCurrency(globalBalance)}</strong></span>
-                                            {/* O que ainda vai ser debitado pelas faturas — o detalhe por
-                                                cartão e o pagamento ficam na página Cartões */}
-                                            {totalInvoices > 0 && (
-                                                <span>Faturas em aberto: <strong style={{ color: '#f59e0b' }}>−{formatCurrency(totalInvoices)}</strong></span>
+                                            {/* A fatura que vence no mês exibido; o detalhe por cartão e o
+                                                pagamento ficam na página Cartões */}
+                                            {monthInvoice > 0 && (
+                                                <span>Fatura de {monthLabelShort}: <strong style={{ color: '#f59e0b' }}>−{formatCurrency(monthInvoice)}</strong></span>
+                                            )}
+                                            {/* Atraso é dívida, não previsão: some ao olhar meses futuros */}
+                                            {olderPending > 0 && (
+                                                <span>Anteriores em aberto: <strong style={{ color: '#ef4444' }}>−{formatCurrency(olderPending)}</strong></span>
                                             )}
                                         </div>
                                     </div>
