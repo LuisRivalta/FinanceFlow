@@ -6,6 +6,9 @@ import { useSession } from '../hooks/useSession';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import GlobalNotifications from './GlobalNotifications';
+import { LayoutDashboard, TrendingUp, Map, Landmark, HandCoins, CreditCard, User, Shield, Crown, X } from 'lucide-react';
+
+const NAV_ICON = { size: 20, strokeWidth: 1.8, className: 'icon' };
 
 function LogoIcon() {
     return (
@@ -94,7 +97,7 @@ export default function Sidebar() {
     };
 
     const roleLabel = session?.role === 'admin'
-        ? <span>👑 <strong>Admin</strong></span>
+        ? <span className="role-badge"><Crown size={13} strokeWidth={2} /> <strong>Admin</strong></span>
         : 'Premium';
 
     return (
@@ -177,43 +180,43 @@ export default function Sidebar() {
                         onClick={() => setIsMobileOpen(false)}
                         aria-label="Fechar menu"
                     >
-                        ✕
+                        <X size={18} strokeWidth={2} />
                     </button>
                 </div>
 
                 {/* Navigation Links */}
                 <nav className="nav-menu">
                     <Link href="/" className={`nav-item ${pathName === '/' ? 'active' : ''}`} title="Visão Geral">
-                        <span className="icon">📊</span>
+                        <LayoutDashboard {...NAV_ICON} />
                         <span className="nav-text">Visão Geral</span>
                     </Link>
                     <Link href="/charts" className={`nav-item ${pathName === '/charts' ? 'active' : ''}`} title="Dashboard">
-                        <span className="icon">📈</span>
+                        <TrendingUp {...NAV_ICON} />
                         <span className="nav-text">Dashboard</span>
                     </Link>
                     <Link href="/roadmap" className={`nav-item ${pathName === '/roadmap' ? 'active' : ''}`} title="Roteiro">
-                        <span className="icon">🗺️</span>
+                        <Map {...NAV_ICON} />
                         <span className="nav-text">Roteiro</span>
                     </Link>
                     <Link href="/investments" className={`nav-item ${pathName === '/investments' ? 'active' : ''}`} title="Investimentos">
-                        <span className="icon">🏦</span>
+                        <Landmark {...NAV_ICON} />
                         <span className="nav-text">Investimentos</span>
                     </Link>
                     <Link href="/receivables" className={`nav-item ${pathName === '/receivables' ? 'active' : ''}`} title="Contas a Receber">
-                        <span className="icon">💰</span>
+                        <HandCoins {...NAV_ICON} />
                         <span className="nav-text">Contas a Receber</span>
                     </Link>
                     <Link href="/cards" className={`nav-item ${pathName === '/cards' ? 'active' : ''}`} title="Crédito & Dívidas">
-                        <span className="icon">💳</span>
+                        <CreditCard {...NAV_ICON} />
                         <span className="nav-text">Crédito & Dívidas</span>
                     </Link>
                     <Link href="/profile" className={`nav-item ${pathName === '/profile' ? 'active' : ''}`} title="Perfil">
-                        <span className="icon">👤</span>
+                        <User {...NAV_ICON} />
                         <span className="nav-text">Perfil</span>
                     </Link>
                     {session?.role === 'admin' && (
                         <Link href="/admin" className={`nav-item ${pathName === '/admin' ? 'active' : ''}`} title="Admin">
-                            <span className="icon">🛡️</span>
+                            <Shield {...NAV_ICON} />
                             <span className="nav-text">Admin</span>
                         </Link>
                     )}
@@ -243,7 +246,7 @@ export default function Sidebar() {
                         className="profile-shortcut-btn"
                         title="Meu Perfil"
                     >
-                        <span>👤</span>
+                        <User size={16} strokeWidth={1.8} />
                         <span className="profile-btn-text">Meu Perfil</span>
                     </Link>
                 </div>

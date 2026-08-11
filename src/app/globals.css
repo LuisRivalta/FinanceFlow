@@ -1847,3 +1847,23 @@ html.lenis, html.lenis body {
         max-height: calc(100vh - 96px);
     }
 }
+
+/* ==========================================================================
+   Ícones (lucide-react)
+   Emojis foram substituídos por SVGs de stroke. Como SVG não responde a
+   font-size, o tamanho vem da prop `size` de cada ícone; aqui ficam apenas
+   alinhamento e proteção contra deformação em containers flex.
+   ========================================================================== */
+.nav-item .icon,
+.card-header .icon,
+.btn-primary .icon {
+    flex-shrink: 0;
+}
+
+/* Rótulos que misturam ícone e texto na mesma linha */
+.role-badge,
+.inline-icon-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
