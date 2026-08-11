@@ -8,6 +8,7 @@ import { useSession } from '../../hooks/useSession';
 import { useReceivables } from '../../hooks/useReceivablesData';
 import { useTransactions } from '../../hooks/useTransactions';
 import { formatCurrency } from '../../helpers';
+import { occursIn, scheduleLabel, todayISODate } from '../../lib/receivableSchedule';
 import { HandCoins, Plus, CalendarDays, ClipboardList, Check, X } from 'lucide-react'
 
 export default function ReceivablesPage() {
@@ -28,11 +29,10 @@ export default function ReceivablesPage() {
     const [activeTab, setActiveTab] = useState('calendar');
 
     // Add Form State
-    const [isAdding, setIsAdding] = useState(false);
-    const [newReceivable, setNewReceivable] = useState({
+    const emptyForm = () => ({
         name: '',
         amount: '',
-        dueDay: '10',
+        firstDueDate: todayISODate(),
         recurrenceType: 'indefinite',
         durationMonths: '12',
         account: 'checking',
@@ -40,46 +40,45 @@ export default function ReceivablesPage() {
         category: 'freelance'
     });
 
+    const [isAdding, setIsAdding] = useState(false);
+    const [newReceivable, setNewReceivable] = useState(emptyForm);
+
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
     const yearMonthStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
 
-    // Metrics for the current month
+    // Métricas do mês corrente: só contam as contas que vencem neste mês
+    const dueThisMonth = useMemo(
+        () => receivables.filter(r => occursIn(r, currentYear, currentMonth)),
+        [receivables, currentYear, currentMonth]
+    );
+
     const totalMonthReceivable = useMemo(() => {
-        return receivables.reduce((sum, r) => sum + (r.active ? r.amount : 0), 0);
-    }, [receivables]);
+        return dueThisMonth.reduce((sum, r) => sum + r.amount, 0);
+    }, [dueThisMonth]);
 
     const totalReceivedThisMonth = useMemo(() => {
-        return receivables.reduce((sum, r) => {
-            if (r.active && r.receivedMonths && r.receivedMonths[yearMonthStr]) {
+        return dueThisMonth.reduce((sum, r) => {
+            if (r.receivedMonths && r.receivedMonths[yearMonthStr]) {
                 return sum + r.amount;
             }
             return sum;
         }, 0);
-    }, [receivables, yearMonthStr]);
+    }, [dueThisMonth, yearMonthStr]);
 
     const totalPendingThisMonth = Math.max(0, totalMonthReceivable - totalReceivedThisMonth);
 
     const handleFormSubmit = (e) => {
         e.preventDefault();
-        if (!newReceivable.name || !newReceivable.amount || !newReceivable.dueDay) {
+        if (!newReceivable.name || !newReceivable.amount || !newReceivable.firstDueDate) {
             alert('Preencha os campos obrigatórios.');
             return;
         }
 
         addReceivable(newReceivable);
         setIsAdding(false);
-        setNewReceivable({
-            name: '',
-            amount: '',
-            dueDay: '10',
-            recurrenceType: 'indefinite',
-            durationMonths: '12',
-            account: 'checking',
-            payer: '',
-            category: 'freelance'
-        });
+        setNewReceivable(emptyForm());
     };
 
     const handleConfirmReceive = (id, ym = yearMonthStr) => {
@@ -156,14 +155,20 @@ export default function ReceivablesPage() {
                                     <input type="number" step="0.01" min="0" placeholder="0,00" value={newReceivable.amount} onChange={e => setNewReceivable({ ...newReceivable, amount: e.target.value })} required />
                                 </div>
                                 <div className="tx-field">
-                                    <label>Dia Fixo do Mês para Cobrar</label>
-                                    <input type="number" min="1" max="31" value={newReceivable.dueDay} onChange={e => setNewReceivable({ ...newReceivable, dueDay: e.target.value })} required />
+                                    <label>{newReceivable.recurrenceType === 'once' ? 'Data do Recebimento' : 'Data do 1º Recebimento'}</label>
+                                    <input type="date" value={newReceivable.firstDueDate} onChange={e => setNewReceivable({ ...newReceivable, firstDueDate: e.target.value })} required />
+                                    <small style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
+                                        {newReceivable.recurrenceType === 'once'
+                                            ? 'Aparece só no mês escolhido.'
+                                            : 'A conta começa nesse mês e repete no mesmo dia dos meses seguintes.'}
+                                    </small>
                                 </div>
                                 <div className="tx-field">
                                     <label>Tipo de Recorrência</label>
                                     <select value={newReceivable.recurrenceType} onChange={e => setNewReceivable({ ...newReceivable, recurrenceType: e.target.value })}>
                                         <option value="indefinite">Sem Prazo Determinado (Recorrente)</option>
                                         <option value="fixed_duration">⏳ Tempo Determinado (Meses)</option>
+                                        <option value="once">Recebimento Único (uma vez só)</option>
                                     </select>
                                 </div>
                                 {newReceivable.recurrenceType === 'fixed_duration' && (
@@ -262,6 +267,7 @@ export default function ReceivablesPage() {
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
                                     {receivables.map(r => {
                                         const isReceived = r.receivedMonths && r.receivedMonths[yearMonthStr];
+                                        const isDueThisMonth = occursIn(r, currentYear, currentMonth);
 
                                         return (
                                             <div
@@ -280,7 +286,7 @@ export default function ReceivablesPage() {
                                                 <div>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                                                         <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: 'rgba(16,185,129,0.15)', color: '#10b981' }}>
-                                                            Dia {r.dueDay} de cada mês
+                                                            {scheduleLabel(r)}
                                                         </span>
                                                         <button
                                                             onClick={() => { if (confirm(`Excluir conta a receber "${r.name}"?`)) removeReceivable(r.id); }}
@@ -299,7 +305,9 @@ export default function ReceivablesPage() {
                                                     </div>
 
                                                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
-                                                        Recorrência: {r.recurrenceType === 'fixed_duration' ? `Duração de ${r.durationMonths} meses` : 'Sem prazo / Contínuo'}
+                                                        Recorrência: {r.recurrenceType === 'fixed_duration' ? `Duração de ${r.durationMonths} meses`
+                                                            : r.recurrenceType === 'once' ? 'Recebimento único'
+                                                                : 'Sem prazo / Contínuo'}
                                                     </div>
                                                 </div>
 
@@ -315,6 +323,12 @@ export default function ReceivablesPage() {
                                                                 Desfazer
                                                             </button>
                                                         </div>
+                                                    ) : !isDueThisMonth ? (
+                                                        // Sem vencimento neste mês não há o que confirmar — confirmar aqui
+                                                        // lançaria a receita num mês em que a conta nem existe.
+                                                        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', width: '100%', textAlign: 'center' }}>
+                                                            {r.active ? 'Sem recebimento previsto neste mês' : 'Recorrência encerrada'}
+                                                        </span>
                                                     ) : (
                                                         <button
                                                             onClick={() => handleConfirmReceive(r.id)}

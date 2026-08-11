@@ -5,6 +5,8 @@
 // da máquina de dev bloqueia a criação desse caminho exato. Os nomes exportados
 // não mudaram. Ver docs/contas-a-receber-e-notificacoes.md
 
+import { occursIn, dueDayIn } from './receivableSchedule';
+
 function startOfDay(date) {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
@@ -68,10 +70,10 @@ export function generateFinancialNotifications(data = {}, options = {}) {
 
     // 1. Contas a receber ainda não confirmadas neste mês
     receivables.forEach(r => {
-        if (r.active === false) return;
+        if (!occursIn(r, year, month)) return; // ainda não começou ou já terminou
         if (r.receivedMonths && r.receivedMonths[yearMonth]) return;
 
-        const due = dueDateFor(r.dueDay, year, month);
+        const due = dueDateFor(dueDayIn(r, year, month), year, month);
         const daysLeft = daysBetween(today, due);
         if (!inWindow(daysLeft)) return;
 

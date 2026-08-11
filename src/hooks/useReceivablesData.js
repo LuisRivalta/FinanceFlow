@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { isStillActive, dueDayIn, firstDueParts, todayISODate } from '../lib/receivableSchedule';
 
 // Contas a receber ficam na tabela transactions com type 'system' + category
 // 'system_receivable'. Esses registros são apenas o "cadastro" da conta e são
@@ -14,18 +15,7 @@ import { supabase } from '../lib/supabase';
 // transação normal de income é criada.
 const CATEGORY = 'system_receivable';
 
-// Uma conta de duração determinada deixa de ser ativa quando os meses acabam
-function isStillActive(item) {
-    if (item.recurrenceType !== 'fixed_duration') return true;
-    const total = parseInt(item.durationMonths) || 0;
-    if (!total) return true;
-
-    const start = new Date(item.startDate || Date.now());
-    const now = new Date();
-    const monthsElapsed = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-    return monthsElapsed < total;
-}
-
+// active = ainda há recebimentos por vir; a agenda vive em lib/receivableSchedule
 function withActive(item) {
     return { ...item, active: isStillActive(item) };
 }
@@ -110,12 +100,17 @@ export function useReceivables(userEmail) {
 
     const addReceivable = useCallback(async (item) => {
         if (!userEmail) return;
+
+        // A data escolhida manda: define o mês da primeira ocorrência e o dia
+        // que se repete nos meses seguintes.
+        const firstDueDate = item.firstDueDate || todayISODate();
         const newItem = {
             id: Date.now().toString(),
             name: (item.name || '').trim(),
             amount: parseFloat(item.amount) || 0,
-            dueDay: parseInt(item.dueDay) || 10,
-            recurrenceType: item.recurrenceType || 'indefinite', // indefinite | fixed_duration
+            firstDueDate,
+            dueDay: firstDueParts({ firstDueDate }).day,
+            recurrenceType: item.recurrenceType || 'indefinite', // indefinite | fixed_duration | once
             durationMonths: parseInt(item.durationMonths) || 0,
             account: item.account || 'checking',
             payer: (item.payer || '').trim(),
@@ -132,7 +127,7 @@ export function useReceivables(userEmail) {
                 amount: newItem.amount,
                 type: 'system',
                 category: CATEGORY,
-                date: new Date().toISOString().split('T')[0],
+                date: firstDueDate,
                 note: JSON.stringify(newItem)
             }).select().single();
 
@@ -191,8 +186,7 @@ export function useReceivables(userEmail) {
 
         if (typeof createTxCallback === 'function') {
             const [y, m] = ym.split('-');
-            const daysInMonth = new Date(Number(y), Number(m), 0).getDate();
-            const day = String(Math.min(target.dueDay || 10, daysInMonth)).padStart(2, '0');
+            const day = String(dueDayIn(target, Number(y), Number(m) - 1)).padStart(2, '0');
 
             createTxCallback({
                 desc: `Recebimento: ${target.name}${target.payer ? ` (${target.payer})` : ''}`,

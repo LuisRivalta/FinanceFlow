@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { formatCurrency, formatDate } from '../helpers';
+import { occursIn, dueDayIn } from '../lib/receivableSchedule';
 import { CalendarDays, HandCoins, CreditCard, Repeat, Car, Check, Coins, Receipt, X } from 'lucide-react';
 
 // Ícone derivado do `type` do item. Os typeLabel guardam só texto porque a
@@ -55,9 +56,11 @@ export default function FinancialCalendar({
         const map = {};
 
         // 1. Contas a Receber
+        // Uma conta só entra no mês em que de fato tem recebimento previsto:
+        // nada antes do primeiro vencimento nem depois do fim da recorrência.
         if (showReceivables) receivables.forEach(r => {
-            if (!r.active) return;
-            const dueDay = Math.min(r.dueDay || 10, daysInMonth);
+            if (!occursIn(r, year, month)) return;
+            const dueDay = dueDayIn(r, year, month);
             if (!map[dueDay]) map[dueDay] = [];
             const isReceived = r.receivedMonths && r.receivedMonths[yearMonthStr];
             map[dueDay].push({

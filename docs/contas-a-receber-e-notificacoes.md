@@ -65,8 +65,9 @@ const {
   dbId: 123,               // id da linha em transactions
   name: "Aluguel Imóvel A",
   amount: 1500.00,
-  dueDay: 10,              // 1..31
-  recurrenceType: "indefinite" | "fixed_duration",
+  firstDueDate: "2026-09-08", // data do 1º recebimento — define o mês de início
+  dueDay: 8,               // 1..31, derivado de firstDueDate
+  recurrenceType: "indefinite" | "fixed_duration" | "once",
   durationMonths: 12,      // só usado em fixed_duration
   account: "checking",
   payer: "Cliente João",
@@ -79,7 +80,21 @@ const {
 }
 ```
 
-`active` é **derivado na leitura**, não persistido como verdade: contas `fixed_duration` deixam de ser ativas quando os meses de duração se esgotam a partir de `startDate`. Contas `indefinite` são sempre ativas. `FinancialCalendar` e os totais da página de recebíveis filtram por esse campo.
+### Agenda — `src/lib/receivableSchedule.js`
+
+Toda a pergunta "esta conta vence neste mês, e em que dia?" mora nesse módulo, usado pelo calendário, pela página e pelo motor de notificações:
+
+| Função | O que responde |
+| --- | --- |
+| `occursIn(item, year, month)` | há recebimento previsto nesse mês (0-11)? |
+| `dueDayIn(item, year, month)` | dia do vencimento, limitado ao último dia do mês |
+| `isStillActive(item, ref)` | ainda restam recebimentos por vir |
+| `scheduleLabel(item)` | texto do cronograma exibido nos cards |
+| `todayISODate(ref)` | `'YYYY-MM-DD'` **local**, para inputs `type="date"` |
+
+O mês da primeira ocorrência vem de `firstDueDate`; itens antigos (sem esse campo) caem no mês de `startDate` com o `dueDay` que já tinham. Sem isso, uma conta cadastrada para o dia 8 do mês que vem aparecia já no dia 8 — passado — do mês corrente.
+
+`active` é **derivado na leitura**, não persistido como verdade: vem de `isStillActive`. Contas `indefinite` são sempre ativas; `fixed_duration` expira depois dos meses contratados; `once` expira depois do seu mês. O calendário e os totais da página filtram por `occursIn` (não por `active`), porque uma conta ativa pode simplesmente não vencer no mês exibido.
 
 ### Convenção de persistência — importante
 
@@ -140,6 +155,7 @@ Pontos de atenção ao mexer:
 - **`id` precisa continuar estável** entre renders — o `NotificationCenter` guarda os lidos em `localStorage` (`finance_read_alerts`) por esse id. Incluir o `yearMonth` faz o alerta reaparecer no mês seguinte, que é o comportamento desejado.
 - Vencidos entram na lista (`daysLeft` negativo), não só os futuros.
 - `daysAhead` controla só a janela para frente.
+- Contas que não vencem no mês corrente (ainda não começaram ou já terminaram) não geram alerta — o filtro é `occursIn`.
 - Vencimento respeita meses curtos: `Math.min(dueDay, últimoDiaDoMês)`.
 - As funções de notificação são seguras em SSR (checam `typeof window` e `'Notification' in window`).
 
