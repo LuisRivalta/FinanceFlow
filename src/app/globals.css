@@ -1736,63 +1736,82 @@ html.lenis, html.lenis body {
 }
 
 /* ==========================================================================
-   Sino de notificações — dentro da navbar
+   Sino de notificações — ao lado do nome, na navbar
    --------------------------------------------------------------------------
-   O sino fica NO FLUXO dos containers, nunca com position:fixed próprio.
-   Posicionamento flutuante já falhou aqui, então o botão agora é um item da
-   navbar como qualquer outro: se a navbar aparece, o sino aparece.
+   Fica NO FLUXO dos containers, sem position:fixed próprio: se a navbar
+   aparece, o sino aparece. Posicionamento flutuante foi tentado antes e não
+   se mostrou confiável.
 
-   Desktop: dentro da .sidebar, acima dos links de navegação.
+   Desktop: dentro do .logo da sidebar, à direita de "Blumii".
    Mobile:  dentro da .mobile-header, ao lado do avatar.
 
-   Qual dos dois é montado é decidido em JS (matchMedia na Sidebar), não por
-   display:none — assim existe só uma instância, e ela nunca fica dentro da
-   sidebar transformada do mobile (translateX(-100%)), que quebraria o
-   position:fixed do painel.
+   Qual slot é montado é decidido em JS (matchMedia na Sidebar), não com
+   display:none nos dois — mantém uma instância só e garante que o sino nunca
+   fique dentro da sidebar transformada do mobile (translateX(-100%)), onde o
+   position:fixed do painel passaria a se posicionar pelo drawer.
    ========================================================================== */
-.notif-slot-sidebar {
-    margin: 4px 0 14px;
+.notif-slot-logo {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
 }
 
-.notif-slot-sidebar .notif-bell {
-    width: 100%;
-    justify-content: flex-start;
+/* Recolhida, a sidebar empilha logo e sino em vez de apertar os dois na linha */
+.sidebar.collapsed .logo {
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sidebar.collapsed .notif-slot-logo {
+    margin-left: 0;
 }
 
 .mobile-header-right {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
 }
 
 .notif-bell {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: rgba(239, 68, 68, 0.12);
-    border: 1px solid rgba(239, 68, 68, 0.35);
-    color: white;
-    font-size: 14px;
-    font-weight: 600;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 9px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: rgba(255, 255, 255, 0.5);
     cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .notif-bell:hover {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.55);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
 }
 
-/* Com a sidebar recolhida, o rótulo some junto com os .nav-text */
-body.sidebar-collapsed .notif-slot-sidebar .notif-bell {
+/* Contador sobreposto — o botão é pequeno demais para o número no fluxo */
+.notif-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: #ef4444;
+    border: 2px solid #0d0f14;
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+    display: flex;
+    align-items: center;
     justify-content: center;
-}
-
-body.sidebar-collapsed .notif-slot-sidebar .notif-bell-text {
-    display: none;
 }
 
 .notif-backdrop {
@@ -1801,8 +1820,8 @@ body.sidebar-collapsed .notif-slot-sidebar .notif-bell-text {
     z-index: 1400;
 }
 
-/* O painel é o único elemento fixo: ancorado na viewport para não ser
-   recortado pelo overflow-y da sidebar nem pela barra do mobile. */
+/* O painel é o único elemento fixo: ancorado no botão, seria recortado pelo
+   overflow-y da sidebar. */
 .notif-panel {
     position: fixed;
     top: 76px;
@@ -1815,13 +1834,8 @@ body.sidebar-collapsed .notif-slot-sidebar .notif-bell-text {
 }
 
 @media (max-width: 768px) {
-    .notif-bell {
-        padding: 8px 10px;
-    }
-
-    /* Na barra estreita do topo sobra só o ícone e o contador */
-    .notif-bell-text {
-        display: none;
+    .notif-badge {
+        border-color: #0d0f14;
     }
 
     .notif-panel {

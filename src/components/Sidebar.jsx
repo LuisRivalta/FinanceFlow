@@ -151,6 +151,13 @@ export default function Sidebar() {
                     <LogoIcon />
                     <h1 className="logo-text">Blumii</h1>
 
+                    {/* Sino discreto ao lado do nome */}
+                    {!isMobileView && (
+                        <div className="notif-slot-logo">
+                            <GlobalNotifications />
+                        </div>
+                    )}
+
                     {/* Toggle Button for Desktop */}
                     <button
                         type="button"
@@ -173,13 +180,6 @@ export default function Sidebar() {
                         ✕
                     </button>
                 </div>
-
-                {/* Sino global no desktop — primeiro item da navbar */}
-                {!isMobileView && (
-                    <div className="notif-slot-sidebar">
-                        <GlobalNotifications />
-                    </div>
-                )}
 
                 {/* Navigation Links */}
                 <nav className="nav-menu">
