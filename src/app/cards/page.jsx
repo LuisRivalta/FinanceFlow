@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Sidebar from '../../components/Sidebar'
 import CreditCardItem from '../../components/CreditCardItem'
 import CreditSpendModal from '../../components/CreditSpendModal'
+import TransactionModal from '../../components/TransactionModal'
 import FinancialCalendar from '../../components/FinancialCalendar'
 import { useSession } from '../../hooks/useSession'
 import { useCreditCards } from '../../hooks/useCards'
@@ -29,7 +30,7 @@ export default function CardsPage() {
     }, [session, router])
 
     const { cards, load: loadCards, create: createCard, update: updateCard, remove: removeCard, loading: loadingCards } = useCreditCards(session?.email)
-    const { transactions, load: loadTxs, create: createTx, remove: removeTx } = useTransactions(session?.email)
+    const { transactions, load: loadTxs, create: createTx, update: updateTx, remove: removeTx } = useTransactions(session?.email)
     const { financings, addFinancing, removeFinancing, payInstallment } = useFinancings(session?.email)
 
     useEffect(() => {
@@ -44,6 +45,26 @@ export default function CardsPage() {
 
     // Cartão cujo extrato está aberto (clique na face do cartão)
     const [statementCard, setStatementCard] = useState(null)
+
+    // Transação sendo editada a partir do extrato. O modal de transação sobe por
+    // cima do extrato, então ao salvar o usuário cai de volta na lista já
+    // atualizada, sem perder de vista qual cartão estava aberto.
+    const [editTx, setEditTx] = useState(null)
+
+    async function handleSaveTx(data, editId) {
+        if (editId) await updateTx(editId, data)
+        else await createTx(data)
+    }
+
+    // Quem clica no ícone de lixeira não dá await: sem este wrapper um erro do
+    // banco morreria no console e a linha voltaria sem explicação.
+    async function handleDeleteTx(id, options) {
+        try {
+            await removeTx(id, options)
+        } catch (err) {
+            alert('Não foi possível excluir a transação: ' + (err.message || 'erro desconhecido'))
+        }
+    }
 
     // Credit Card Form state
     const [isAddingCard, setIsAddingCard] = useState(false)
@@ -704,7 +725,7 @@ export default function CardsPage() {
                                                     </div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                         <div style={{ fontWeight: 600, color: 'var(--danger-color)' }}>- {formatCurrency(sub.amount)} /mês</div>
-                                                        <button onClick={() => { if(confirm(`Remover assinatura "${sub.desc}"?`)) removeTx(sub.id) }} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.6 }} title="Remover Assinatura"><X size={14} strokeWidth={2} /></button>
+                                                        <button onClick={() => { if (confirm(`Remover assinatura "${sub.desc}"?`)) handleDeleteTx(sub.id, { skipConfirm: true }) }} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', opacity: 0.6 }} title="Remover Assinatura"><X size={14} strokeWidth={2} /></button>
                                                     </div>
                                                 </div>
                                             ))}
@@ -1142,6 +1163,15 @@ export default function CardsPage() {
                     const status = statementInvoiceStatus[key]
                     return `Fatura de ${raw}${status ? ` · ${status}` : ''}`
                 }}
+                onEdit={setEditTx}
+                onDelete={handleDeleteTx}
+            />
+
+            <TransactionModal
+                isOpen={!!editTx}
+                onClose={() => setEditTx(null)}
+                onSave={handleSaveTx}
+                editTx={editTx}
             />
         </div>
     )

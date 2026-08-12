@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { mapFromDB, isUserTransaction } from '../helpers'
+import { mapFromDB, isUserTransaction, formatCurrency } from '../helpers'
 
 export function useTransactions(userEmail) {
     const [transactions, setTransactions] = useState([])
@@ -120,10 +120,29 @@ export function useTransactions(userEmail) {
     }, [])
 
     const remove = useCallback(async (id, options = {}) => {
-        if (!options.skipConfirm && !confirm('Excluir esta transação definitivamente?')) return
+        const tx = transactions.find(t => String(t.id) === String(id))
+
+        if (!options.skipConfirm) {
+            const label = tx ? `"${tx.desc}" de ${formatCurrency(tx.amount)}` : 'esta transação'
+            // Cada parcela é uma linha própria no banco: apagar uma não mexe nas
+            // irmãs. Quem confirma precisa saber disso antes de achar que limpou
+            // a compra inteira.
+            const parcelaAviso = Number(tx?.installmentTotal) > 1
+                ? `\n\nAtenção: isso apaga só a parcela ${tx.installmentNumber || '?'}/${tx.installmentTotal}. As outras continuam lançadas.`
+                : ''
+            if (!confirm(`Excluir ${label} definitivamente?${parcelaAviso}`)) return
+        }
+
         setTransactions(prev => prev.filter(t => t.id !== id))
-        await supabase.from('transactions').delete().eq('id', id)
-    }, [])
+
+        const { error } = await supabase.from('transactions').delete().eq('id', id)
+        if (error) {
+            // O sumiço otimista mentiria: se o banco recusou, a linha ainda está
+            // lá e o saldo do painel passaria a divergir do extrato.
+            await load()
+            throw error
+        }
+    }, [transactions, load])
 
     return { transactions, loading, load, create, update, remove }
 }

@@ -1,6 +1,7 @@
 "use client";
-import { FileText, Pencil, Trash2 } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import CategoryIcon from './CategoryIcon'
+import TxActions from './TxActions'
 
 import { getCategoryDetails, getAccountLabel, formatCurrency, formatDate } from '../helpers'
 
@@ -37,10 +38,7 @@ export default function TxCard({ tx, onEdit, onDelete }) {
             </div>
             <div className="tx-card-right">
                 <div className="tx-card-amount" style={{ color }}>{sign} {formatCurrency(tx.amount)}</div>
-                <div className="tx-card-actions">
-                    <button className="tx-act-btn" onClick={() => onEdit(tx)} title="Editar"><Pencil size={14} strokeWidth={1.8} /></button>
-                    <button className="tx-act-btn tx-act-danger" onClick={() => onDelete(tx.id)} title="Excluir"><Trash2 size={14} strokeWidth={1.8} /></button>
-                </div>
+                <TxActions tx={tx} onEdit={onEdit} onDelete={onDelete} />
             </div>
         </div>
     )

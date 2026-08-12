@@ -1,9 +1,10 @@
 import React from 'react'
 import { X } from 'lucide-react'
 import CategoryIcon from './CategoryIcon'
+import TxActions from './TxActions'
 import { getCategoryDetails, getAccountLabel } from '../helpers'
 
-export default function DetailsModal({ isOpen, onClose, type, transactions, title, color }) {
+export default function DetailsModal({ isOpen, onClose, type, transactions, title, color, onEdit, onDelete }) {
     if (!isOpen) return null
 
     // Helper formatter
@@ -90,8 +91,11 @@ export default function DetailsModal({ isOpen, onClose, type, transactions, titl
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div style={{ fontWeight: 700, fontSize: 15, color: color }}>
-                                                        {formatCurrency(t.amount)}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                                                        <div style={{ fontWeight: 700, fontSize: 15, color: color }}>
+                                                            {formatCurrency(t.amount)}
+                                                        </div>
+                                                        <TxActions tx={t} onEdit={onEdit} onDelete={onDelete} />
                                                     </div>
                                                 </div>
                                             )

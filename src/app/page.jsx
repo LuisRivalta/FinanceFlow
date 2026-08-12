@@ -377,6 +377,17 @@ export default function DashboardPage() {
         setModalOpen(true)
     }
 
+    // A exclusão parte de dentro de listas e modais, sem await de quem clica:
+    // sem este wrapper um erro do banco morria silencioso no console.
+    async function handleDelete(id) {
+        try {
+            await remove(id)
+        } catch (err) {
+            alert('Não foi possível excluir a transação: ' + (err.message || 'erro desconhecido'))
+        }
+    }
+
+
     function openNew() {
         setEditTx(null)
         setModalOpen(true)
@@ -851,7 +862,7 @@ export default function DashboardPage() {
                                         {incomeList.length === 0 ? (
                                             <div className="empty-state"><p style={{ fontSize: 14 }}>Sem registros</p></div>
                                         ) : incomeList.map(tx => (
-                                            <TxCard key={tx.id} tx={tx} onEdit={openEdit} onDelete={remove} />
+                                            <TxCard key={tx.id} tx={tx} onEdit={openEdit} onDelete={handleDelete} />
                                         ))}
                                     </div>
                                     <div className="column-footer">
@@ -867,7 +878,7 @@ export default function DashboardPage() {
                                         {expenseList.length === 0 ? (
                                             <div className="empty-state"><p style={{ fontSize: 14 }}>Sem registros</p></div>
                                         ) : expenseList.map(tx => (
-                                            <TxCard key={tx.id} tx={tx} onEdit={openEdit} onDelete={remove} />
+                                            <TxCard key={tx.id} tx={tx} onEdit={openEdit} onDelete={handleDelete} />
                                         ))}
                                     </div>
                                     <div className="column-footer">
@@ -928,7 +939,7 @@ export default function DashboardPage() {
                                         Nenhuma transação encontrada.
                                     </div>
                                 ) : recentTxs.map(tx => (
-                                    <TxCard key={tx.id} tx={tx} onEdit={openEdit} onDelete={remove} />
+                                    <TxCard key={tx.id} tx={tx} onEdit={openEdit} onDelete={handleDelete} />
                                 ))}
                             </div>
                         </div>
@@ -989,7 +1000,7 @@ export default function DashboardPage() {
                                     Nenhuma transação encontrada.
                                 </div>
                             ) : allTxs.map(tx => (
-                                <TxCard key={tx.id} tx={tx} onEdit={tx2 => { setShowAllModal(false); openEdit(tx2) }} onDelete={remove} />
+                                <TxCard key={tx.id} tx={tx} onEdit={tx2 => { setShowAllModal(false); openEdit(tx2) }} onDelete={handleDelete} />
                             ))}
                         </div>
                     </div>
@@ -1002,6 +1013,8 @@ export default function DashboardPage() {
                 subtitle={creditCycle.periodLabel}
                 transactions={creditCycle.purchases}
                 cardNameById={cardNameById}
+                onEdit={openEdit}
+                onDelete={handleDelete}
             />
             <DetailsModal
                 isOpen={!!detailView && detailView !== 'credit'}
@@ -1010,6 +1023,8 @@ export default function DashboardPage() {
                 transactions={detailInfo.transactions}
                 title={detailInfo.title}
                 color={detailInfo.color}
+                onEdit={openEdit}
+                onDelete={handleDelete}
             />
         </div>
     )

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { X, CreditCard, Layers, Wallet } from 'lucide-react'
 import CategoryIcon from './CategoryIcon'
+import TxActions from './TxActions'
 import { getCategoryDetails, formatCurrency } from '../helpers'
 
 // Análise de gastos no crédito: extrato + quebra por categoria + à vista x
@@ -23,7 +24,9 @@ export default function CreditSpendModal({
     groupBy = (t) => t.date,
     groupLabel = (key) => new Date(key + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'long' }),
     cardNameById = {},
-    color = '#8b5cf6'
+    color = '#8b5cf6',
+    onEdit,
+    onDelete
 }) {
     const [onlyInstallments, setOnlyInstallments] = useState(false)
 
@@ -201,8 +204,11 @@ export default function CreditSpendModal({
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div style={{ fontWeight: 700, fontSize: 14, color: 'white', whiteSpace: 'nowrap' }}>
-                                                {formatCurrency(t.amount)}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                                                <div style={{ fontWeight: 700, fontSize: 14, color: 'white', whiteSpace: 'nowrap' }}>
+                                                    {formatCurrency(t.amount)}
+                                                </div>
+                                                <TxActions tx={t} onEdit={onEdit} onDelete={onDelete} />
                                             </div>
                                         </div>
                                     )

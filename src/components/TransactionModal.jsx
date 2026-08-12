@@ -236,8 +236,15 @@ export default function TransactionModal({ isOpen, onClose, onSave, editTx }) {
                                         {cardPurchaseType === 'installment' && (
                                             <div>
                                                 <label style={{ color: '#93c5fd' }}>Quantidade de Parcelas</label>
-                                                <input type="number" value={installmentTotal} onChange={e => setInstallmentTotal(e.target.value)} min="2" style={{ borderColor: 'rgba(59,130,246,0.3)' }} required />
-                                                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4, display: 'block' }}>O valor lá de cima (R$) deve ser o valor de CADA parcela.</span>
+                                                {/* Na edição o campo fica travado: cada parcela é uma linha própria
+                                                    no banco, e mudar o total aqui não redistribuiria as irmãs — só
+                                                    daria a impressão de ter feito algo. */}
+                                                <input type="number" value={installmentTotal} onChange={e => setInstallmentTotal(e.target.value)} min="2" style={{ borderColor: 'rgba(59,130,246,0.3)', opacity: editTx ? 0.5 : 1 }} disabled={!!editTx} required={!editTx} />
+                                                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4, display: 'block' }}>
+                                                    {editTx
+                                                        ? 'Você está editando apenas esta parcela. Para mudar o parcelamento, apague-o na página Cartões e lance de novo.'
+                                                        : 'O valor lá de cima (R$) deve ser o valor de CADA parcela.'}
+                                                </span>
                                             </div>
                                         )}
                                     </>
