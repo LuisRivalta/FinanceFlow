@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { formatCurrency, formatDate } from '../helpers';
 import { occursIn, dueDayIn } from '../lib/receivableSchedule';
+import { hasInstallmentIn, isInstallmentPaid } from '../lib/financingSchedule';
 import { CalendarDays, HandCoins, CreditCard, Repeat, Car, Check, Coins, Receipt, X } from 'lucide-react';
 
 // Ícone derivado do `type` do item. Os typeLabel guardam só texto porque a
@@ -130,11 +131,12 @@ export default function FinancialCalendar({
 
         // 4. Financiamentos & Empréstimos
         if (showPayables) financings.forEach(f => {
+            if (!hasInstallmentIn(f, year, month)) return;
             const dueDay = Math.min(f.dueDay || 10, daysInMonth);
             if (!map[dueDay]) map[dueDay] = [];
 
             const isCompleted = f.paidInstallments >= f.totalInstallments;
-            const hasPaidThisMonth = (f.history || []).some(h => {
+            const isPaid = isInstallmentPaid(f, year, month) || (f.history || []).some(h => {
                 const hDate = new Date(h.date);
                 return hDate.getFullYear() === year && hDate.getMonth() === month;
             });
@@ -146,8 +148,8 @@ export default function FinancialCalendar({
                 type: 'financing',
                 typeLabel: 'Financiamento / Empréstimo',
                 typeColor: '#f59e0b',
-                status: isCompleted ? 'completed' : hasPaidThisMonth ? 'paid' : 'pending',
-                statusLabel: isCompleted ? 'Quitado' : hasPaidThisMonth ? 'Parcela Paga' : `Parcela ${f.paidInstallments + 1}/${f.totalInstallments}`,
+                status: isCompleted ? 'completed' : isPaid ? 'paid' : 'pending',
+                statusLabel: isCompleted ? 'Quitado' : isPaid ? 'Parcela Paga' : `Parcela a Pagar (${f.paidInstallments + 1}/${f.totalInstallments})`,
                 rawItem: f,
                 dueDay
             });

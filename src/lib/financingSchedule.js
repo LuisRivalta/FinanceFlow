@@ -5,11 +5,25 @@
 // painel não enxergava nenhum compromisso de financiamento — só via a despesa
 // quando o usuário pagava a parcela pelo botão da página Cartões.
 
+// Retorna a data de início (1ª parcela) de um financiamento
+export function getFinancingStartDate(item) {
+    if (item?.startDate) {
+        const d = new Date(item.startDate)
+        if (!isNaN(d.getTime())) return d
+    }
+    if (item?.startMonth) {
+        const [y, m] = item.startMonth.split('-')
+        const d = new Date(parseInt(y, 10), parseInt(m, 10) - 1, Number(item?.dueDay) || 10, 12, 0, 0)
+        if (!isNaN(d.getTime())) return d
+    }
+    return null
+}
+
 // Índice da parcela que cai no mês consultado (0 = primeira). Negativo antes
 // de começar, >= total depois de acabar.
 export function installmentIndex(item, year, month) {
-    const start = item?.startDate ? new Date(item.startDate) : null
-    if (!start || isNaN(start)) return -1
+    const start = getFinancingStartDate(item)
+    if (!start) return -1
     return (year - start.getFullYear()) * 12 + (month - start.getMonth())
 }
 
@@ -29,8 +43,8 @@ export function isInstallmentPaid(item, year, month) {
     return index < (parseInt(item?.paidInstallments) || 0)
 }
 
-// Total que ainda falta pagar de financiamentos no mês — o que o painel usa
-// como compromisso do Saldo Livre.
+// Total que ainda falta pagar de financiamentos no mês — compromisso financeiro
+// do orçamento / margem do mês.
 export function pendingInstallmentsFor(financings, year, month) {
     return (financings || []).reduce((sum, item) => {
         if (!hasInstallmentIn(item, year, month)) return sum

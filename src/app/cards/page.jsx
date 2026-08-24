@@ -108,7 +108,8 @@ export default function CardsPage() {
         totalInstallments: '',
         paidInstallments: '',
         dueDay: '10',
-        account: 'checking'
+        account: 'checking',
+        startMonth: ''
     })
 
     function handleEditCardClick(card) {
@@ -226,7 +227,8 @@ export default function CardsPage() {
             totalInstallments: '',
             paidInstallments: '',
             dueDay: '10',
-            account: 'checking'
+            account: 'checking',
+            startMonth: ''
         })
     }
 
@@ -905,6 +907,11 @@ export default function CardsPage() {
                                         <div className="tx-field">
                                             <label>Parcelas Já Pagas</label>
                                             <input type="number" min="0" max={newFinancing.totalInstallments || 600} value={newFinancing.paidInstallments} onChange={e => setNewFinancing({...newFinancing, paidInstallments: e.target.value})} />
+                                        </div>
+
+                                        <div className="tx-field">
+                                            <label>Mês da 1ª Parcela (Início)</label>
+                                            <input type="month" value={newFinancing.startMonth || ''} onChange={e => setNewFinancing({...newFinancing, startMonth: e.target.value})} placeholder="Ex: 2026-04" />
                                         </div>
 
                                         <div className="tx-field">

@@ -114,12 +114,12 @@ export default function DashboardPage() {
         () => filteredTransactions.filter(t => isSpending(t) && t.account !== 'credit'),
         [filteredTransactions]
     )
-    // O cartão não segue o calendário: para um cartão que fecha dia 4, o "mês"
-    // de agosto vai de 05/08 a 04/09 — é o ciclo que vira a próxima fatura.
-    // Contar por mês de calendário fazia o painel divergir da fatura real.
+    // O cartão fecha seu ciclo mensal: a fatura de competência do mês selecionado
+    // (ex.: para o mês de Agosto, a fatura fecha em 25/08 e vence em 04/09).
     const creditCycle = useMemo(() => {
-        const openMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
-        const cycleKey = `${openMonth.getFullYear()}-${String(openMonth.getMonth() + 1).padStart(2, '0')}`
+        const y = currentDate.getFullYear()
+        const m = currentDate.getMonth()
+        const cycleKey = `${y}-${String(m + 1).padStart(2, '0')}`
 
         const purchases = transactions.filter(t => {
             if (!isSpending(t) || t.account !== 'credit') return false
@@ -141,23 +141,20 @@ export default function DashboardPage() {
         let periodLabel = null
         if (closings.length === 1) {
             const closing = closings[0]
-            const y = currentDate.getFullYear()
-            const m = currentDate.getMonth()
-            periodLabel = `${dayLabel(y, m, closing + 1)} a ${dayLabel(openMonth.getFullYear(), openMonth.getMonth(), closing)}`
+            const prevMonth = new Date(y, m - 1, 1)
+            periodLabel = `${dayLabel(prevMonth.getFullYear(), prevMonth.getMonth(), closing + 1)} a ${dayLabel(y, m, closing)}`
         } else if (closings.length > 1) {
-            // Cartões com fechamentos diferentes: um intervalo único mentiria
-            // sobre pelo menos um deles, então fica só o mês do fechamento
-            const raw = openMonth.toLocaleDateString('pt-BR', { month: 'long' })
-            periodLabel = `ciclos que fecham em ${raw}`
+            const raw = currentDate.toLocaleDateString('pt-BR', { month: 'long' })
+            periodLabel = `faturas que fecham em ${raw}`
         }
 
         // Sparkline: quatro semanas contadas a partir da abertura do ciclo de
-        // cada cartão, não do dia 1 do mês
+        // cada cartão
         const weekly = [0, 0, 0, 0]
         purchases.forEach(t => {
             const card = cards?.find(c => String(c.id) === String(t.creditCardId))
             const closing = Number(card?.closing_day) || 25
-            const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), closing + 1)
+            const start = new Date(y, m - 1, closing + 1)
             const days = Math.floor((new Date(t.date + 'T00:00:00') - start) / 86400000)
             weekly[Math.min(3, Math.max(0, Math.floor(days / 7)))] += t.amount
         })
@@ -339,6 +336,11 @@ export default function DashboardPage() {
         () => pendingInstallmentsFor(financings, currentDate.getFullYear(), currentDate.getMonth()),
         [financings, currentDate]
     )
+
+    // Margem / Sobra Prevista do Mês:
+    // Receitas Totais - (Gastos no Cartão da Fatura + Despesas no Débito/Pix + Financiamentos Pendentes)
+    // Se o financiamento já foi pago no mês, ele entrou como despesa em directExpenses e financingDue é 0.
+    const monthSavings = income - directExpense - creditExpense - financingDue
 
     const freeBalance = globalBalance - Math.max(0, totalInvoices) - Math.max(0, financingDue)
 
@@ -700,21 +702,20 @@ export default function DashboardPage() {
                                 </svg>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                                     <div>
-                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Saldo Livre</div>
-                                        <div style={{ fontSize: 28, fontWeight: 800, color: freeBalance < 0 ? '#ef4444' : '#3b82f6', margin: '2px 0 6px' }}>{formatCurrency(freeBalance)}</div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Sobra Prevista do Mês</div>
+                                        <div style={{ fontSize: 28, fontWeight: 800, color: monthSavings < 0 ? '#ef4444' : '#3b82f6', margin: '2px 0 6px' }}>{formatCurrency(monthSavings)}</div>
                                         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                            <span>Na Conta: <strong style={{ color: 'white' }}>{formatCurrency(globalBalance)}</strong></span>
-                                            {/* A fatura que vence no mês exibido; o detalhe por cartão e o
-                                                pagamento ficam na página Cartões */}
-                                            {monthInvoice > 0 && (
-                                                <span>Fatura de {monthLabelShort}: <strong style={{ color: '#f59e0b' }}>−{formatCurrency(monthInvoice)}</strong></span>
+                                            <span>Saldo em Conta hoje: <strong style={{ color: 'white' }}>{formatCurrency(globalBalance)}</strong></span>
+                                            {/* A fatura de competência do mês exibido */}
+                                            {creditExpense > 0 && (
+                                                <span>Fatura de {monthLabelShort}: <strong style={{ color: '#8b5cf6' }}>−{formatCurrency(creditExpense)}</strong>{creditStatus.nextDueDate ? ` (vence ${creditStatus.nextDueDate.slice(8, 10)}/${creditStatus.nextDueDate.slice(5, 7)})` : ''}</span>
+                                            )}
+                                            {financingDue > 0 && (
+                                                <span>Parcelas do mês: <strong style={{ color: '#f59e0b' }}>−{formatCurrency(financingDue)}</strong></span>
                                             )}
                                             {/* Atraso é dívida, não previsão: some ao olhar meses futuros */}
                                             {olderPending > 0 && (
                                                 <span>Anteriores em aberto: <strong style={{ color: '#ef4444' }}>−{formatCurrency(olderPending)}</strong></span>
-                                            )}
-                                            {financingDue > 0 && (
-                                                <span>Parcelas do mês: <strong style={{ color: '#f59e0b' }}>−{formatCurrency(financingDue)}</strong></span>
                                             )}
                                         </div>
                                     </div>

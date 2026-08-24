@@ -19,6 +19,11 @@ describe('installmentIndex', () => {
         expect(installmentIndex(HB20, 2027, 6)).toBe(12)
     })
 
+    it('suporta startMonth no formato YYYY-MM', () => {
+        expect(installmentIndex({ monthlyPayment: 500, startMonth: '2026-04', dueDay: 26 }, 2026, 3)).toBe(0) // abril (mês 3)
+        expect(installmentIndex({ monthlyPayment: 500, startMonth: '2026-04', dueDay: 26 }, 2026, 7)).toBe(4) // agosto (mês 7)
+    })
+
     it('devolve -1 sem data de início', () => {
         expect(installmentIndex({ monthlyPayment: 100 }, 2026, 7)).toBe(-1)
     })
