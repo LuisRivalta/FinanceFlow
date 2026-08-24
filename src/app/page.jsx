@@ -706,18 +706,27 @@ export default function DashboardPage() {
                                 </svg>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
                                     <div>
-                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Sobra Prevista do Mês</div>
-                                        <div style={{ fontSize: 28, fontWeight: 800, color: monthSavings < 0 ? '#ef4444' : '#3b82f6', margin: '2px 0 6px' }}>{formatCurrency(monthSavings)}</div>
-                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                            <span>Saldo em Conta hoje: <strong style={{ color: 'white' }}>{formatCurrency(globalBalance)}</strong></span>
-                                            {/* A fatura de competência do mês exibido */}
-                                            {creditExpense > 0 && (
-                                                <span>Fatura de {monthLabelShort}: <strong style={{ color: '#8b5cf6' }}>−{formatCurrency(creditExpense)}</strong>{creditStatus.nextDueDate ? ` (vence ${creditStatus.nextDueDate.slice(8, 10)}/${creditStatus.nextDueDate.slice(5, 7)})` : ''}</span>
-                                            )}
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Saldo em Conta</div>
+                                        <div style={{ fontSize: 28, fontWeight: 800, color: globalBalance < 0 ? '#ef4444' : '#3b82f6', margin: '2px 0 6px' }}>{formatCurrency(globalBalance)}</div>
+                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', display: 'flex', flexDirection: 'column', gap: 3 }}>
                                             {financingDue > 0 && (
-                                                <span>Parcelas do mês: <strong style={{ color: '#f59e0b' }}>−{formatCurrency(financingDue)}</strong></span>
+                                                <span>Financiamento pendente: <strong style={{ color: '#f59e0b' }}>{formatCurrency(financingDue)}</strong></span>
                                             )}
-                                            {/* Atraso é dívida, não previsão: some ao olhar meses futuros */}
+                                            {creditExpense > 0 ? (
+                                                <span>Fatura de {monthLabelShort}: <strong style={{ color: '#8b5cf6' }}>{formatCurrency(creditExpense)}</strong>{creditStatus.nextDueDate ? ` (vence ${creditStatus.nextDueDate.slice(8, 10)}/${creditStatus.nextDueDate.slice(5, 7)})` : ''}</span>
+                                            ) : !financingDue && (
+                                                <span style={{ color: '#10b981', fontWeight: 600 }}>Sem contas pendentes neste mês</span>
+                                            )}
+                                            {(creditExpense > 0 || financingDue > 0) && (
+                                                <span>
+                                                    {(creditExpense + financingDue) > globalBalance 
+                                                        ? (financingDue > 0 && creditExpense > 0 ? 'Contas − Saldo: ' : creditExpense > 0 ? 'Fatura − Saldo: ' : 'Financiamento − Saldo: ')
+                                                        : 'Sobra após contas: '}
+                                                    <strong style={{ color: (creditExpense + financingDue) > globalBalance ? '#ef4444' : '#10b981' }}>
+                                                        {formatCurrency(Math.abs((creditExpense + financingDue) - globalBalance))}
+                                                    </strong>
+                                                </span>
+                                            )}
                                             {olderPending > 0 && (
                                                 <span>Anteriores em aberto: <strong style={{ color: '#ef4444' }}>−{formatCurrency(olderPending)}</strong></span>
                                             )}
