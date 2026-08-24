@@ -16,7 +16,7 @@ import { useCreditCards } from '../hooks/useCards'
 import { useFinancings } from '../hooks/useFinancings'
 import { useWalletAssets } from '../hooks/useWalletAssets'
 import { formatCurrency, calcBalance, calcIncome, calcInvestment, getCategoryDetails, isSpending } from '../helpers'
-import { getCardInvoiceBreakdown, getInvoiceKey } from '../lib/cardMetrics'
+import { getCardInvoiceBreakdown, getInvoiceKey, getCardCycleKeyForMonth } from '../lib/cardMetrics'
 import { pendingInstallmentsFor } from '../lib/financingSchedule'
 import { currentLegendPosition } from '../lib/responsive'
 
@@ -115,51 +115,55 @@ export default function DashboardPage() {
         [filteredTransactions]
     )
     // O cartão fecha seu ciclo mensal: a fatura de competência do mês selecionado
-    // (ex.: para o mês de Agosto, a fatura fecha em 25/08 e vence em 04/09).
+    // (ex.: para o mês de Agosto em cartão com fechamento dia 4, compras de 05/08 a 04/09 pertencem ao mês de Agosto).
     const creditCycle = useMemo(() => {
         const y = currentDate.getFullYear()
         const m = currentDate.getMonth()
-        const cycleKey = `${y}-${String(m + 1).padStart(2, '0')}`
 
         const purchases = transactions.filter(t => {
             if (!isSpending(t) || t.account !== 'credit') return false
             const card = cards?.find(c => String(c.id) === String(t.creditCardId))
-            return getInvoiceKey(t.date, card?.closing_day) === cycleKey
+            if (!card) return false
+            const targetKey = getCardCycleKeyForMonth(card, y, m)
+            return getInvoiceKey(t.date, card.closing_day) === targetKey
         })
 
         // Datas de abertura e fechamento do ciclo, por cartão que tem compra nele
-        const closings = [...new Set(purchases.map(t => {
-            const card = cards?.find(c => String(c.id) === String(t.creditCardId))
-            return Number(card?.closing_day) || 25
-        }))]
-
-        const dayLabel = (year, month, day) => {
-            const maxDay = new Date(year, month + 1, 0).getDate()
-            return `${String(Math.min(day, maxDay)).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}`
-        }
+        const periods = (cards || []).map(card => {
+            const closing = Number(card?.closing_day) || 25
+            const dayLabel = (year, month, day) => {
+                const maxDay = new Date(year, month + 1, 0).getDate()
+                return `${String(Math.min(day, maxDay)).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}`
+            }
+            if (closing <= 15) {
+                const nextM = new Date(y, m + 1, 1)
+                return `${dayLabel(y, m, closing + 1)} a ${dayLabel(nextM.getFullYear(), nextM.getMonth(), closing)}`
+            } else {
+                const prevM = new Date(y, m - 1, 1)
+                return `${dayLabel(prevM.getFullYear(), prevM.getMonth(), closing + 1)} a ${dayLabel(y, m, closing)}`
+            }
+        })
+        const uniquePeriods = [...new Set(periods)]
 
         let periodLabel = null
-        if (closings.length === 1) {
-            const closing = closings[0]
-            const prevMonth = new Date(y, m - 1, 1)
-            periodLabel = `${dayLabel(prevMonth.getFullYear(), prevMonth.getMonth(), closing + 1)} a ${dayLabel(y, m, closing)}`
-        } else if (closings.length > 1) {
+        if (uniquePeriods.length === 1) {
+            periodLabel = uniquePeriods[0]
+        } else if (uniquePeriods.length > 1) {
             const raw = currentDate.toLocaleDateString('pt-BR', { month: 'long' })
-            periodLabel = `faturas que fecham em ${raw}`
+            periodLabel = `ciclos do mês de ${raw}`
         }
 
-        // Sparkline: quatro semanas contadas a partir da abertura do ciclo de
-        // cada cartão
+        // Sparkline: quatro semanas contadas a partir da abertura do ciclo de cada cartão
         const weekly = [0, 0, 0, 0]
         purchases.forEach(t => {
             const card = cards?.find(c => String(c.id) === String(t.creditCardId))
             const closing = Number(card?.closing_day) || 25
-            const start = new Date(y, m - 1, closing + 1)
+            const start = closing <= 15 ? new Date(y, m, closing + 1) : new Date(y, m - 1, closing + 1)
             const days = Math.floor((new Date(t.date + 'T00:00:00') - start) / 86400000)
             weekly[Math.min(3, Math.max(0, Math.floor(days / 7)))] += t.amount
         })
 
-        return { cycleKey, purchases, periodLabel, weekly }
+        return { purchases, periodLabel, weekly }
     }, [transactions, cards, currentDate])
 
     const creditPurchases = creditCycle.purchases
@@ -258,19 +262,19 @@ export default function DashboardPage() {
     const invoiceMetrics = useMemo(() => {
         const y = currentDate.getFullYear()
         const m = currentDate.getMonth()
-        const selectedKey = `${y}-${String(m + 1).padStart(2, '0')}`
 
         let selectedMonthInvoice = 0
         let priorPendingInvoices = 0
 
         if (cards && cards.length > 0) {
             cards.forEach(card => {
+                const targetKey = getCardCycleKeyForMonth(card, y, m)
                 const breakdown = getCardInvoiceBreakdown(transactions, card, currentDate)
                 breakdown.forEach(inv => {
                     if (inv.remaining > 0) {
-                        if (inv.key === selectedKey) {
+                        if (inv.key === targetKey) {
                             selectedMonthInvoice += inv.remaining
-                        } else if (inv.key < selectedKey) {
+                        } else if (inv.key < targetKey) {
                             priorPendingInvoices += inv.remaining
                         }
                     }

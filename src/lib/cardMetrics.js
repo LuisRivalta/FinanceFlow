@@ -31,6 +31,19 @@ export function getInvoiceKey(dateStr, closingDay = 25) {
     return `${y}-${String(m + 1).padStart(2, '0')}`
 }
 
+// Retorna a chave da fatura correspondente ao ciclo de gastos do mês selecionado no painel.
+// Para cartões que fecham no início do mês (closingDay <= 15, ex: dia 4), as compras de Agosto (05/08 a 04/09)
+// pertencem à fatura com chave '2026-09'. Para cartões que fecham no fim do mês (closingDay > 15, ex: dia 25),
+// pertencem à fatura com chave '2026-08'.
+export function getCardCycleKeyForMonth(card, year, month) {
+    const closing = Number(card?.closing_day) || 25
+    if (closing <= 15) {
+        const next = new Date(year, month + 1, 1)
+        return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`
+    }
+    return `${year}-${String(month + 1).padStart(2, '0')}`
+}
+
 // Retorna a data de vencimento (YYYY-MM-DD) para uma chave de fatura YYYY-MM
 export function getInvoiceDueDate(invoiceKey, closingDay = 25, dueDay = 10) {
     if (!invoiceKey || typeof invoiceKey !== 'string') return ''

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { usagePercent, calcCardInvoice, getInvoiceKey, getInvoiceDueDate, getCardInvoiceBreakdown } from './cardMetrics'
+import { usagePercent, calcCardInvoice, getInvoiceKey, getCardCycleKeyForMonth, getInvoiceDueDate, getCardInvoiceBreakdown } from './cardMetrics'
 
 describe('usagePercent', () => {
     it('calcula o percentual do limite usado', () => {
@@ -50,6 +50,13 @@ describe('getInvoiceKey & getInvoiceDueDate', () => {
     it('calcula o vencimento da fatura corretamente', () => {
         // Fechamento dia 25, Vencimento dia 10 (mês seguinte)
         expect(getInvoiceDueDate('2026-07', 25, 10)).toBe('2026-08-10')
+    })
+
+    it('determina a chave da fatura para o ciclo do mês no painel', () => {
+        // Cartão que fecha dia 4 (início do mês): gastos de Agosto (mês 7) pertencem à fatura '2026-09'
+        expect(getCardCycleKeyForMonth({ closing_day: 4 }, 2026, 7)).toBe('2026-09')
+        // Cartão que fecha dia 25 (fim do mês): gastos de Agosto (mês 7) pertencem à fatura '2026-08'
+        expect(getCardCycleKeyForMonth({ closing_day: 25 }, 2026, 7)).toBe('2026-08')
     })
 })
 
