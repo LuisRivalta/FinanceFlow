@@ -48,5 +48,5 @@ next-app/
 
 # Artes-fonte da marca (PNGs de ~5MB cada). Os assets derivados e otimizados
 # ficam versionados em public/blumii-logo.png e src/app/icon.png.
-logo1.png
-logo2.png
+docs/brand/
+

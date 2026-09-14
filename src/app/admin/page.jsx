@@ -16,18 +16,37 @@ export default function AdminPage() {
 
     useEffect(() => {
         if (session === undefined) return
-        if (!session || session.role !== 'admin') {
-            alert('Acesso Restrito. Você não possui privilégios de Administrador.')
-            router.push('/')
+        if (!session?.email) {
+            router.push('/login')
             return
         }
-        loadUsers()
+
+        async function verifyAdmin() {
+            setLoading(true)
+            const { data: me, error: verifyErr } = await supabase
+                .from('users')
+                .select('role, status')
+                .eq('email', session.email)
+                .maybeSingle()
+
+            if (verifyErr || !me || me.role !== 'admin' || me.status === 'blocked') {
+                alert('Acesso Restrito. Você não possui privilégios de Administrador.')
+                router.push('/')
+                return
+            }
+            loadUsers()
+        }
+
+        verifyAdmin()
     }, [session, router])
 
     async function loadUsers() {
         setLoading(true)
         setError('')
-        const { data, error } = await supabase.from('users').select('*').order('name')
+        const { data, error } = await supabase
+            .from('users')
+            .select('id, name, email, role, status, avatar_url, created_at')
+            .order('name')
         if (error) {
             setError('Erro ao carregar usuários: ' + error.message)
         } else {
@@ -36,19 +55,48 @@ export default function AdminPage() {
         setLoading(false)
     }
 
+    async function checkIsAdmin() {
+        if (!session?.email) return false
+        const { data: me } = await supabase
+            .from('users')
+            .select('role, status')
+            .eq('email', session.email)
+            .maybeSingle()
+        return me && me.role === 'admin' && me.status !== 'blocked'
+    }
+
     async function toggleRole(userId, currentRole) {
+        if (!(await checkIsAdmin())) {
+            alert('Ação não autorizada.')
+            router.push('/')
+            return
+        }
         const newRole = currentRole === 'admin' ? 'user' : 'admin'
         await supabase.from('users').update({ role: newRole }).eq('id', userId)
         loadUsers()
     }
 
     async function toggleStatus(userId, currentStatus) {
+        if (!(await checkIsAdmin())) {
+            alert('Ação não autorizada.')
+            router.push('/')
+            return
+        }
         const newStatus = currentStatus === 'blocked' ? 'active' : 'blocked'
         await supabase.from('users').update({ status: newStatus }).eq('id', userId)
         loadUsers()
     }
 
     async function deleteUser(userId, userEmail) {
+        if (!(await checkIsAdmin())) {
+            alert('Ação não autorizada.')
+            router.push('/')
+            return
+        }
+        if (userEmail === session?.email) {
+            alert('Você não pode excluir sua própria conta de Administrador.')
+            return
+        }
         if (!confirm(`ATENÇÃO: Deseja apagar o perfil e o histórico de ${userEmail}?\nIsso apagará todas as transações desse usuário!`)) return
         await supabase.from('users').delete().eq('id', userId)
         await supabase.from('transactions').delete().eq('user_email', userEmail)

@@ -76,6 +76,13 @@ export default function Sidebar() {
                 })
                 .catch(() => {});
         }
+
+        const handleAvatarUpdated = () => {
+            const fresh = cacheKey ? localStorage.getItem(cacheKey) : null;
+            if (fresh) setAvatarSrc(fresh);
+        };
+        window.addEventListener('avatar_updated', handleAvatarUpdated);
+        return () => window.removeEventListener('avatar_updated', handleAvatarUpdated);
     }, [session]);
 
     // Close mobile menu when page changes

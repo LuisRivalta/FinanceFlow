@@ -42,7 +42,7 @@ export default function LoginPage() {
 
             if (authError) {
                 // Fallback para tabela users manual
-                const { data: usersData, error } = await supabase.from('users').select('*').eq('email', email).eq('password', password)
+                const { data: usersData, error } = await supabase.from('users').select('id, name, email, role, status').eq('email', email).eq('password', password)
 
                 if (error || !usersData || usersData.length === 0) {
                     let msg = 'Credenciais inválidas ou e-mail não confirmado.'
@@ -68,7 +68,7 @@ export default function LoginPage() {
             const user = authData.user
             name = user.user_metadata?.name || 'Usuário'
 
-            const { data: dbUser } = await supabase.from('users').select('*').eq('email', user.email).maybeSingle()
+            const { data: dbUser } = await supabase.from('users').select('id, name, email, role, status').eq('email', user.email).maybeSingle()
 
             if (dbUser) {
                 if (dbUser.status === 'blocked') { setLoginError('Conta bloqueada pelo Administrador.'); setLoading(false); return }

@@ -19,6 +19,7 @@ export default function ProfilePage() {
     const [initials, setInitials] = useState('--')
     const [pwdSent, setPwdSent] = useState(false)
     const [pwdLoading, setPwdLoading] = useState(false)
+    const [avatarLoading, setAvatarLoading] = useState(false)
     const fileInputRef = useRef(null)
 
     useEffect(() => {
@@ -55,32 +56,62 @@ export default function ProfilePage() {
     }, [session, router])
 
     function handleAvatarClick() {
+        if (avatarLoading) return
         fileInputRef.current?.click()
     }
 
     async function handleFileChange(e) {
-        const file = e.target.files[0]
+        const file = e.target.files?.[0]
         if (!file) return
-        if (file.size > 2 * 1024 * 1024) { alert('Imagem muito grande! Max 2MB.'); return }
-        const reader = new FileReader()
-        reader.onload = async (ev) => {
-            const base64 = ev.target.result
-            setAvatarSrc(base64)
+        if (file.size > 5 * 1024 * 1024) { alert('Imagem muito grande! Max 5MB.'); return }
 
-            const userEmail = session?.email
-            if (userEmail) {
-                // Save per-user in localStorage cache
-                localStorage.setItem(`finance_avatar_${userEmail}`, base64)
+        const userEmail = session?.email
+        if (!userEmail) return
 
-                // Save in Supabase database
-                try {
+        setAvatarLoading(true)
+
+        try {
+            // Gera nome e path único para o avatar
+            const fileExt = file.name.split('.').pop()?.toLowerCase() || 'png'
+            const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9]/g, '_')
+            const filePath = `user_${sanitizedEmail}_${Date.now()}.${fileExt}`
+
+            // Tenta upload para o bucket 'avatars' no Supabase Storage
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, file, { upsert: true, cacheControl: '3600' })
+
+            if (uploadError) {
+                console.warn('Supabase Storage indisponível, usando fallback local Base64:', uploadError.message)
+                // Fallback para Base64 caso o bucket ainda não tenha sido criado
+                const reader = new FileReader()
+                reader.onload = async (ev) => {
+                    const base64 = ev.target.result
+                    setAvatarSrc(base64)
+                    localStorage.setItem(`finance_avatar_${userEmail}`, base64)
                     await supabase.from('users').update({ avatar_url: base64 }).eq('email', userEmail)
-                } catch (err) {
-                    console.warn('Avatar save error:', err)
+                    window.dispatchEvent(new Event('avatar_updated'))
+                    setAvatarLoading(false)
                 }
+                reader.readAsDataURL(file)
+                return
             }
+
+            // Upload via Storage bem-sucedido: recupera a URL pública limpa
+            const { data: { publicUrl } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath)
+
+            setAvatarSrc(publicUrl)
+            localStorage.setItem(`finance_avatar_${userEmail}`, publicUrl)
+            await supabase.from('users').update({ avatar_url: publicUrl }).eq('email', userEmail)
+            window.dispatchEvent(new Event('avatar_updated'))
+        } catch (err) {
+            console.error('Erro ao atualizar avatar:', err)
+            alert('Falha ao salvar avatar: ' + (err.message || String(err)))
+        } finally {
+            setAvatarLoading(false)
         }
-        reader.readAsDataURL(file)
     }
 
     async function handleSaveName() {
@@ -152,14 +183,20 @@ export default function ProfilePage() {
                             {/* Avatar */}
                             <div
                                 onClick={handleAvatarClick}
-                                style={{ width: 120, height: 120, borderRadius: '50%', backgroundImage: avatarSrc ? `url('${avatarSrc}')` : 'linear-gradient(135deg, var(--accent-primary), #ec4899)', color: 'white', fontSize: 'clamp(28px, 7vw, 48px)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, margin: '0 auto 24px', boxShadow: '0 10px 25px var(--accent-glow)', position: 'relative', overflow: 'hidden', cursor: 'pointer', backgroundSize: 'cover', backgroundPosition: 'center' }}
+                                style={{ width: 120, height: 120, borderRadius: '50%', backgroundImage: avatarSrc ? `url('${avatarSrc}')` : 'linear-gradient(135deg, var(--accent-primary), #ec4899)', color: 'white', fontSize: 'clamp(28px, 7vw, 48px)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, margin: '0 auto 24px', boxShadow: '0 10px 25px var(--accent-glow)', position: 'relative', overflow: 'hidden', cursor: avatarLoading ? 'wait' : 'pointer', backgroundSize: 'cover', backgroundPosition: 'center' }}
                             >
-                                {!avatarSrc && initials}
-                                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s', fontSize: 22, gap: 4 }}
-                                    onMouseOver={e => e.currentTarget.style.opacity = '1'}
-                                    onMouseOut={e => e.currentTarget.style.opacity = '0'}>
-                                    <Camera size={16} strokeWidth={2} /><span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>Alterar</span>
-                                </div>
+                                {avatarLoading ? (
+                                    <Loader2 size={32} strokeWidth={2} style={{ animation: 'spin 1s linear infinite' }} />
+                                ) : (
+                                    <>
+                                        {!avatarSrc && initials}
+                                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s', fontSize: 22, gap: 4 }}
+                                            onMouseOver={e => e.currentTarget.style.opacity = '1'}
+                                            onMouseOut={e => e.currentTarget.style.opacity = '0'}>
+                                            <Camera size={16} strokeWidth={2} /><span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>Alterar</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {/* Name edit */}
